@@ -905,6 +905,23 @@ function drawWater(p){
   }
 }
 /* the slime */
+var SPR={};
+(function(){
+  var ns=['slime_charge','slime_fly','slime_fall','slime_land','slime_down'],i;
+  for(i=0;i<ns.length;i++)(function(n){
+    var im=new Image();
+    im.onload=function(){SPR[n]=im;};
+    im.src='assets/'+n+'.png';
+  })(ns[i]);
+})();
+/* draw a sprite centred on cx, with w as its width; ab anchors the bottom edge */
+function drawSpr(im,cx,cy,w,ang,ab,ky){
+  var h=w*im.height/im.width*(ky||1);
+  ctx.save();ctx.translate(cx,cy);
+  if(ang)ctx.rotate(ang);
+  ctx.drawImage(im,-w*0.5,ab?-h:-h*0.5,w,h);
+  ctx.restore();
+}
 function drawEmber(p){
   var x=toX(P.x),y=toY(P.y),sp=Math.hypot(P.vx,P.vy),i;
   if(trail.length>6){
@@ -918,10 +935,35 @@ function drawEmber(p){
     ctx.globalAlpha=1;
   }
   var st=clamp(sp/1250,0,0.5);
-  ctx.globalAlpha=0.5;
+  ctx.globalAlpha=0.26;
   var gl=(34+S.hit*60)*sc;
   ctx.drawImage(glowArt,x-gl,y-gl,gl*2,gl*2);
   ctx.globalAlpha=1;
+  var D=R*sc*4.5,base=y+(R+9)*sc,pull=0,drawn=false,im;
+  if(S.aiming){
+    var adx=S.cx-S.ax,ady=S.cy-S.ay;
+    pull=clamp(Math.hypot(adx,ady)/MAXPULL,0,1);
+  }
+  if(S.mode==='play'&&P.y-R*0.4<S.water&&SPR.slime_down){
+    drawSpr(SPR.slime_down,x,y+R*sc,D*1.7,0,1,1);drawn=true;
+  }else if(P.stuck){
+    if(P.sq<-0.2&&SPR.slime_land){
+      drawSpr(SPR.slime_land,x,base,D*(1.74-P.sq*0.6),0,1,1);drawn=true;
+    }else if(S.aiming&&SPR.slime_charge){
+      drawSpr(SPR.slime_charge,x,base,D*(1.5+pull*0.5),0,1,1-pull*0.26);drawn=true;
+    }else{
+      im=SPR.slime_idle||SPR.slime_charge;
+      if(im){drawSpr(im,x,base,D*1.42,0,1,1);drawn=true;}
+    }
+  }else if(P.vy>0&&SPR.slime_fly){
+    drawSpr(SPR.slime_fly,x,y,D*(1.0-st*0.24),Math.atan2(P.vx,P.vy),0,1+st*0.8);drawn=true;
+  }else if(SPR.slime_fall){
+    drawSpr(SPR.slime_fall,x,y,D*1.06,clamp(P.vx/900,-0.35,0.35),0,1);drawn=true;
+  }
+  if(!drawn)drawEmberVec(x,y,st);
+}
+/* fallback drawing, used until the sprites have loaded */
+function drawEmberVec(x,y,st){
   var BR=R*sc*2.25;
   ctx.save();ctx.translate(x,y-R*sc*0.75);
   if(!P.stuck)ctx.rotate(P.ang+Math.PI/2);
