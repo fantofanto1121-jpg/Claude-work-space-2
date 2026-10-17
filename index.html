@@ -161,9 +161,10 @@ function wallL(y){return 22+46*vn(y,430,1.7+SEED)+16*vn(y,150,4.3+SEED);}
 function wallR(y){return WW-(22+46*vn(y,430,9.1+SEED)+16*vn(y,150,13.7+SEED));}
 function ledge(k){
   if(k<=0)return {y:0,x0:-20,x1:WW+20,floor:true};
-  var y=k*LSTEP+h1(k,21.3+SEED)*54,
-      side=h1(k,31.1+SEED)<0.5?0:1,
-      len=84+h1(k,37.9+SEED)*62,
+  var y=k*LSTEP+h1(k,21.3+SEED)*54;
+  if(y>9000&&h1(k,103.1+SEED)<Math.min(0.2,(y-9000)/130000))return null;
+  var side=h1(k,31.1+SEED)<0.5?0:1,
+      len=(84+h1(k,37.9+SEED)*62)*(1-Math.min(0.34,y/95000)),
       inset=8+h1(k,43.7+SEED)*52,
       x0=side?wallR(y)-inset-len:wallL(y)+inset;
   if(h1(k,71.9+SEED)>0.93){ /* a timber beam spans the whole shaft */
@@ -399,7 +400,7 @@ function step(dt){
     S.camY=lerp(S.camY,P.y+120,Math.min(1,dt*2));
     return;
   }
-  var rise=Math.min(170,34+S.peak*0.004);
+  var rise=Math.min(300,30+S.peak*0.009);
   S.water+=rise*dt;
   if(P.stuck){
     if(P.rest>0)P.rest-=dt;
@@ -573,6 +574,41 @@ function drawRockFace(p,wp){
   ctx.save();ctx.translate(2*sc,0);ctx.stroke(wp.el);ctx.restore();
   ctx.save();ctx.translate(-2*sc,0);ctx.stroke(wp.er);ctx.restore();
 }
+function drawLamps(p){
+  var top=S.camY+(H*0.58)/sc+320,bot=S.camY-(H*0.42)/sc-320,k;
+  for(k=Math.floor(bot/620)-1;k<=Math.ceil(top/620)+1;k++){
+    if(h1(k,93.7+SEED)>0.62)continue;
+    var y=k*620+h1(k,97.1+SEED)*280,left=h1(k,101.3+SEED)<0.5,
+        x=toX(left?wallL(y)+5:wallR(y)-5),sy=toY(y);
+    if(sy<-70||sy>H+70)continue;
+    var fl=0.82+Math.sin(S.t*6.5+k*1.7)*0.18,arm=(left?11:-11)*sc;
+    ctx.globalAlpha=0.42*fl;
+    var g2=62*sc;
+    ctx.drawImage(glowArt,x+arm-g2,sy-6*sc-g2,g2*2,g2*2);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=rgba(p.deep,0.95);ctx.lineWidth=Math.max(1,2*sc);
+    ctx.beginPath();ctx.moveTo(x,sy-12*sc);ctx.lineTo(x+arm,sy-5*sc);
+    ctx.lineTo(x+arm,sy+2*sc);ctx.stroke();
+    ctx.fillStyle='rgba(255,226,170,'+fl.toFixed(2)+')';
+    ctx.beginPath();ctx.arc(x+arm,sy-3*sc,2.8*sc*fl,0,6.2832);ctx.fill();
+  }
+}
+function drawBackRocks(p){
+  var pf=0.76,top=S.camY*pf+(H*0.58)/sc+260,bot=S.camY*pf-(H*0.42)/sc-260,k;
+  for(k=Math.floor(bot/260)-1;k<=Math.ceil(top/260)+1;k++){
+    var hh=h1(k,109.7+SEED);
+    if(hh>0.6)continue;
+    var y=k*260+hh*160,sy=H*0.58-(y-S.camY*pf)*sc;
+    if(sy<-80||sy>H+80)continue;
+    var cx=toX(60+h1(k,113.3+SEED)*300),w2=(40+h1(k,119.1+SEED)*90)*sc,
+        h2=(14+hh*34)*sc;
+    ctx.fillStyle=rgba(mix(p.bg[1],p.rock,0.55),0.5);
+    ctx.beginPath();
+    ctx.moveTo(cx-w2,sy+h2);ctx.lineTo(cx-w2*0.7,sy);
+    ctx.lineTo(cx+w2*0.5,sy-h2*0.4);ctx.lineTo(cx+w2,sy+h2);
+    ctx.closePath();ctx.fill();
+  }
+}
 function drawLedges(p){
   var top=S.camY+(H*0.58)/sc+LSTEP,bot=S.camY-(H*0.42)/sc-LSTEP,k,k0,k1;
   k0=Math.floor(bot/LSTEP)-1;k1=Math.ceil(top/LSTEP)+1;
@@ -595,6 +631,18 @@ function drawLedges(p){
         ctx.beginPath();ctx.arc(bx,y,2.2*sc,0,6.2832);ctx.fill();
       }
     }else{
+      /* the outcrop grows out of the nearer wall */
+      var wl=toX(wallL(lg.y)),wr=toX(wallR(lg.y)),toLeft=(x0-wl)<=(wr-x1);
+      ctx.fillStyle=rgb(mix(p.rock,p.deep,0.42));
+      ctx.beginPath();
+      if(toLeft){
+        ctx.moveTo(wl-3,y-9*sc-7*sc);ctx.lineTo(x0+3,y-9*sc);
+        ctx.lineTo(x0+3,y+th*0.8);ctx.lineTo(wl-3,y+th*1.9);
+      }else{
+        ctx.moveTo(wr+3,y-9*sc-7*sc);ctx.lineTo(x1-3,y-9*sc);
+        ctx.lineTo(x1-3,y+th*0.8);ctx.lineTo(wr+3,y+th*1.9);
+      }
+      ctx.closePath();ctx.fill();
       ctx.fillStyle=rgb(mix(p.rock,p.deep,0.25));
       ctx.beginPath();
       ctx.moveTo(x0,y-9*sc);ctx.lineTo(x1,y-9*sc);
@@ -609,6 +657,14 @@ function drawLedges(p){
       ctx.moveTo(x0+5*sc,y+th*0.7);ctx.lineTo(x1-6*sc,y+th*0.7);
       ctx.lineTo(x1-13*sc,y+th*1.5);ctx.lineTo(x0+11*sc,y+th*1.5);
       ctx.closePath();ctx.fill();
+      /* loose stones on the shelf */
+      for(var st2=0;st2<3;st2++){
+        var sh2=h1(k*3+st2,127.1+SEED);
+        if(sh2>0.6)continue;
+        var sx3=x0+w*(0.15+sh2*1.2)%w,sr=(1.6+sh2*2.6)*sc;
+        ctx.fillStyle=rgba(mix(p.rock,p.rim,0.35),0.8);
+        ctx.beginPath();ctx.arc(x0+(sx3-x0)%Math.max(1,w),y-10*sc-sr*0.4,sr,0,6.2832);ctx.fill();
+      }
     }
   }
 }
@@ -654,6 +710,11 @@ function drawSparks(p){
     ctx.globalAlpha=1;
     ctx.fillStyle='#ffe6bd';
     ctx.beginPath();ctx.arc(x,y,2.6*sc,0,6.2832);ctx.fill();
+    ctx.strokeStyle='rgba(255,228,180,0.55)';ctx.lineWidth=Math.max(0.7,1.1*sc);
+    var fr=(7+Math.sin(S.t*4+k)*1.6)*sc;
+    ctx.beginPath();
+    ctx.moveTo(x-fr,y);ctx.lineTo(x+fr,y);ctx.moveTo(x,y-fr);ctx.lineTo(x,y+fr);
+    ctx.stroke();
   }
 }
 function drawWater(p){
@@ -778,11 +839,21 @@ function draw(){
     ctx.drawImage(moteArt,mx-ms,my-ms,ms*2,ms*2);
   }
   ctx.globalAlpha=1;
+  drawBackRocks(p);
   var wp=wallPaths();
   drawRockFace(p,wp);
+  drawLamps(p);
   drawLedges(p);
   drawRings(p);
   drawSparks(p);
+  /* the ember throws its own light on the rock */
+  if(S.mode!=='over'){
+    var lr=(150+S.hit*120)*sc;
+    ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=0.3;
+    ctx.drawImage(glowArt,toX(P.x)-lr,toY(P.y)-lr,lr*2,lr*2);
+    ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+  }
   /* particles behind the ember */
   for(var i=0;i<parts.length;i++){
     var pa=parts[i],a=pa.l/pa.m,px=toX(pa.x),py=toY(pa.y);
