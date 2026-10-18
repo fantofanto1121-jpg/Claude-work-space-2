@@ -603,23 +603,49 @@ function getCliffPat(){
   cliffPat=ctx.createPattern(c,'repeat');cliffPatW=want;cliffPatH=h2*2;
   return cliffPat;
 }
-/* flip mirrors the face so the right wall looks out across the shaft too */
-function fillWall(path,pat,ph,off,tint,flip){
+/* The rock face is one copy of the pattern wide, laid against the shaft.
+   Anything further out than that falls away into shadow, so a wide window
+   never shows the texture repeating sideways.
+   flip mirrors the face so the right wall looks out across the shaft too. */
+function fillWall(path,pat,pw,ph,off,tint,flip,edge,deep,fade,shade){
+  var x0=edge-pw,i,by;
   ctx.save();ctx.clip(path);
-  ctx.save();
   if(flip){ctx.translate(W,0);ctx.scale(-1,1);}
-  ctx.translate(0,off);
-  ctx.fillStyle=pat;ctx.fillRect(-12,-ph*2,W+24,H+ph*4);
+  ctx.fillStyle=deep;ctx.fillRect(-W,0,W*2,H);
+  /* slow strata so the far rock is not a flat slab */
+  ctx.fillStyle='rgba(38,26,16,0.16)';
+  for(i=0;i<7;i++){
+    by=((S.camY*sc*0.55+i*H*0.21)%(H*1.5)+H*1.5)%(H*1.5)-H*0.25;
+    ctx.fillRect(-W,by,W+x0,H*0.07);
+  }
+  ctx.save();
+  ctx.translate(x0,off);
+  ctx.fillStyle=pat;ctx.fillRect(0,-ph*2,pw,H+ph*4);
   ctx.restore();
-  ctx.fillStyle=tint;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=fade;ctx.fillRect(-W,0,W+x0+pw*0.5,H);
+  ctx.fillStyle=shade;ctx.fillRect(-W,0,W+x0,H);
+  ctx.fillStyle=tint;ctx.fillRect(x0,0,pw,H);
   ctx.restore();
 }
 function drawCliffs(p,wp){
   var pat=getCliffPat(),top=S.camY+(H*0.58)/sc+60,bot=S.camY-(H*0.42)/sc-60,wy,i;
   if(pat){
-    var ph=cliffPatH,off=((S.camY*sc)%ph+ph)%ph,tint=rgba(p.rock,0.3);
-    fillWall(wp.pl,pat,ph,off,tint,false);
-    fillWall(wp.pr,pat,ph,(off+ph*0.41)%ph,tint,true);
+    var ph=cliffPatH,pw=cliffPatW,off=((S.camY*sc)%ph+ph)%ph,
+        tint=rgba(p.rock,0.3),edge=ox+86*sc,x0=edge-pw,
+        back=mix(p.rock,p.deep,0.78),
+        dg=ctx.createLinearGradient(0,0,0,H),
+        fg=ctx.createLinearGradient(x0,0,x0+pw*0.5,0),
+        sg=ctx.createLinearGradient(x0,0,x0-Math.max(80,W*0.8),0);
+    dg.addColorStop(0,rgb(mix(back,p.deep,0.4)));
+    dg.addColorStop(0.5,rgb(back));
+    dg.addColorStop(1,rgb(mix(back,p.deep,0.55)));
+    fg.addColorStop(0,rgb(back));fg.addColorStop(1,rgba(back,0));
+    sg.addColorStop(0,'rgba(18,12,7,0)');
+    sg.addColorStop(0.16,'rgba(18,12,7,0.42)');
+    sg.addColorStop(0.46,'rgba(18,12,7,0.78)');
+    sg.addColorStop(1,'rgba(14,10,6,0.93)');
+    fillWall(wp.pl,pat,pw,ph,off,tint,false,edge,dg,fg,sg);
+    fillWall(wp.pr,pat,pw,ph,(off+ph*0.41)%ph,tint,true,edge,dg,fg,sg);
   }else{
     var g=ctx.createLinearGradient(0,0,0,H);
     g.addColorStop(0,rgb(mix(p.rock,p.deep,0.3)));
