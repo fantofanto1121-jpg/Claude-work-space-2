@@ -303,7 +303,7 @@ function rumble(near){
 var S={mode:'title',t:0,camY:0,water:-640,best:0,peak:0,charges:1,shake:0,flash:0,
        over:0,slow:1,aiming:false,ax:0,ay:0,cx:0,cy:0,hit:0};
 var P={x:WW/2,y:26,vx:0,vy:0,stuck:true,rest:0,sq:0,ang:0};
-var parts=[],motes=[],trail=[],taken={},rings={};
+var parts=[],motes=[],trail=[],taken={},rings={},fx=[];
 try{S.best=parseInt(localStorage.getItem('hinoko.best')||'0',10)||0;}catch(e){}
 var EL={h:document.getElementById('hgt'),best:document.getElementById('best'),
   wg:document.getElementById('wg'),wlab:document.getElementById('wlab'),
@@ -349,7 +349,7 @@ function aimEnd(){
       spawn(P.x,P.y,Math.cos(a)*s,Math.sin(a)*s,0.5,3+Math.random()*3,'mote');
     }
   }
-  P.vx=ux*v;P.vy=uy*v;P.stuck=false;P.rest=0;P.sq=1;
+  P.vx=ux*v;P.vy=uy*v;P.stuck=false;P.rest=0;P.sq=1;burst(P.x,P.y,'spark');
   noiseHit(0.17,0.16,900+pw*900,180);
   tone(260+pw*260,120,0.22,0.05,'triangle');
   kick(P.x,P.y,-ux,-uy,pw);
@@ -378,6 +378,12 @@ snd.addEventListener('click',function(e){
 });
 
 /* ---------------------------------------------------------------- particles */
+function stepFx(dt){
+  for(var i=fx.length-1;i>=0;i--){
+    fx[i].l-=dt;
+    if(fx[i].l<=0)fx.splice(i,1);
+  }
+}
 function spawn(x,y,vx,vy,life,size,kind,col){
   if(parts.length>130)parts.shift();
   parts.push({x:x,y:y,vx:vx,vy:vy,l:life,m:life,s:size,k:kind,c:col,
@@ -388,6 +394,35 @@ function kick(x,y,dx,dy,pw){
     var a=Math.atan2(dy,dx)+(Math.random()-0.5)*1.5,s=70+Math.random()*220*pw;
     spawn(x+dx*8,y+dy*8,Math.cos(a)*s,Math.sin(a)*s,0.3+Math.random()*0.35,
       2+Math.random()*3.5,'mote');
+  }
+}
+/* one-off art effects: the puff of dust and the flash of light */
+function burst(x,y,k){
+  if(fx.length>14)fx.shift();
+  var li=k==='dust'?0.5:0.38;
+  fx.push({x:x,y:y,l:li,m:li,k:k,r:Math.random()*6.28});
+}
+function drawFx(){
+  for(var i=0;i<fx.length;i++){
+    var f=fx[i],a=f.l/f.m,px=toX(f.x),py=toY(f.y),im;
+    if(py<-90||py>H+90)continue;
+    if(f.k==='dust'){
+      im=SPR.fx_dust;
+      if(!im)continue;
+      var dw=(82+(1-a)*96)*sc,dh=dw*im.height/im.width;
+      ctx.globalAlpha=a*0.95;
+      ctx.drawImage(im,px-dw*0.5,py-dh*0.84,dw,dh);
+      ctx.globalAlpha=1;
+    }else{
+      im=SPR.fx_sparkle;
+      if(!im)continue;
+      var sw2=(34+(1-a)*62)*sc,sh2=sw2*im.height/im.width;
+      ctx.save();
+      ctx.globalAlpha=a*0.95;
+      ctx.translate(px,py);ctx.rotate(f.r+(1-a)*0.6);
+      ctx.drawImage(im,-sw2*0.5,-sh2*0.5,sw2,sh2);
+      ctx.restore();
+    }
   }
 }
 function dust(x,y,n,pw){
@@ -427,7 +462,7 @@ function step(dt){
         ny=lg.y+9+R;P.vy=0;P.vx=0;P.stuck=true;P.rest=0.1;landed=true;
         S.charges=Math.max(S.charges,1);
         P.sq=-1;
-        dust(nx,lg.y+10,6,90);
+        dust(nx,lg.y+10,6,90);burst(nx,lg.y+10,'dust');
         tone(180,110,0.14,0.05,'triangle');noiseHit(0.09,0.05,300,120);
         S.shake=Math.min(7,S.shake+1.6);
       }
@@ -444,7 +479,7 @@ function step(dt){
         var sp=Math.hypot(P.vx,P.vy);
         if(sp<520){P.vx*=520/sp;P.vy*=520/sp;}
         nx=bp.x+ux*(bp.r+R+1.5);ny=bp.y+uy*(bp.r+R+1.5);
-        rings[bp.k]=0.5;S.hit=0.4;
+        rings[bp.k]=0.5;S.hit=0.4;burst(nx,ny,'spark');
         tone(760,0,0.3,0.07,'sine');tone(1140,0,0.22,0.03,'sine');
         for(var q=0;q<10;q++){
           var qa=Math.random()*6.28,qs=80+Math.random()*160;
@@ -459,7 +494,7 @@ function step(dt){
       var sp2=sparkPt(sk+d);
       if(!sp2||taken[sp2.k])continue;
       if(Math.hypot(nx-sp2.x,ny-sp2.y)<24){
-        taken[sp2.k]=1;S.charges=Math.min(2,S.charges+1);
+        taken[sp2.k]=1;burst(sp2.x,sp2.y,'spark');S.charges=Math.min(2,S.charges+1);
         tone(880,1320,0.26,0.06,'sine');
         for(var w=0;w<14;w++){
           var wa=Math.random()*6.28,ws=50+Math.random()*170;
@@ -498,6 +533,7 @@ function step(dt){
   S.camY=lerp(S.camY,tgt,Math.min(1,dt*(P.stuck?3.4:5.2)));
   /* fx decay */
   S.shake*=Math.pow(0.004,dt);S.flash*=Math.pow(0.02,dt);S.hit*=Math.pow(0.02,dt);
+  stepFx(dt);
   for(var i=parts.length-1;i>=0;i--){
     var pa=parts[i];pa.l-=dt;
     if(pa.l<=0){parts.splice(i,1);continue;}
@@ -1041,7 +1077,8 @@ var SPR={};
   var ns=['slime_charge','slime_fly','slime_fall','slime_land','slime_down',
           'island_s','island_m','island_l','beam',
           'ring','crystal','lantern','bush',
-          'cliff','cloudsea','cloud','castle'],i;
+          'cliff','cloudsea','cloud','castle',
+          'fx_dust','fx_sparkle'],i;
   for(i=0;i<ns.length;i++)(function(n){
     var im=new Image();
     im.onload=function(){SPR[n]=im;};
@@ -1208,6 +1245,7 @@ function draw(){
   }
   ctx.globalAlpha=1;
   drawWater(p);
+  drawFx();
   if(S.mode!=='over')drawEmber(p);
   drawAim(p);
   ctx.restore();
