@@ -721,6 +721,14 @@ function drawBackRocks(p){
     var y=k*300+hh*180,sy=H*0.58-(y-S.camY*pf)*sc;
     if(sy<-80||sy>H+80)continue;
     var cx=toX(50+h1(k,113.3+SEED)*320),w2=(26+h1(k,119.1+SEED)*54)*sc;
+    var far=SPR.island_s;
+    if(far){
+      var fw=w2*2,fh=fw*far.height/far.width;
+      ctx.globalAlpha=0.38;
+      ctx.drawImage(far,cx-fw*0.5,sy-fh*0.118,fw,fh);
+      ctx.globalAlpha=1;
+      continue;
+    }
     ctx.fillStyle=rgba(mix(p.rock,p.cloud,0.66),0.5);
     ctx.beginPath();
     ctx.ellipse(cx,sy,w2,w2*0.3,0,Math.PI,0);
@@ -738,6 +746,17 @@ function drawLedges(p){
     if(!lg)continue;
     var y=toY(lg.y),x0=toX(lg.x0),x1=toX(lg.x1),w=x1-x0;
     if(y<-80||y>H+90||w<=0)continue;
+    /* art: the grass surface of each sprite sits on lg.y */
+    var ww=lg.x1-lg.x0,art,off;
+    if(lg.beam){art=SPR.beam;off=0.010;}
+    else if(lg.floor||ww>=132){art=SPR.island_l;off=0.270;}
+    else if(ww<105){art=SPR.island_s;off=0.118;}
+    else {art=SPR.island_m;off=0.076;}
+    if(art){
+      var dh=w*art.height/art.width;
+      ctx.drawImage(art,x0,y-dh*off,w,dh);
+      continue;
+    }
     if(lg.beam){
       var th=12*sc;
       ctx.fillStyle='rgb(122,86,52)';
@@ -907,11 +926,12 @@ function drawWater(p){
 /* the slime */
 var SPR={};
 (function(){
-  var ns=['slime_charge','slime_fly','slime_fall','slime_land','slime_down'],i;
+  var ns=['slime_charge','slime_fly','slime_fall','slime_land','slime_down',
+          'island_s','island_m','island_l','beam'],i;
   for(i=0;i<ns.length;i++)(function(n){
     var im=new Image();
     im.onload=function(){SPR[n]=im;};
-    im.src='assets/'+n+'.png';
+    im.src='assets/'+n+'.webp';
   })(ns[i]);
 })();
 /* draw a sprite centred on cx, with w as its width; ab anchors the bottom edge */
