@@ -594,6 +594,11 @@ function drawCliffs(p,wp){
     var bleft=h1(i,147.7+SEED)<0.5,
         bx=bleft?toX(wallL(wy))-3*sc:toX(wallR(wy))+3*sc,
         by2=toY(wy),br2=(5+bh2*7)*sc;
+    if(SPR.bush){
+      var uw=br2*3.6,uh=uw*SPR.bush.height/SPR.bush.width;
+      ctx.drawImage(SPR.bush,bx-uw*0.5,by2+br2*0.5-uh,uw,uh);
+      continue;
+    }
     ctx.fillStyle=rgb(mix(p.grass,p.deep,0.3));
     ctx.beginPath();
     ctx.arc(bx,by2,br2,0,6.2832);
@@ -627,6 +632,17 @@ function drawLamps(p){
     if(sy<-70||sy>H+70)continue;
     var fl=0.85+Math.sin(S.t*5.5+k*1.7)*0.15,arm=(left?15:-15)*sc,
         sw=Math.sin(S.t*1.2+k)*0.07;
+    if(SPR.lantern){
+      var lw=15*sc,lh=lw*SPR.lantern.height/SPR.lantern.width;
+      ctx.save();ctx.translate(x+arm*0.3,sy-24*sc);ctx.rotate(sw);
+      ctx.globalAlpha=0.46*fl;
+      var gq=46*sc;
+      ctx.drawImage(glowArt,-gq,lh*0.74-gq,gq*2,gq*2);
+      ctx.globalAlpha=1;
+      ctx.drawImage(SPR.lantern,-lw*0.5,0,lw,lh);
+      ctx.restore();
+      continue;
+    }
     ctx.strokeStyle='rgba(74,52,34,0.95)';ctx.lineWidth=Math.max(1,2*sc);
     ctx.beginPath();ctx.moveTo(x,sy-14*sc);ctx.lineTo(x+arm,sy-11*sc);ctx.stroke();
     ctx.save();ctx.translate(x+arm,sy-11*sc);ctx.rotate(sw);
@@ -850,6 +866,17 @@ function drawRings(p){
     var g3=r*3.4;
     ctx.drawImage(glowArt,x-g3,y-g3,g3*2,g3*2);
     ctx.globalAlpha=1;
+    if(SPR.ring){
+      ctx.save();ctx.translate(x,y);ctx.rotate(spin*0.26);
+      ctx.drawImage(SPR.ring,-r,-r,r*2,r*2);
+      ctx.restore();
+      if(fl>0){
+        ctx.strokeStyle='rgba(255,255,255,'+fl.toFixed(2)+')';
+        ctx.lineWidth=2.2*sc;
+        ctx.beginPath();ctx.arc(x,y,r+(0.5-fl)*46*sc,0,6.2832);ctx.stroke();
+      }
+      continue;
+    }
     ctx.strokeStyle='rgba(58,40,24,0.4)';ctx.lineWidth=6.4*sc;
     ctx.beginPath();ctx.arc(x,y+1.6*sc,r,0,6.2832);ctx.stroke();
     var rg=ctx.createLinearGradient(x-r,y-r,x+r,y+r);
@@ -885,6 +912,13 @@ function drawSparks(p){
     ctx.globalAlpha=0.6;
     ctx.drawImage(glowArt,x-g4,y-g4,g4*2,g4*2);
     ctx.globalAlpha=1;
+    if(SPR.crystal){
+      var cw=r*1.8,ch=cw*SPR.crystal.height/SPR.crystal.width;
+      ctx.save();ctx.translate(x,y);ctx.rotate(spin);
+      ctx.drawImage(SPR.crystal,-cw*0.5,-ch*0.5,cw,ch);
+      ctx.restore();
+      continue;
+    }
     ctx.save();ctx.translate(x,y);ctx.rotate(spin);
     var cg=ctx.createLinearGradient(0,-r*1.6,0,r*1.6);
     cg.addColorStop(0,'#ffffff');cg.addColorStop(0.45,'#9fe8ff');cg.addColorStop(1,'#4bb6e8');
@@ -927,7 +961,8 @@ function drawWater(p){
 var SPR={};
 (function(){
   var ns=['slime_charge','slime_fly','slime_fall','slime_land','slime_down',
-          'island_s','island_m','island_l','beam'],i;
+          'island_s','island_m','island_l','beam',
+          'ring','crystal','lantern','bush'],i;
   for(i=0;i<ns.length;i++)(function(n){
     var im=new Image();
     im.onload=function(){SPR[n]=im;};
