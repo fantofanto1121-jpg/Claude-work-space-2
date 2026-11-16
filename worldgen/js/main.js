@@ -28,7 +28,10 @@
   var dpr = window.devicePixelRatio || 1;
 
   // ---------------- 2D ----------------
-  var tileCache = new Map(), TILE_LIMIT = 9000;
+  // 拡大率が 8 以上のときは、ブロックの見た目（8×8）を描いた細かいタイルを使う
+  var tileCache = new Map(), TILE_LIMIT = 9000, TEX_LIMIT = 400;
+  var texCache = new Map();
+  function resOf() { return ZOOMS[state.zoom] >= 8 ? 8 : 1; }
   var job = null, jobToken = 0;
 
   function resize2D() {
@@ -44,24 +47,24 @@
   function start2D() {
     resize2D();
     b3Token++;
-    var tok = ++jobToken, w = world(), z = ZOOMS[state.zoom] * dpr, W = c2d.width, H = c2d.height, d = dv();
+    var tok = ++jobToken, w = world(), z = ZOOMS[state.zoom] * dpr, W = c2d.width, H = c2d.height, d = dv(), res = resOf();
     var items = [], ox, oy, offW, offH, kind, c, i;
     if (state.mode === 'top' || state.mode === 'slice') {
       var c0x = Math.floor((state.cx - W / 2 / z) / 16), c1x = Math.floor((state.cx + W / 2 / z) / 16);
       var c0z = Math.floor((state.cz - H / 2 / z) / 16), c1z = Math.floor((state.cz + H / 2 / z) / 16);
       var mcx = Math.floor(state.cx / 16), mcz = Math.floor(state.cz / 16);
-      kind = state.mode === 'top' ? 'top:' + d.yMax : 'slice:' + d.slice;
+      kind = (state.mode === 'top' ? 'top:' + d.yMax : 'slice:' + d.slice) + ':' + res;
       for (var cz = c0z; cz <= c1z; cz++) for (var cx = c0x; cx <= c1x; cx++) {
-        items.push({ a: cx, b: cz, px: (cx - c0x) * 16, py: (cz - c0z) * 16, d: (cx - mcx) * (cx - mcx) + (cz - mcz) * (cz - mcz) });
+        items.push({ a: cx, b: cz, px: (cx - c0x) * 16 * res, py: (cz - c0z) * 16 * res, d: (cx - mcx) * (cx - mcx) + (cz - mcz) * (cz - mcz) });
       }
-      offW = (c1x - c0x + 1) * 16; offH = (c1z - c0z + 1) * 16;
+      offW = (c1x - c0x + 1) * 16 * res; offH = (c1z - c0z + 1) * 16 * res;
       ox = W / 2 + (c0x * 16 - state.cx) * z; oy = H / 2 + (c0z * 16 - state.cz) * z;
     } else {
       var hc = state.axis === 0 ? state.cx : state.cz, line = Math.floor(state.axis === 0 ? state.cz : state.cx);
       var c0 = Math.floor((hc - W / 2 / z) / 16), c1 = Math.floor((hc + W / 2 / z) / 16), mc = Math.floor(hc / 16);
-      kind = 'sec:' + state.axis + ':' + line + ':' + d.yMin + ':' + d.yMax;
-      for (c = c0; c <= c1; c++) items.push({ a: c, b: line, px: (c - c0) * 16, py: 0, d: Math.abs(c - mc) });
-      offW = (c1 - c0 + 1) * 16; offH = d.yMax - d.yMin + 1;
+      kind = 'sec:' + state.axis + ':' + line + ':' + d.yMin + ':' + d.yMax + ':' + res;
+      for (c = c0; c <= c1; c++) items.push({ a: c, b: line, px: (c - c0) * 16 * res, py: 0, d: Math.abs(c - mc) });
+      offW = (c1 - c0 + 1) * 16 * res; offH = (d.yMax - d.yMin + 1) * res;
       ox = W / 2 + (c0 * 16 - hc) * z; oy = H / 2 - (d.yMax + 1 - d.cy) * z;
     }
     items.sort(function (p, q) { return p.d - q.d; });
@@ -70,20 +73,20 @@
     var octx = off.getContext('2d');
     var missing = [];
     for (i = 0; i < items.length; i++) {
-      var it = items[i], key = tileKey(kind, it.a, it.b), t = tileCache.get(key);
+      var it = items[i], key = tileKey(kind, it.a, it.b), t = (res > 1 ? texCache : tileCache).get(key);
       it.key = key;
       if (t) octx.putImageData(t, it.px, it.py); else missing.push(it);
     }
-    job = { tok: tok, w: w, kind: kind, off: off, octx: octx, ox: ox, oy: oy, z: z, missing: missing, i: 0, total: items.length, t0: performance.now(), g0: w.genCount, gt0: w.genTime };
+    job = { tok: tok, w: w, kind: kind, res: res, off: off, octx: octx, ox: ox, oy: oy, z: z, missing: missing, i: 0, total: items.length, t0: performance.now(), g0: w.genCount, gt0: w.genTime };
     blit();
     if (missing.length) requestAnimationFrame(pump); else finish2D();
   }
 
-  function makeTile(w, kind, a, b) {
+  function makeTile(w, kind, a, b, res) {
     var d = dv(), img;
-    if (kind.indexOf('top:') === 0) { img = new ImageData(16, 16); WG.Paint.topTile(w, a, b, d.yMax, img.data); }
-    else if (kind.indexOf('slice:') === 0) { img = new ImageData(16, 16); WG.Paint.sliceTile(w, a, b, d.slice, img.data); }
-    else { img = new ImageData(16, d.yMax - d.yMin + 1); WG.Paint.sectionTile(w, state.axis, b, a, d.yMin, d.yMax, img.data); }
+    if (kind.indexOf('top:') === 0) { img = new ImageData(16 * res, 16 * res); WG.Paint.topTile(w, a, b, d.yMax, img.data, res); }
+    else if (kind.indexOf('slice:') === 0) { img = new ImageData(16 * res, 16 * res); WG.Paint.sliceTile(w, a, b, d.slice, img.data, res); }
+    else { img = new ImageData(16 * res, (d.yMax - d.yMin + 1) * res); WG.Paint.sectionTile(w, state.axis, b, a, d.yMin, d.yMax, img.data, res); }
     return img;
   }
 
@@ -92,9 +95,10 @@
     var t0 = performance.now();
     while (job.i < job.missing.length && performance.now() - t0 < 22) {
       var it = job.missing[job.i++];
-      var img = makeTile(job.w, job.kind, it.a, it.b);
-      tileCache.set(it.key, img);
-      if (tileCache.size > TILE_LIMIT) tileCache.delete(tileCache.keys().next().value);
+      var img = makeTile(job.w, job.kind, it.a, it.b, job.res);
+      var cache = job.res > 1 ? texCache : tileCache;
+      cache.set(it.key, img);
+      if (cache.size > (job.res > 1 ? TEX_LIMIT : TILE_LIMIT)) cache.delete(cache.keys().next().value);
       job.octx.putImageData(img, it.px, it.py);
     }
     blit();
@@ -115,7 +119,7 @@
     ctx.fillStyle = 'rgb(' + pal.void.join(',') + ')';
     ctx.fillRect(0, 0, c2d.width, c2d.height);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(job.off, Math.round(job.ox), Math.round(job.oy), job.off.width * job.z, job.off.height * job.z);
+    ctx.drawImage(job.off, Math.round(job.ox), Math.round(job.oy), job.off.width * job.z / job.res, job.off.height * job.z / job.res);
   }
 
   // 画面の点 → 世界の座標
@@ -273,7 +277,7 @@
   // ---------------- 入力 ----------------
   $('apply').onclick = function () {
     state.seed = $('seed').value.trim() || '0';
-    tileCache.clear(); lastVolKey = '';
+    tileCache.clear(); texCache.clear(); lastVolKey = '';
     syncUI(); refresh();
   };
   $('seed').onkeydown = function (e) { if (e.key === 'Enter') $('apply').onclick(); };

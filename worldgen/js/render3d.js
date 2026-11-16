@@ -33,6 +33,34 @@
     return this.v[(vy * this.sz + vz) * this.sx + vx];
   };
 
+  // ---- 見た目のアトラス ----
+  // 8×8 の見た目を 16×16 枚並べた 128×128 の画像。0 番は白（見た目のないブロック用）。
+  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 128, tileTable = null, atlasPixels = null;
+  function atlas() {
+    if (tileTable) return tileTable;
+    tileTable = new Uint16Array(WG.BLOCKS.length * 3);
+    atlasPixels = new Uint8Array(ATLAS * ATLAS * 4);
+    var n = 0, k;
+    function tile(src) {
+      var tx = (n % 16) * 8, ty = ((n / 16) | 0) * 8;
+      for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
+        var o = ((ty + j) * ATLAS + tx + i) * 4;
+        if (src) { k = (j * 8 + i) * 3; atlasPixels[o] = src[k]; atlasPixels[o + 1] = src[k + 1]; atlasPixels[o + 2] = src[k + 2]; }
+        else { atlasPixels[o] = atlasPixels[o + 1] = atlasPixels[o + 2] = 255; }
+        atlasPixels[o + 3] = 255;
+      }
+      return n++;
+    }
+    tile(null);
+    WG.BLOCKS.forEach(function (b) {
+      ['top', 'side', 'bottom'].forEach(function (f) {
+        var px = WG.skinTexture(b.id, f);
+        tileTable[b.id * 3 + FACE_IX[f]] = px ? tile(px) : 0;
+      });
+    });
+    return tileTable;
+  }
+
   // ---- 面の作成 ----
   // 方向: 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z
   var DIRS = [
@@ -49,15 +77,17 @@
 
   function Buf() { this.cap = 0; this.nv = 0; this.ni = 0; this.grow(4096); }
   Buf.prototype.grow = function (cap) {
-    var pos = new Int16Array(cap * 4), col = new Uint8Array(cap * 4), idx = new Uint32Array(cap * 3 / 2);
-    if (this.pos) { pos.set(this.pos); col.set(this.col); idx.set(this.idx); }
-    this.pos = pos; this.col = col; this.idx = idx; this.cap = cap;
+    var pos = new Int16Array(cap * 4), col = new Uint8Array(cap * 4), uv = new Uint8Array(cap * 4), idx = new Uint32Array(cap * 3 / 2);
+    if (this.pos) { pos.set(this.pos); col.set(this.col); uv.set(this.uv); idx.set(this.idx); }
+    this.pos = pos; this.col = col; this.uv = uv; this.idx = idx; this.cap = cap;
   };
-  Buf.prototype.vert = function (x, y, z, r, g, b, a) {
+  // 色は 2 倍して使う（明るさ 1 = 127.5）。tu, tv は面の中の位置（0〜16）、tile はアトラスの番号。
+  Buf.prototype.vert = function (x, y, z, r, g, b, a, tu, tv, tile) {
     if (this.nv >= this.cap) this.grow(this.cap * 2);
     var o = this.nv * 4;
     this.pos[o] = x; this.pos[o + 1] = y; this.pos[o + 2] = z;
     this.col[o] = r; this.col[o + 1] = g; this.col[o + 2] = b; this.col[o + 3] = a;
+    this.uv[o] = tu; this.uv[o + 1] = tv; this.uv[o + 2] = tile & 255; this.uv[o + 3] = tile >> 8;
     return this.nv++;
   };
   Buf.prototype.quad = function (v0, flip) {
@@ -67,13 +97,19 @@
     this.ni += 6;
   };
   Buf.prototype.trim = function () {
-    return { pos: this.pos.subarray(0, this.nv * 4), col: this.col.subarray(0, this.nv * 4), idx: this.idx.subarray(0, this.ni) };
+    return { pos: this.pos.subarray(0, this.nv * 4), col: this.col.subarray(0, this.nv * 4), uv: this.uv.subarray(0, this.nv * 4), idx: this.idx.subarray(0, this.ni) };
   };
 
   function c8(v) { return v > 255 ? 255 : v < 0 ? 0 : v | 0; }
 
   // 範囲の一部（vx0..vx1, vz0..vz1：体積の座標）の面を作る
+  // 見た目のあるブロックは「白 × 色味 × 明るさ」、ないブロックは「代表色 × 明るさ」を頂点の色にする
+  function faceBase(id, face, bio) {
+    return WG.skinTexture(id, face) ? WG.tintOf(id, face, bio).map(function (m) { return m * 255; }) : WG.blockColor(id, face, bio);
+  }
+
   function meshPart(vol, vx0, vz0, vx1, vz1) {
+    var TT = atlas();
     var v = vol.v, sx = vol.sx, sz = vol.sz, sxz = sx * sz;
     var op = new Buf(), wa = new Buf();
     var dOff = DIRS.map(function (d) { return d.n[0] + d.n[2] * sx + d.n[1] * sxz; });
@@ -97,7 +133,7 @@
             for (var d = 0; d < 6; d++) {
               var ni = i + dOff[d];
               if (OPQ[v[ni]]) continue;
-              var D = DIRS[d], c = WG.blockColor(id, D.face, bio);
+              var D = DIRS[d], c = faceBase(id, D.face, bio), tile = TT[id * 3 + FACE_IX[D.face]], side = D.n[1] === 0;
               var uo = uOff[d], vo = vOff[d];
               for (var k = 0; k < 4; k++) {
                 var su = CORNERS[k][0] ? uo : -uo, sv = CORNERS[k][1] ? vo : -vo;
@@ -111,18 +147,20 @@
                 var py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
                 var pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
                 var f = em > 0 ? (0.82 + 0.18 * D.shade) * (0.85 + 0.15 * AO[ao[k]]) * jit : D.shade * AO[ao[k]] * jit;
-                op.vert(px, py, pz, c8(c[0] * f), c8(c[1] * f), c8(c[2] * f), (em * 255) | 0);
+                f *= 0.5;
+                op.vert(px, py, pz, c8(c[0] * f), c8(c[1] * f), c8(c[2] * f), (em * 255) | 0, cu * 16, side ? 16 - cv * 16 : cv * 16, tile);
               }
               op.quad(v0, ao[0] + ao[2] < ao[1] + ao[3]);
             }
           } else if (id === B.WATER) {
             var topLow = v[i + sxz] !== B.WATER;
-            var wc = WG.blockColor(id, 'top', bio);
+            var wc = faceBase(id, 'top', bio);
             for (d = 0; d < 6; d++) {
               var nid = v[i + dOff[d]];
               if (nid === B.WATER || OPQ[nid]) continue;
               D = DIRS[d];
-              var wf = (d === 2 ? 0.92 : D.shade * 0.85) * (0.98 + (jit - 0.95) * 0.4);
+              var wf = (d === 2 ? 0.92 : D.shade * 0.85) * (0.98 + (jit - 0.95) * 0.4) * 0.5;
+              var wt = TT[id * 3 + FACE_IX[D.face]], ws = D.n[1] === 0;
               v0 = wa.nv;
               for (k = 0; k < 4; k++) {
                 cu = CORNERS[k][0]; cv = CORNERS[k][1];
@@ -130,7 +168,7 @@
                 py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
                 pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
                 if (topLow && py === ly + P) py = ly + 14;
-                wa.vert(px, py, pz, c8(wc[0] * wf), c8(wc[1] * wf), c8(wc[2] * wf), 0);
+                wa.vert(px, py, pz, c8(wc[0] * wf), c8(wc[1] * wf), c8(wc[2] * wf), 0, cu * 16, ws ? 16 - cv * 16 : cv * 16, wt);
               }
               wa.quad(v0, false);
             }
@@ -138,12 +176,12 @@
             var pc = WG.blockColor(id, 'side', bio), ph = id === B.SHORT_GRASS ? 13 : 11;
             for (var q = 0; q < 2; q++) {
               var za = q ? 14 : 2, zb = q ? 2 : 14;
-              var f1 = 0.78 * jit, f2 = 0.98 * jit;
+              var f1 = 0.39 * jit, f2 = 0.49 * jit;
               v0 = op.nv;
-              op.vert(lx + 2, ly, lz + za, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0);
-              op.vert(lx + 14, ly, lz + zb, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0);
-              op.vert(lx + 14, ly + ph, lz + zb, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0);
-              op.vert(lx + 2, ly + ph, lz + za, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0);
+              op.vert(lx + 2, ly, lz + za, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 0, 0, 0);
+              op.vert(lx + 14, ly, lz + zb, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 0, 0, 0);
+              op.vert(lx + 14, ly + ph, lz + zb, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 0, 0, 0);
+              op.vert(lx + 2, ly + ph, lz + za, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 0, 0, 0);
               op.quad(v0, false);
             }
           }
@@ -196,17 +234,23 @@
 
   // ---- WebGL ----
   var VS = [
-    'attribute vec4 aPos; attribute vec4 aCol;',
+    'attribute vec4 aPos; attribute vec4 aCol; attribute vec4 aUV;',
     'uniform mat4 uVP; uniform vec3 uOrigin; uniform vec3 uEye;',
-    'varying vec4 vCol; varying float vDist;',
-    'void main(){ vec3 p = aPos.xyz / 16.0 + uOrigin; vCol = aCol; vDist = length(p - uEye); gl_Position = uVP * vec4(p, 1.0); }'
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist;',
+    'void main(){ vec3 p = aPos.xyz / 16.0 + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0; vTile = aUV.z + aUV.w * 256.0;',
+    '  vDist = length(p - uEye); gl_Position = uVP * vec4(p, 1.0); }'
   ].join('\n');
+  // 見た目は 8×8 の中だけを読む（隣の見た目がにじまないよう、端の画素の中心で止める）
   var FS = [
     'precision mediump float;',
-    'varying vec4 vCol; varying float vDist;',
-    'uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
-    'void main(){ float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
-    '  gl_FragColor = vec4(mix(vCol.rgb, uFog, f), uAlpha); }'
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist;',
+    'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
+    'void main(){',
+    '  float t = floor(vTile + 0.5); vec2 org = vec2(mod(t, 16.0), floor(t / 16.0)) * 8.0;',
+    '  vec2 uv = (org + clamp(vUV, 0.0625, 0.9375) * 8.0) / 128.0;',
+    '  vec3 c = texture2D(uAtlas, uv).rgb * vCol.rgb * 2.0;',
+    '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
+    '  gl_FragColor = vec4(mix(c, uFog, f), uAlpha); }'
   ].join('\n');
   var SKY_VS = 'attribute vec2 aP; varying float vY; void main(){ vY = aP.y * 0.5 + 0.5; gl_Position = vec4(aP, 0.999, 1.0); }';
   var SKY_FS = [
@@ -245,12 +289,23 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     this.loc = {
-      aPos: gl.getAttribLocation(this.prog, 'aPos'), aCol: gl.getAttribLocation(this.prog, 'aCol'),
+      aPos: gl.getAttribLocation(this.prog, 'aPos'), aCol: gl.getAttribLocation(this.prog, 'aCol'), aUV: gl.getAttribLocation(this.prog, 'aUV'),
+      uAtlas: gl.getUniformLocation(this.prog, 'uAtlas'),
       uVP: gl.getUniformLocation(this.prog, 'uVP'), uOrigin: gl.getUniformLocation(this.prog, 'uOrigin'),
       uEye: gl.getUniformLocation(this.prog, 'uEye'), uFog: gl.getUniformLocation(this.prog, 'uFog'),
       uFogR: gl.getUniformLocation(this.prog, 'uFogR'), uAlpha: gl.getUniformLocation(this.prog, 'uAlpha'),
       aP: gl.getAttribLocation(this.sky, 'aP'), uTop: gl.getUniformLocation(this.sky, 'uTop'), uLow: gl.getUniformLocation(this.sky, 'uLow')
     };
+    // 見た目のアトラスを読み込む（ドット絵なので補間しない）
+    atlas();
+    this.atlasTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.atlasTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ATLAS, ATLAS, 0, gl.RGBA, gl.UNSIGNED_BYTE, atlasPixels);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     this.parts = [];
     this.vol = null;
     this.yaw = 0.75; this.pitch = 0.55; this.dist = 160;
@@ -262,7 +317,7 @@
   View3D.prototype.clear = function () {
     var gl = this.gl;
     if (!gl) return;
-    this.parts.forEach(function (p) { [p.op, p.wa].forEach(function (m) { if (m) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.col); gl.deleteBuffer(m.idx); } }); });
+    this.parts.forEach(function (p) { [p.op, p.wa].forEach(function (m) { if (m) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.col); gl.deleteBuffer(m.uv); gl.deleteBuffer(m.idx); } }); });
     this.parts = [];
     this.vol = null;
   };
@@ -271,8 +326,9 @@
     var gl = this.gl;
     function up(m) {
       if (!m.idx.length) return null;
-      var o = { pos: gl.createBuffer(), col: gl.createBuffer(), idx: gl.createBuffer(), n: m.idx.length };
+      var o = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer(), idx: gl.createBuffer(), n: m.idx.length };
       gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.bufferData(gl.ARRAY_BUFFER, m.pos, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, o.uv); gl.bufferData(gl.ARRAY_BUFFER, m.uv, gl.STATIC_DRAW);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.col); gl.bufferData(gl.ARRAY_BUFFER, m.col, gl.STATIC_DRAW);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.idx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.idx, gl.STATIC_DRAW);
       return o;
@@ -335,11 +391,12 @@
     gl.uniform3fv(L.uEye, m.eye);
     gl.uniform3fv(L.uFog, low);
     gl.uniform2f(L.uFogR, this.dist * 0.95, this.dist * 2.6 + vol.size);
-    gl.enableVertexAttribArray(L.aPos); gl.enableVertexAttribArray(L.aCol);
-    var self = this;
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.atlasTex); gl.uniform1i(L.uAtlas, 0);
+    gl.enableVertexAttribArray(L.aPos); gl.enableVertexAttribArray(L.aCol); gl.enableVertexAttribArray(L.aUV);
     function draw(o) {
       gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.vertexAttribPointer(L.aPos, 4, gl.SHORT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.col); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, o.uv); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.idx);
       gl.drawElements(gl.TRIANGLES, o.n, gl.UNSIGNED_INT, 0);
     }
@@ -349,8 +406,7 @@
     gl.uniform1f(L.uAlpha, 0.8);
     this.parts.forEach(function (p) { if (p.wa) draw(p.wa); });
     gl.depthMask(true); gl.disable(gl.BLEND);
-    gl.disableVertexAttribArray(L.aPos); gl.disableVertexAttribArray(L.aCol);
-    void self;
+    gl.disableVertexAttribArray(L.aPos); gl.disableVertexAttribArray(L.aCol); gl.disableVertexAttribArray(L.aUV);
   };
 
   // 画面上の点（CSS ピクセル）の先にあるブロックを探す

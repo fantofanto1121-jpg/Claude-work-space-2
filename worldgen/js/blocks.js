@@ -1,5 +1,5 @@
-// ブロックの一覧と色。色はこのファイルだけで決める。
-// 描画はすべて skinColor(id, face) を通るので、画像素材にするときはここを差し替える。
+// ブロックの一覧と見た目。見た目の元データは js/textures.js、それがないブロックはここの単色。
+// 描画はすべて skinColor(id, face) と skinTexture(id, face) を通る。
 (function (G) {
   'use strict';
   var WG = G.WG = G.WG || {};
@@ -67,61 +67,73 @@
     ['CHORUS_FLOWER', 'コーラスフラワー', '#9c85a3', 'solid']
   ];
 
-  // 面ごとの色の違い（未指定の面は基本色）
-  var FACE = {
-    GRASS: { side: '#7a6440', bottom: '#7a573b' },
-    OAK_LOG: { top: '#a3854f' },
-    BIRCH_LOG: { top: '#c6b17f' },
-    SPRUCE_LOG: { top: '#85643d' },
-    JUNGLE_LOG: { top: '#9f7d4a' },
-    ACACIA_LOG: { top: '#a5603b' },
-    CACTUS: { top: '#6a9346' },
-    SANDSTONE: { top: '#d3bf8b' },
-    END_PORTAL_FRAME: { top: '#6a8a76' },
-    CHEST: { top: '#a77738' }
-  };
+  // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
+  var FACES = ['top', 'side', 'bottom'];
   // バイオームで色味を変えるブロック（草の上面と葉）
   var TINTED = ['GRASS', 'SHORT_GRASS', 'OAK_LEAVES', 'JUNGLE_LEAVES', 'ACACIA_LEAVES'];
 
   function hex(h) {
     return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)];
   }
+  function decode(b64) {
+    var bin = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
+    var a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  function average(px) {
+    var r = 0, g = 0, b = 0, n = px.length / 3;
+    for (var i = 0; i < px.length; i += 3) { r += px[i]; g += px[i + 1]; b += px[i + 2]; }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
 
-  var B = {}, LIST = [], N = DEF.length;
-  var RGB = [], RGB_FACE = [], OPAQUE = new Uint8Array(N), KIND = [], EMIT = new Float32Array(N), TINT = new Uint8Array(N);
+  var B = {}, LIST = [], N = DEF.length, TEX = WG.TEXTURES || {};
+  var RGB = [], RGB_FACE = [], PIX = [], OPAQUE = new Uint8Array(N), KIND = [], EMIT = new Float32Array(N), TINT = new Uint8Array(N);
   DEF.forEach(function (d, id) {
     B[d[0]] = id;
     LIST.push({ id: id, key: d[0], name: d[1], kind: d[3] });
-    RGB[id] = d[2] ? hex(d[2]) : [0, 0, 0];
     KIND[id] = d[3];
     EMIT[id] = d[4] || 0;
     OPAQUE[id] = (d[3] === 'solid' || d[0] === 'LAVA') ? 1 : 0;
-    var f = FACE[d[0]] || {};
-    RGB_FACE[id] = {
-      top: f.top ? hex(f.top) : RGB[id],
-      side: f.side ? hex(f.side) : RGB[id],
-      bottom: f.bottom ? hex(f.bottom) : RGB[id]
-    };
+    var t = TEX[d[0]], base = d[2] ? hex(d[2]) : [0, 0, 0];
+    RGB_FACE[id] = {}; PIX[id] = null;
+    if (t) {
+      PIX[id] = {};
+      FACES.forEach(function (f) { PIX[id][f] = decode(t[f]); RGB_FACE[id][f] = average(PIX[id][f]); });
+      RGB[id] = RGB_FACE[id].side;
+    } else {
+      RGB[id] = base;
+      FACES.forEach(function (f) { RGB_FACE[id][f] = base; });
+    }
   });
   TINTED.forEach(function (k) { TINT[B[k]] = 1; });
 
-  // 描画の入口。素材を差し替えるときはこの関数を置き換える。
-  // face は 'top' | 'side' | 'bottom'（省略時は基本色）。返す配列は書き換えないこと。
+  // 描画の入口。素材を差し替えるときは、この 2 つの関数（と js/textures.js）を置き換える。
+  // face は 'top' | 'side' | 'bottom'（省略時は側面）。返す配列は書き換えないこと。
+  // skinColor: 面の代表色（見た目の平均色）。1 ブロックを 1 点で描くときに使う。
   function skinColor(id, face) {
     return face ? RGB_FACE[id][face] : RGB[id];
   }
+  // skinTexture: 面の 8×8 ピクセル（RGB を左上から行ごとに 192 バイト）。見た目がなければ null。
+  function skinTexture(id, face) {
+    return PIX[id] ? PIX[id][face || 'side'] : null;
+  }
 
-  // バイオームの色味を掛けた色（草の側面には掛けない）
+  // バイオームの色味（掛け算の係数）。草の側面には掛けない。
+  var ONE = [1, 1, 1];
+  function tintOf(id, face, biome) {
+    if (biome == null || biome < 0 || !TINT[id] || (id === B.GRASS && face !== 'top') || !WG.BIOMES) return ONE;
+    return WG.BIOMES[biome].tint;
+  }
+
+  // バイオームの色味を掛けた代表色
   var tintCache = {};
   function blockColor(id, face, biome) {
-    var c = skinColor(id, face);
-    if (biome == null || biome < 0 || !TINT[id] || (id === B.GRASS && face !== 'top') || !WG.BIOMES) return c;
+    var c = skinColor(id, face), m = tintOf(id, face, biome);
+    if (m === ONE) return c;
     var k = id + ':' + biome + ':' + (face || '');
     var t = tintCache[k];
-    if (!t) {
-      var m = WG.BIOMES[biome].tint;
-      t = tintCache[k] = [Math.min(255, c[0] * m[0]), Math.min(255, c[1] * m[1]), Math.min(255, c[2] * m[2])];
-    }
+    if (!t) t = tintCache[k] = [Math.min(255, c[0] * m[0]), Math.min(255, c[1] * m[1]), Math.min(255, c[2] * m[2])];
     return t;
   }
 
@@ -132,5 +144,7 @@
   WG.blockKind = function (id) { return KIND[id]; };
   WG.blockName = function (id) { return LIST[id] ? LIST[id].name : '不明'; };
   WG.skinColor = skinColor;
+  WG.skinTexture = skinTexture;
+  WG.tintOf = tintOf;
   WG.blockColor = blockColor;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -141,5 +141,14 @@ console.log('シード ' + SEED + '\n');
   check(digest(only.blocks) === digest(full.blocks), '周りを生成しないで 1 チャンクだけ作っても同じ結果');
 })();
 
+// 見た目：草花とコーラス以外のブロックは、すべての面に 8×8 の見た目がある
+(function () {
+  var none = ['AIR', 'SHORT_GRASS', 'DANDELION', 'POPPY', 'CHORUS_PLANT', 'CHORUS_FLOWER'];
+  var miss = WG.BLOCKS.filter(function (b) {
+    return none.indexOf(b.key) < 0 && ['top', 'side', 'bottom'].some(function (f) { var t = WG.skinTexture(b.id, f); return !t || t.length !== 192; });
+  }).map(function (b) { return b.key; });
+  check(!miss.length, 'ブロックの見た目が読み込めている（' + (WG.BLOCKS.length - none.length) + ' 種）' + (miss.length ? ' 不足: ' + miss.join(', ') : ''));
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
