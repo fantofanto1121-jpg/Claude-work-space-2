@@ -60,18 +60,51 @@
     });
     // 草花は見た目がないので、形だけの切り抜きを作る（色は blocks.js の色）。透明な所は描かない。
     Object.keys(PLANT_SHAPE).forEach(function (key) {
-      var id = WG.B[key], rows = PLANT_SHAPE[key], head = WG.skinColor(id), stem = [79, 122, 46];
-      var tx = (n % 16) * 8, ty = ((n / 16) | 0) * 8;
-      for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
-        var ch = rows[j][i], o = ((ty + j) * ATLAS + tx + i) * 4;
-        var c = ch === 'G' ? stem : key === 'SHORT_GRASS' ? [255, 255, 255] : head;
-        atlasPixels[o] = c[0]; atlasPixels[o + 1] = c[1]; atlasPixels[o + 2] = c[2];
-        atlasPixels[o + 3] = ch === '.' ? 0 : 255;
-      }
-      tileTable[id * 3 + FACE_IX.side] = n++;
+      tileTable[WG.B[key] * 3 + FACE_IX.side] = rgbaTile(plantPixels(WG.B[key], false));
+    });
+    // ブロックではないアイテムの絵と、壊している途中のひび（4 段階）
+    if (WG.ITEMS) Object.keys(WG.ITEMS).forEach(function (k) { var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px); });
+    CRACKS.forEach(function (rows) {
+      var px = new Uint8Array(256);
+      for (var i = 0; i < 64; i++) if (rows[i >> 3][i & 7] === '#') px[i * 4 + 3] = 255;
+      crackTiles.push(rgbaTile(px));
     });
     return tileTable;
+    function rgbaTile(px) {
+      var tx = (n % 16) * 8, ty = ((n / 16) | 0) * 8;
+      for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
+        var o = ((ty + j) * ATLAS + tx + i) * 4, q = (j * 8 + i) * 4;
+        atlasPixels[o] = px[q]; atlasPixels[o + 1] = px[q + 1]; atlasPixels[o + 2] = px[q + 2]; atlasPixels[o + 3] = px[q + 3];
+      }
+      return n++;
+    }
   }
+  var itemTiles = {}, crackTiles = [];
+  var CRACKS = [
+    ['........', '........', '...#....', '....#...', '...##...', '........', '........', '........'],
+    ['........', '..#.....', '...#..#.', '....##..', '...##...', '..#..#..', '........', '........'],
+    ['.#......', '..#...#.', '...#.##.', '....##..', '..###...', '.#...#..', '#....#..', '........'],
+    ['.#....#.', '..#..#..', '#..#.##.', '.#..##.#', '..###...', '##.#.#..', '#..#..#.', '..#....#']
+  ];
+  // 草花の切り抜き（RGBA 8×8）。forIcon なら草も緑で塗る（地図の色味は頂点の色で付けるので、面では白）。
+  function plantPixels(id, forIcon) {
+    var key = WG.BLOCKS[id].key, rows = PLANT_SHAPE[key];
+    if (!rows) return null;
+    var head = WG.skinColor(id), stem = [79, 122, 46], grass = forIcon ? WG.blockColor(id, 'side', WG.BI ? WG.BI.PLAINS : -1) : [255, 255, 255];
+    var out = new Uint8Array(256);
+    for (var i = 0; i < 64; i++) {
+      var ch = rows[i >> 3][i & 7];
+      if (ch === '.') continue;
+      var c = ch === 'G' ? stem : key === 'SHORT_GRASS' ? grass : head;
+      out[i * 4] = c[0]; out[i * 4 + 1] = c[1]; out[i * 4 + 2] = c[2]; out[i * 4 + 3] = 255;
+    }
+    return out;
+  }
+  WG.plantPixels = function (id) { return plantPixels(id, true); };
+  // アトラスの番号を引く（落ちているアイテムやひびを描くとき）
+  WG.atlasTile = function (id, face) { return atlas()[id * 3 + FACE_IX[face || 'side']]; };
+  WG.itemTile = function (key) { atlas(); return itemTiles[key]; };
+  WG.crackTile = function (stage) { atlas(); return crackTiles[Math.max(0, Math.min(3, stage))]; };
   var PLANT_SHAPE = {
     SHORT_GRASS: ['........', '..#.....', '..#..#..', '.##..#..', '.#..##.#', '##..#..#', '.#.##.#.', '##.#..##'],
     DANDELION: ['........', '........', '..HHH...', '..HHH...', '...G....', '...G.G..', '...GG...', '...G....'],
@@ -334,6 +367,8 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.pos); gl.bufferData(gl.ARRAY_BUFFER, new Int16Array(E), gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.col); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(24 * 4), gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.uv); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(24 * 4), gl.STATIC_DRAW);
+    this.dynBuf = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer() };
+    this.dynamic = null;  // 毎回作り直す面（落ちているアイテムなど）。[{pos, col, uv, count, alpha}]
     this.parts = [];
     this.vol = null;
     this.fp = null;       // 一人称のカメラ（歩くとき）
@@ -467,6 +502,19 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.uv); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
       gl.drawArrays(gl.LINES, 0, 24);
       gl.uniform1f(L.uScale, 1);
+    }
+    if (this.dynamic) {
+      // 位置は世界の座標（1/16 単位）の小数で渡す
+      var db = this.dynBuf;
+      gl.uniform3f(L.uOrigin, 0, 0, 0); gl.uniform1f(L.uScale, 1);
+      this.dynamic.forEach(function (d) {
+        if (!d.count) return;
+        gl.uniform1f(L.uAlpha, d.alpha);
+        gl.bindBuffer(gl.ARRAY_BUFFER, db.pos); gl.bufferData(gl.ARRAY_BUFFER, d.pos, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aPos, 4, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, db.col); gl.bufferData(gl.ARRAY_BUFFER, d.col, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, db.uv); gl.bufferData(gl.ARRAY_BUFFER, d.uv, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, d.count);
+      });
     }
     gl.depthMask(false);
     gl.uniform1f(L.uAlpha, 0.8);

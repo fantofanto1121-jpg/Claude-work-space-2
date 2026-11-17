@@ -49,12 +49,15 @@
     this.sums = new Map();
     this.genTime = 0;
     this.genCount = 0;
+    this.edits = new Map();   // 置いた・壊したブロック（チャンクごと）。作り直しても消えないように覚えておく
+    this.editCount = 0;
   }
 
   World.prototype._make = function (cx, cz, surfaceOnly) {
     var t0 = now();
     var r = this.gen.generate(cx, cz, surfaceOnly);
-    var bl = r.blocks, top = bl.length - 1;
+    var bl = r.blocks, top = bl.length - 1, ed = this.edits.get(cx + ',' + cz);
+    if (ed) ed.forEach(function (id, idx) { bl[idx] = id; });
     while (top >= 0 && bl[top] === 0) top--;
     this.genTime += now() - t0;
     this.genCount++;
@@ -76,6 +79,24 @@
     c = this._make(cx, cz, false);
     lruSet(this.full, key, c, LIMIT_FULL);
     return c;
+  };
+
+  // ブロックを置き換える（歩く表示で置いた・壊したとき）
+  World.prototype.setBlock = function (x, y, z, id) {
+    if (y < this.minY || y > this.maxY) return false;
+    var key = (x >> 4) + ',' + (z >> 4), idx = ((y - this.minY) << 8) | ((z & 15) << 4) | (x & 15);
+    var ed = this.edits.get(key);
+    if (!ed) this.edits.set(key, ed = new Map());
+    ed.set(idx, id);
+    [this.full.get(key), this.surf.get(key)].forEach(function (c) {
+      if (!c) return;
+      c.blocks[idx] = id;
+      if (id && y > c.topY) c.topY = y;
+    });
+    var pre = key + ',', self = this;
+    Array.from(this.sums.keys()).forEach(function (k) { if (k.indexOf(pre) === 0) self.sums.delete(k); });
+    this.editCount++;
+    return true;
   };
 
   World.prototype.hasChunk = function (cx, cz) { return this.full.has(cx + ',' + cz); };

@@ -182,5 +182,17 @@ console.log('シード ' + SEED + '\n');
   check(inside === 0 && w.pos[0] < wallX, '2 段の壁は越えられず、体が壁に重ならない');
 })();
 
+// 置いた・壊したブロックは、チャンクを作り直しても残る。ドロップはすべて実在のアイテムを指す。
+(function () {
+  var w = new WG.World(SEED, 'overworld');
+  w.setBlock(5, 100, 5, B.OBSIDIAN); w.setBlock(-17, 10, 40, B.AIR);
+  w.full.clear(); w.surf.clear(); w.sums.clear();
+  var top = w.summary(0, 0, w.maxY).topY[(5 << 4) | 5];
+  check(w.block(5, 100, 5) === B.OBSIDIAN && w.block(-17, 10, 40) === B.AIR && top === 100, '置いた・壊したブロックが作り直しても残り、地形図にも出る');
+  var bad = Object.keys(WG.ITEMS).filter(function (k) { var d = WG.ITEMS[k].drop; return d && !WG.ITEMS[d]; });
+  var noData = WG.PLACEABLE.filter(function (k) { return WG.ITEMS[k] == null; });
+  check(!bad.length && !noData.length, 'ドロップと硬度の表がそろっている' + (bad.length || noData.length ? '（' + bad.concat(noData).join(', ') + '）' : ''));
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

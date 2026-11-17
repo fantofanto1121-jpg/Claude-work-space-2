@@ -244,16 +244,26 @@
     });
   }
 
-  // ---------------- 歩く（パソコン版のみ） ----------------
+  // ---------------- 歩く・遊ぶ（パソコン版のみ） ----------------
   var DESKTOP = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  var walker = null, walkKey = '';
+  var game = null, walker = null, walkKey = '', walkEdits = 0, gameMode = 'survival';
   function locked() { return document.pointerLockElement === c3d; }
+
+  var gameUI = {
+    locked: locked,
+    lock: lockPointer,
+    unlock: function () { if (locked()) document.exitPointerLock(); },
+    status: walkStatus,
+    hurt: function () { var h = $('hurt'); h.classList.remove('on'); void h.offsetWidth; h.classList.add('on'); },
+    hud: $('hud'), hotbar: $('hotbar'), hearts: $('hearts'), air: $('air'), itemName: $('itemName'),
+    inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead')
+  };
 
   function startWalk() {
     if (!view3d) view3d = new WG.View3D(c3d);
     if (!view3d.ok) { setProgress('この環境では WebGL が使えないため、歩くことはできません'); return; }
     var key = state.seed + '|' + state.dim;
-    if (walker && walkKey === key) {
+    if (game && walkKey === key) {
       // 同じ世界で中心が変わったら、その場所へ移る
       if (Math.floor(walker.spawnCenter[0]) !== Math.floor(state.cx) || Math.floor(walker.spawnCenter[1]) !== Math.floor(state.cz)) {
         walker.spawnCenter = [state.cx, state.cz];
@@ -266,19 +276,24 @@
     view3d.clear(); lastVolKey = '';
     view3d.palette = world().dim.palette;
     walkKey = key;
-    walker = new WG.Walker(view3d, world(), { locked: locked, status: walkStatus });
+    walkEdits = world().editCount;
+    game = new WG.Game(view3d, world(), gameUI);
+    game.mode = gameMode;
+    walker = game.walker;
     walker.spawnCenter = [state.cx, state.cz];
-    walker.start(state.cx, state.cz);
+    game.start(state.cx, state.cz);
     updateWalkCard();
   }
 
   function stopWalk() {
-    if (!walker) return;
+    if (!game) return;
     // 歩いた先を、ほかの表示の中心にする
     state.cx = Math.round(walker.pos[0]); state.cz = Math.round(walker.pos[2]);
     $('cx').value = state.cx; $('cz').value = state.cz;
-    walker.stop();
-    walker = null; walkKey = ''; lastVolKey = '';
+    // ブロックを置いた・壊したなら、地図の絵を作り直す
+    if (world().editCount !== walkEdits) { tileCache.clear(); texCache.clear(); }
+    game.stop();
+    game = null; walker = null; walkKey = ''; lastVolKey = '';
     if (locked()) document.exitPointerLock();
     updateWalkCard();
   }
@@ -286,6 +301,7 @@
   function walkStatus(w, pending) {
     var p = w.pos, t = 'X ' + p[0].toFixed(1) + '　Y ' + p[1].toFixed(1) + '　Z ' + p[2].toFixed(1) + '　' + w.facing() + '向き';
     if (state.dim === 'overworld') t += '　（' + WG.BIOMES[world().biomeAt(Math.floor(p[0]), Math.floor(p[2]))].name + '）';
+    if (w.flying) t += '　飛行中';
     $('hover').textContent = t;
     var r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
@@ -295,40 +311,69 @@
   var walkLoading = false;
 
   function updateWalkCard() {
-    var on = state.mode === 'walk' && !!walker;
+    var on = state.mode === 'walk' && !!game, busy = on && (game.invOpen || game.dead);
     $('cross').classList.toggle('hide', !(on && locked()));
-    $('walkCard').classList.toggle('hide', !on || locked());
-    $('wcTitle').textContent = walkLoading ? '読み込み中…' : 'クリックして歩き始める';
+    $('walkCard').classList.toggle('hide', !on || locked() || busy);
+    $('wcTitle').textContent = walkLoading ? '読み込み中…' : 'クリックして遊ぶ';
   }
 
   function lockPointer() {
-    if (!walker || locked()) return;
+    if (!game || locked() || game.dead || game.invOpen) return;
     try {
       var r = c3d.requestPointerLock();
-      if (r && r.catch) r.catch(function () { setProgress('マウスを固定できませんでした。もう一度クリックしてください'); });
-    } catch (e) { setProgress('マウスを固定できませんでした'); }
+      if (r && r.catch) r.catch(function () { updateWalkCard(); });
+    } catch (e) { updateWalkCard(); }
   }
   $('walkCard').addEventListener('click', lockPointer);
+  $('respawn').addEventListener('click', function () { if (game) game.respawn(); });
+  $('modesGame').addEventListener('click', function (e) {
+    var v = e.target.dataset && e.target.dataset.v;
+    if (!v) return;
+    gameMode = v;
+    if (game) game.setMode(v);
+    syncUI();
+  });
   document.addEventListener('pointerlockchange', function () {
-    if (!locked() && walker) walker.releaseKeys();
+    if (!locked() && walker) { walker.releaseKeys(); game.mouseL = game.mouseR = false; }
     updateWalkCard();
   });
   document.addEventListener('mousemove', function (e) {
     if (walker && locked()) walker.look(e.movementX || 0, e.movementY || 0);
+    var cur = $('cursorItem');
+    if (game && game.invOpen) { cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; }
+  });
+  document.addEventListener('mousedown', function (e) {
+    if (game && locked()) { e.preventDefault(); game.mouse(e.button, true); }
+  });
+  document.addEventListener('mouseup', function (e) {
+    if (game) game.mouse(e.button, false);
+  });
+  document.addEventListener('contextmenu', function (e) { if (game && (locked() || game.invOpen)) e.preventDefault(); });
+  document.addEventListener('wheel', function (e) {
+    if (game && locked()) { e.preventDefault(); game.wheel(e.deltaY); }
+  }, { passive: false });
+  $('invBody').addEventListener('mousedown', function (e) {
+    var el = e.target.closest('.slot');
+    if (!el || !game) return;
+    e.preventDefault();
+    game.clickSlot(el, e.button, e.shiftKey);
   });
   var GAME_KEYS = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, Space: 1, ShiftLeft: 1, ShiftRight: 1, ControlLeft: 1, ControlRight: 1 };
   document.addEventListener('keydown', function (e) {
-    if (!walker || !locked()) return;
+    if (!game || state.mode !== 'walk') return;
+    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && !locked()) return;
+    if (game.key(e, true)) { e.preventDefault(); updateWalkCard(); return; }
+    if (!locked()) return;
     if (GAME_KEYS[e.code]) { e.preventDefault(); walker.key(e.code, true, e.repeat); }
   });
   document.addEventListener('keyup', function (e) {
     if (!walker) return;
     if (GAME_KEYS[e.code]) { e.preventDefault(); walker.key(e.code, false, false); }
   });
-  window.addEventListener('blur', function () { if (walker) walker.releaseKeys(); });
-  // 歩いている間に Ctrl＋W などでページを閉じかけたときは確認する
+  window.addEventListener('blur', function () { if (walker) walker.releaseKeys(); if (game) game.mouseL = game.mouseR = false; });
+  // 遊んでいる間に Ctrl＋W などでページを閉じかけたときは確認する
   window.addEventListener('beforeunload', function (e) {
-    if (walker && locked()) { e.preventDefault(); e.returnValue = ''; }
+    if (game && (locked() || world().editCount !== walkEdits)) { e.preventDefault(); e.returnValue = ''; }
   });
 
   function syncUI() {
@@ -344,6 +389,8 @@
     $('g-pad').classList.toggle('hide', walk);
     $('g-range').classList.toggle('hide', walk);
     $('walkBtn').classList.toggle('hide', !DESKTOP);
+    $('g-game').classList.toggle('hide', !walk);
+    [].forEach.call($('modesGame').children, function (b) { b.classList.toggle('on', b.dataset.v === gameMode); });
     c2d.classList.toggle('hide', state.mode === '3d' || walk);
     c3d.classList.toggle('hide', state.mode !== '3d' && !walk);
     updateWalkCard();
@@ -363,7 +410,7 @@
     top: 'ドラッグで移動、ホイールで拡大縮小。<br>上端の高さから下へ見て、最初に当たるブロックを描きます。陰影は北西からの光です。',
     slice: 'ドラッグで移動、ホイールで拡大縮小。<br>指定した高さのブロックを描きます。空気の場所は、その下にあるものを暗く描きます。',
     section: 'ドラッグで移動、ホイールで拡大縮小。<br>表示範囲の中心を通る線で縦に切ります。上下は「表示範囲の上下」で決まります。',
-    walk: '画面をクリックすると歩き始めます（パソコンのみ）。操作は Minecraft と同じです。<br>表示範囲の中心を変えて「移動」を押すと、その場所へ移ります。ほかの表示に戻ると、歩いた先が中心になります。',
+    walk: '画面をクリックすると遊べます（パソコンのみ）。操作は Minecraft と同じです。<br>サバイバルは掘るのに時間がかかり、ドロップを拾って使います。クリエイティブはすぐ壊せて、E の一覧からどのブロックでも取り出せ、スペースの 2 度押しで飛べます。<br>表示範囲の中心を変えて「移動」を押すと、その場所へ移ります。',
     '3d': '左ドラッグで回転、右ドラッグか Shift＋ドラッグで平行移動、ホイールで拡大縮小。<br>上端より上は空気として扱い、下端と四方は切り口を見せます。中心を変えると作り直します。'
   };
 

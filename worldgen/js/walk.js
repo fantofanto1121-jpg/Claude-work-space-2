@@ -16,7 +16,7 @@
   var EYE = 1.62, EYE_SNEAK = 1.27;
   var TICK = 0.05;                // 1 刻み（秒）
   var FOV = 70 * Math.PI / 180;   // 縦の視野角
-  var REACH = 5;                  // 照準が届く距離
+  var REACH = 5;                  // 照準が届く距離（サバイバルは 4.5）
   var SENS = 0.0025;              // マウスの感度（1 カウントあたりの角度）
 
   // 近い順に並べた、読み込むチャンクの相対位置
@@ -53,6 +53,7 @@
     this.pos = [0, 0, 0]; this.prev = [0, 0, 0]; this.vel = [0, 0, 0];
     this.onGround = false; this.collidedH = false;
     this.sneak = false; this.sprint = false; this.sprintTap = false; this.lastW = 0; this.jumpDelay = 0;
+    this.canFly = false; this.flying = false; this.lastSpace = 0; this.fallDist = 0; this.reach = REACH;
     this.eyeH = EYE; this.fovK = 1;
     this.walkDist = 0; this.prevWalkDist = 0; this.bob = 0; this.prevBob = 0;
     this.acc = 0; this.ready = false; this.running = false; this.frameN = 0;
@@ -89,7 +90,7 @@
     this.ready = false;
   };
 
-  Walker.prototype.height = function () { return this.sneak ? HEIGHT_SNEAK : HEIGHT; };
+  Walker.prototype.height = function () { return this.sneak && !this.flying ? HEIGHT_SNEAK : HEIGHT; };
   Walker.prototype.box = function (p, h) {
     p = p || this.pos; h = h || this.height();
     return [p[0] - HALF_W, p[1], p[2] - HALF_W, p[0] + HALF_W, p[1] + h, p[2] + HALF_W];
@@ -165,10 +166,11 @@
     this.prev = this.pos.slice();
     this.prevWalkDist = this.walkDist; this.prevBob = this.bob;
 
-    var wantSneak = !!(k.ShiftLeft || k.ShiftRight);
+    var shift = !!(k.ShiftLeft || k.ShiftRight), wantSneak = shift && !this.flying;
     // 天井が低くて立てないときはしゃがんだまま
-    if (!wantSneak && this.sneak && this.hits(this.box(this.pos, HEIGHT))) wantSneak = true;
+    if (!wantSneak && this.sneak && !this.flying && this.hits(this.box(this.pos, HEIGHT))) wantSneak = true;
     this.sneak = wantSneak;
+    if (!this.canFly) this.flying = false;
 
     var f = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0), s = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
     if (!k.KeyW) this.sprintTap = false;
@@ -180,7 +182,8 @@
     if (this.sneak) { f *= 0.3; s *= 0.3; }
 
     var fl = this.fluid(), accel, drag;
-    if (fl) { accel = 0.02; drag = fl === 'water' ? 0.8 : 0.5; }
+    if (this.flying) { accel = this.sprint ? 0.1 : 0.05; drag = 0.91; }
+    else if (fl) { accel = 0.02; drag = fl === 'water' ? 0.8 : 0.5; }
     else if (this.onGround) { accel = 0.1 * (this.sprint ? 1.3 : 1); drag = 0.546; }
     else { accel = this.sprint ? 0.026 : 0.02; drag = 0.91; }
 
@@ -190,7 +193,11 @@
     v[2] += (fz * f + rz * s) * accel;
 
     if (this.jumpDelay > 0) this.jumpDelay--;
-    if (k.Space) {
+    if (this.flying) {
+      // 飛んでいる間：スペースで上がり、Shift で下がる
+      if (k.Space) v[1] += 0.15;
+      if (shift) v[1] -= 0.15;
+    } else if (k.Space) {
       if (fl) {
         v[1] += 0.04;
         if (this.collidedH) v[1] = 0.3; // 水から岸へ上がる
@@ -201,19 +208,51 @@
       }
     } else this.jumpDelay = 0;
 
+    var y0 = this.pos[1], wasGround = this.onGround;
     var moved = this.move(v[0], v[1], v[2]);
 
-    if (fl) { v[0] *= drag; v[2] *= drag; v[1] = v[1] * drag - 0.02; }
+    if (this.flying) { v[0] *= drag; v[2] *= drag; v[1] *= 0.6; if (this.onGround) this.flying = false; }
+    else if (fl) { v[0] *= drag; v[2] *= drag; v[1] = v[1] * drag - 0.02; }
     else { v[1] = (v[1] - 0.08) * 0.98; v[0] *= drag; v[2] *= drag; }
+
+    // 落ちた高さ（着地したときに知らせる。水の中と飛行中は数えない）
+    if (fl || this.flying) this.fallDist = 0;
+    else if (this.pos[1] < y0) this.fallDist += y0 - this.pos[1];
+    if (this.onGround && !wasGround) {
+      if (this.hooks.land) this.hooks.land(this.fallDist);
+      this.fallDist = 0;
+    } else if (this.onGround) this.fallDist = 0;
 
     // 視点の揺れ（歩いた距離で進む）
     this.walkDist += moved * 0.6;
     var target = this.onGround && !fl ? Math.min(1, moved / 0.216) : 0;
     this.bob += (target - this.bob) * 0.4;
 
-    // 奈落に落ちたら最初の場所へ戻す
-    if (this.pos[1] < this.world.minY - 48) {
+    // 奈落に落ちたら最初の場所へ戻す（サバイバルでは体力が減るので、ゲームの側に任せる）
+    if (this.pos[1] < this.world.minY - 48 && !(this.hooks.voidDamage && this.hooks.voidDamage())) {
       this.pos = this.spawnPoint.slice(); this.prev = this.pos.slice(); this.vel = [0, 0, 0];
+    }
+    if (this.hooks.tick) this.hooks.tick(this);
+  };
+
+  // スペースの 2 度押しで飛ぶ・降りる（飛べるときだけ）
+  Walker.prototype.spaceTap = function () {
+    var t = WG.now();
+    if (this.canFly && t - this.lastSpace < 350) { this.flying = !this.flying; this.lastSpace = 0; if (this.flying) this.vel[1] = 0; }
+    else this.lastSpace = t;
+  };
+
+  // 置いた・壊したブロックの周りの面を作り直す（境目なら隣のチャンクも）
+  Walker.prototype.remesh = function (x, z) {
+    var cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
+    for (var dz = -1; dz <= 1; dz++) for (var dx = -1; dx <= 1; dx++) {
+      if ((dx === -1 && lx !== 0) || (dx === 1 && lx !== 15) || (dz === -1 && lz !== 0) || (dz === 1 && lz !== 15)) continue;
+      var key = (cx + dx) + ',' + (cz + dz);
+      if (!this.loaded.has(key)) continue;
+      var old = this.loaded.get(key);
+      if (old) this.view.remove(old);
+      var mesh = WG.meshPart(chunkVolume(this.world, cx + dx, cz + dz), 1, 1, 17, 17);
+      this.loaded.set(key, mesh.opaque.idx.length || mesh.water.idx.length ? this.view.upload(mesh, [(cx + dx) << 4, this.world.minY, (cz + dz) << 4]) : null);
     }
   };
 
@@ -225,11 +264,15 @@
       tDel[k] = Math.abs(1 / (d[k] || 1e-9));
       tMax[k] = (d[k] > 0 ? c[k] + 1 - e[k] : e[k] - c[k]) * tDel[k];
     }
+    var prev = null;
     for (var n = 0; n < 32; n++) {
       var id = this.world.peekBlock(c[0], c[1], c[2]);
-      if (id > 0 && id !== B.WATER && id !== B.LAVA) return { x: c[0], y: c[1], z: c[2], id: id };
+      if (id > 0 && id !== B.WATER && id !== B.LAVA) {
+        return { x: c[0], y: c[1], z: c[2], id: id, px: prev ? prev[0] : c[0], py: prev ? prev[1] : c[1] + 1, pz: prev ? prev[2] : c[2] };
+      }
       k = tMax[0] < tMax[1] ? (tMax[0] < tMax[2] ? 0 : 2) : (tMax[1] < tMax[2] ? 1 : 2);
-      if (tMax[k] > REACH) return null;
+      if (tMax[k] > this.reach) return null;
+      prev = c.slice();
       c[k] += step[k]; tMax[k] += tDel[k];
     }
     return null;
@@ -275,7 +318,7 @@
       var now = WG.now(), dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       var pending = self.stream(self.ready ? 6 : 40);
-      if (self.ready && self.hooks.locked()) {
+      if (self.ready && self.hooks.active()) {
         self.acc += dt;
         while (self.acc >= TICK) { self.tick(); self.acc -= TICK; }
       } else self.acc = 0;
@@ -303,6 +346,7 @@
     var side = Math.sin(wd * Math.PI) * bob * 0.045, up = -Math.abs(Math.cos(wd * Math.PI)) * bob * 0.07;
     var eye = [p[0] + cy * side, p[1] + this.eyeH + up + bob * 0.035, p[2] - sy * side];
     this.fovK += ((this.sprint ? 1.1 : 1) - this.fovK) * Math.min(1, dt * 8);
+    this.eye = eye; this.dir = [-sy * Math.cos(this.pitch), Math.sin(this.pitch), -cy * Math.cos(this.pitch)];
 
     var cp = Math.cos(this.pitch);
     var dir = [-sy * cp, Math.sin(this.pitch), -cy * cp];
@@ -316,6 +360,7 @@
     this.view.fp = fp;
     this.view.outline = this.target ? [this.target.x, this.target.y, this.target.z] : null;
     this.view.res = 1;
+    if (this.hooks.draw) this.hooks.draw(this, a);
     this.view.render();
 
     if (this.hooks.status && (this.frameN++ % 6 === 0)) this.hooks.status(this, pending);
@@ -329,6 +374,7 @@
   };
 
   Walker.prototype.key = function (code, down, repeat) {
+    if (down && code === 'Space' && !repeat) this.spaceTap();
     if (down && code === 'KeyW' && !repeat) {
       var t = WG.now();
       if (t - this.lastW < 300) this.sprintTap = true;

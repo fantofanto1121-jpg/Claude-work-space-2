@@ -64,7 +64,8 @@
     ['OBSIDIAN', '黒曜石', '#221b31', 'solid'],
     ['END_PORTAL_FRAME', 'エンドポータルフレーム', '#4f6d60', 'solid'],
     ['CHORUS_PLANT', 'コーラスプラント', '#6b5173', 'solid'],
-    ['CHORUS_FLOWER', 'コーラスフラワー', '#9c85a3', 'solid']
+    ['CHORUS_FLOWER', 'コーラスフラワー', '#9c85a3', 'solid'],
+    ['COBBLED_DEEPSLATE', '丸石状の深層岩', '#4d4d52', 'solid']
   ];
 
   // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
