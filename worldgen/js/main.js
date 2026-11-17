@@ -238,9 +238,98 @@
     if (raf) return;
     raf = requestAnimationFrame(function () {
       raf = 0;
-      if (state.mode === '3d') start3D(); else start2D();
+      if (state.mode !== 'walk') stopWalk();
+      if (state.mode === 'walk') startWalk();
+      else if (state.mode === '3d') start3D(); else start2D();
     });
   }
+
+  // ---------------- 歩く（パソコン版のみ） ----------------
+  var DESKTOP = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var walker = null, walkKey = '';
+  function locked() { return document.pointerLockElement === c3d; }
+
+  function startWalk() {
+    if (!view3d) view3d = new WG.View3D(c3d);
+    if (!view3d.ok) { setProgress('この環境では WebGL が使えないため、歩くことはできません'); return; }
+    var key = state.seed + '|' + state.dim;
+    if (walker && walkKey === key) {
+      // 同じ世界で中心が変わったら、その場所へ移る
+      if (Math.floor(walker.spawnCenter[0]) !== Math.floor(state.cx) || Math.floor(walker.spawnCenter[1]) !== Math.floor(state.cz)) {
+        walker.spawnCenter = [state.cx, state.cz];
+        walker.spawn(state.cx, state.cz);
+      }
+      return;
+    }
+    stopWalk();
+    jobToken++; b3Token++; b3 = null;
+    view3d.clear(); lastVolKey = '';
+    view3d.palette = world().dim.palette;
+    walkKey = key;
+    walker = new WG.Walker(view3d, world(), { locked: locked, status: walkStatus });
+    walker.spawnCenter = [state.cx, state.cz];
+    walker.start(state.cx, state.cz);
+    updateWalkCard();
+  }
+
+  function stopWalk() {
+    if (!walker) return;
+    // 歩いた先を、ほかの表示の中心にする
+    state.cx = Math.round(walker.pos[0]); state.cz = Math.round(walker.pos[2]);
+    $('cx').value = state.cx; $('cz').value = state.cz;
+    walker.stop();
+    walker = null; walkKey = ''; lastVolKey = '';
+    if (locked()) document.exitPointerLock();
+    updateWalkCard();
+  }
+
+  function walkStatus(w, pending) {
+    var p = w.pos, t = 'X ' + p[0].toFixed(1) + '　Y ' + p[1].toFixed(1) + '　Z ' + p[2].toFixed(1) + '　' + w.facing() + '向き';
+    if (state.dim === 'overworld') t += '　（' + WG.BIOMES[world().biomeAt(Math.floor(p[0]), Math.floor(p[2]))].name + '）';
+    $('hover').textContent = t;
+    var r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
+    if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
+    setProgress(r);
+    if (!w.ready !== walkLoading) { walkLoading = !w.ready; updateWalkCard(); }
+  }
+  var walkLoading = false;
+
+  function updateWalkCard() {
+    var on = state.mode === 'walk' && !!walker;
+    $('cross').classList.toggle('hide', !(on && locked()));
+    $('walkCard').classList.toggle('hide', !on || locked());
+    $('wcTitle').textContent = walkLoading ? '読み込み中…' : 'クリックして歩き始める';
+  }
+
+  function lockPointer() {
+    if (!walker || locked()) return;
+    try {
+      var r = c3d.requestPointerLock();
+      if (r && r.catch) r.catch(function () { setProgress('マウスを固定できませんでした。もう一度クリックしてください'); });
+    } catch (e) { setProgress('マウスを固定できませんでした'); }
+  }
+  $('walkCard').addEventListener('click', lockPointer);
+  document.addEventListener('pointerlockchange', function () {
+    if (!locked() && walker) walker.releaseKeys();
+    updateWalkCard();
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (walker && locked()) walker.look(e.movementX || 0, e.movementY || 0);
+  });
+  var GAME_KEYS = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, Space: 1, ShiftLeft: 1, ShiftRight: 1, ControlLeft: 1, ControlRight: 1 };
+  document.addEventListener('keydown', function (e) {
+    if (!walker || !locked()) return;
+    if (GAME_KEYS[e.code]) { e.preventDefault(); walker.key(e.code, true, e.repeat); }
+  });
+  document.addEventListener('keyup', function (e) {
+    if (!walker) return;
+    if (GAME_KEYS[e.code]) { e.preventDefault(); walker.key(e.code, false, false); }
+  });
+  window.addEventListener('blur', function () { if (walker) walker.releaseKeys(); });
+  // 歩いている間に Ctrl＋W などでページを閉じかけたときは確認する
+  window.addEventListener('beforeunload', function (e) {
+    if (walker && locked()) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   function syncUI() {
     var d = dv(), w = world();
@@ -249,10 +338,15 @@
     [].forEach.call($('axes').children, function (b) { b.classList.toggle('on', +b.dataset.v === state.axis); });
     $('g-slice').classList.toggle('hide', state.mode !== 'slice');
     $('g-axis').classList.toggle('hide', state.mode !== 'section');
-    $('g-zoom').classList.toggle('hide', state.mode === '3d');
+    var walk = state.mode === 'walk';
+    $('g-zoom').classList.toggle('hide', state.mode === '3d' || walk);
     $('g-size').classList.toggle('hide', state.mode !== '3d');
-    c2d.classList.toggle('hide', state.mode === '3d');
-    c3d.classList.toggle('hide', state.mode !== '3d');
+    $('g-pad').classList.toggle('hide', walk);
+    $('g-range').classList.toggle('hide', walk);
+    $('walkBtn').classList.toggle('hide', !DESKTOP);
+    c2d.classList.toggle('hide', state.mode === '3d' || walk);
+    c3d.classList.toggle('hide', state.mode !== '3d' && !walk);
+    updateWalkCard();
     var sl = $('sliceY');
     sl.min = w.minY; sl.max = w.maxY; sl.value = d.slice;
     $('sliceYv').textContent = d.slice;
@@ -269,6 +363,7 @@
     top: 'ドラッグで移動、ホイールで拡大縮小。<br>上端の高さから下へ見て、最初に当たるブロックを描きます。陰影は北西からの光です。',
     slice: 'ドラッグで移動、ホイールで拡大縮小。<br>指定した高さのブロックを描きます。空気の場所は、その下にあるものを暗く描きます。',
     section: 'ドラッグで移動、ホイールで拡大縮小。<br>表示範囲の中心を通る線で縦に切ります。上下は「表示範囲の上下」で決まります。',
+    walk: '画面をクリックすると歩き始めます（パソコンのみ）。操作は Minecraft と同じです。<br>表示範囲の中心を変えて「移動」を押すと、その場所へ移ります。ほかの表示に戻ると、歩いた先が中心になります。',
     '3d': '左ドラッグで回転、右ドラッグか Shift＋ドラッグで平行移動、ホイールで拡大縮小。<br>上端より上は空気として扱い、下端と四方は切り口を見せます。中心を変えると作り直します。'
   };
 
@@ -322,8 +417,8 @@
   $('yMin').onchange = onY; $('yMax').onchange = onY;
 
   $('png').onclick = function () {
-    var cv = state.mode === '3d' ? c3d : c2d;
-    if (state.mode === '3d' && view3d) view3d.render();
+    var cv = state.mode === '3d' || state.mode === 'walk' ? c3d : c2d;
+    if ((state.mode === '3d' || state.mode === 'walk') && view3d) view3d.render();
     cv.toBlob(function (blob) {
       if (!blob) return;
       var a = document.createElement('a');
@@ -374,6 +469,7 @@
   var d3 = null;
   c3d.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   c3d.addEventListener('pointerdown', function (e) {
+    if (state.mode === 'walk') { lockPointer(); return; }
     if (!view3d || !view3d.ok) return;
     d3 = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey };
     c3d.setPointerCapture(e.pointerId); c3d.classList.add('drag');
@@ -381,7 +477,7 @@
   });
   var hoverRaf = 0, hoverPos = null;
   c3d.addEventListener('pointermove', function (e) {
-    if (!view3d || !view3d.ok) return;
+    if (state.mode === 'walk' || !view3d || !view3d.ok) return;
     if (d3) {
       var dx = e.clientX - d3.x, dy = e.clientY - d3.y;
       d3.x = e.clientX; d3.y = e.clientY;
@@ -414,12 +510,13 @@
   c3d.addEventListener('pointercancel', end3D);
   c3d.addEventListener('wheel', function (e) {
     e.preventDefault();
-    if (!view3d || !view3d.ok) return;
+    if (state.mode === 'walk' || !view3d || !view3d.ok) return;
     view3d.dist = Math.max(8, Math.min(1200, view3d.dist * Math.pow(1.0015, e.deltaY)));
     view3d.render();
   }, { passive: false });
 
   window.addEventListener('resize', function () {
+    if (state.mode === 'walk') return;
     if (state.mode === '3d') { if (view3d && view3d.ok) view3d.render(); } else refresh();
   });
 

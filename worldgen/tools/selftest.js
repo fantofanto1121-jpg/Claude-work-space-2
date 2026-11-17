@@ -150,5 +150,37 @@ console.log('シード ' + SEED + '\n');
   check(!miss.length, 'ブロックの見た目が読み込めている（' + (WG.BLOCKS.length - none.length) + ' 種）' + (miss.length ? ' 不足: ' + miss.join(', ') : ''));
 })();
 
+// 歩く：平らな地面での速さとジャンプの高さが Minecraft と同じで、壁を抜けないこと
+(function () {
+  var wallX = 20;
+  var flat = { minY: 0, maxY: 255, dim: { view: { yMax: 255 } }, block: function (x, y, z) {
+    return y <= 10 || (x === wallX && y <= 12) ? B.STONE : B.AIR;
+  } };
+  flat.peekBlock = flat.block;
+  var view = { upload: function () { return {}; }, remove: function () {}, render: function () {} };
+  var w = new WG.Walker(view, flat, {}), i;
+  w.spawn(0, 0);
+  function speed(keys) {
+    w.keys = keys; w.pos = [0.5, 11, 0.5]; w.vel = [0, 0, 0]; w.yaw = Math.PI;
+    for (i = 0; i < 20; i++) w.tick();
+    var q = w.pos.slice();
+    for (i = 0; i < 20; i++) w.tick();
+    return Math.hypot(w.pos[0] - q[0], w.pos[2] - q[2]);
+  }
+  var walk = speed({ KeyW: true }), sprint = speed({ KeyW: true, ControlLeft: true }), sneak = speed({ KeyW: true, ShiftLeft: true });
+  check(Math.abs(walk - 4.317) < 0.01 && Math.abs(sprint - 5.612) < 0.01 && Math.abs(sneak - 1.295) < 0.01,
+    '歩く速さ（毎秒 歩き ' + walk.toFixed(3) + '、ダッシュ ' + sprint.toFixed(3) + '、スニーク ' + sneak.toFixed(3) + ' ブロック）');
+  w.keys = {}; w.pos = [0.5, 11, 0.5]; w.vel = [0, 0, 0];
+  for (i = 0; i < 5; i++) w.tick();
+  var y0 = w.pos[1], top = y0;
+  w.keys = { Space: true }; w.tick(); w.keys = {};
+  for (i = 0; i < 20; i++) { w.tick(); top = Math.max(top, w.pos[1]); }
+  check(Math.abs(top - y0 - 1.2522) < 0.01, 'ジャンプの高さ ' + (top - y0).toFixed(4) + ' ブロック');
+  w.pos = [15.5, 11, 0.5]; w.vel = [0, 0, 0]; w.yaw = -Math.PI / 2; w.keys = { KeyW: true, ControlLeft: true, Space: true };
+  var inside = 0;
+  for (i = 0; i < 200; i++) { w.tick(); if (w.hits(w.box())) inside++; }
+  check(inside === 0 && w.pos[0] < wallX, '2 段の壁は越えられず、体が壁に重ならない');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

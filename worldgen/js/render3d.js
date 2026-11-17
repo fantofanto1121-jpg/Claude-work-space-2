@@ -58,8 +58,25 @@
         tileTable[b.id * 3 + FACE_IX[f]] = px ? tile(px) : 0;
       });
     });
+    // 草花は見た目がないので、形だけの切り抜きを作る（色は blocks.js の色）。透明な所は描かない。
+    Object.keys(PLANT_SHAPE).forEach(function (key) {
+      var id = WG.B[key], rows = PLANT_SHAPE[key], head = WG.skinColor(id), stem = [79, 122, 46];
+      var tx = (n % 16) * 8, ty = ((n / 16) | 0) * 8;
+      for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
+        var ch = rows[j][i], o = ((ty + j) * ATLAS + tx + i) * 4;
+        var c = ch === 'G' ? stem : key === 'SHORT_GRASS' ? [255, 255, 255] : head;
+        atlasPixels[o] = c[0]; atlasPixels[o + 1] = c[1]; atlasPixels[o + 2] = c[2];
+        atlasPixels[o + 3] = ch === '.' ? 0 : 255;
+      }
+      tileTable[id * 3 + FACE_IX.side] = n++;
+    });
     return tileTable;
   }
+  var PLANT_SHAPE = {
+    SHORT_GRASS: ['........', '..#.....', '..#..#..', '.##..#..', '.#..##.#', '##..#..#', '.#.##.#.', '##.#..##'],
+    DANDELION: ['........', '........', '..HHH...', '..HHH...', '...G....', '...G.G..', '...GG...', '...G....'],
+    POPPY: ['........', '..HHH...', '.HHHHH..', '..HHH...', '...G....', '..GG....', '...G.G..', '...GG...']
+  };
 
   // ---- 面の作成 ----
   // 方向: 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z
@@ -173,15 +190,16 @@
               wa.quad(v0, false);
             }
           } else if (kind === 'plant') {
-            var pc = WG.blockColor(id, 'side', bio), ph = id === B.SHORT_GRASS ? 13 : 11;
+            // 対角に交差する 2 枚。草は色味を頂点の色で、花は切り抜きの色そのままで描く。
+            var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? WG.blockColor(id, 'side', bio) : [255, 255, 255];
             for (var q = 0; q < 2; q++) {
-              var za = q ? 14 : 2, zb = q ? 2 : 14;
-              var f1 = 0.39 * jit, f2 = 0.49 * jit;
+              var za = q ? 16 : 0, zb = q ? 0 : 16;
+              var f1 = 0.36 * jit, f2 = 0.48 * jit;
               v0 = op.nv;
-              op.vert(lx + 2, ly, lz + za, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 0, 0, 0);
-              op.vert(lx + 14, ly, lz + zb, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 0, 0, 0);
-              op.vert(lx + 14, ly + ph, lz + zb, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 0, 0, 0);
-              op.vert(lx + 2, ly + ph, lz + za, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 0, 0, 0);
+              op.vert(lx, ly, lz + za, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 0, 16, pt);
+              op.vert(lx + 16, ly, lz + zb, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 16, 16, pt);
+              op.vert(lx + 16, ly + 16, lz + zb, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 16, 0, pt);
+              op.vert(lx, ly + 16, lz + za, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 0, 0, pt);
               op.quad(v0, false);
             }
           }
@@ -235,9 +253,9 @@
   // ---- WebGL ----
   var VS = [
     'attribute vec4 aPos; attribute vec4 aCol; attribute vec4 aUV;',
-    'uniform mat4 uVP; uniform vec3 uOrigin; uniform vec3 uEye;',
+    'uniform mat4 uVP; uniform vec3 uOrigin; uniform vec3 uEye; uniform float uScale;',
     'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist;',
-    'void main(){ vec3 p = aPos.xyz / 16.0 + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0; vTile = aUV.z + aUV.w * 256.0;',
+    'void main(){ vec3 p = aPos.xyz / 16.0 * uScale + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0; vTile = aUV.z + aUV.w * 256.0;',
     '  vDist = length(p - uEye); gl_Position = uVP * vec4(p, 1.0); }'
   ].join('\n');
   // 見た目は 8×8 の中だけを読む（隣の見た目がにじまないよう、端の画素の中心で止める）
@@ -248,7 +266,8 @@
     'void main(){',
     '  float t = floor(vTile + 0.5); vec2 org = vec2(mod(t, 16.0), floor(t / 16.0)) * 8.0;',
     '  vec2 uv = (org + clamp(vUV, 0.0625, 0.9375) * 8.0) / 128.0;',
-    '  vec3 c = texture2D(uAtlas, uv).rgb * vCol.rgb * 2.0;',
+    '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
+    '  vec3 c = tx.rgb * vCol.rgb * 2.0;',
     '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
     '  gl_FragColor = vec4(mix(c, uFog, f), uAlpha); }'
   ].join('\n');
@@ -291,7 +310,7 @@
     this.loc = {
       aPos: gl.getAttribLocation(this.prog, 'aPos'), aCol: gl.getAttribLocation(this.prog, 'aCol'), aUV: gl.getAttribLocation(this.prog, 'aUV'),
       uAtlas: gl.getUniformLocation(this.prog, 'uAtlas'),
-      uVP: gl.getUniformLocation(this.prog, 'uVP'), uOrigin: gl.getUniformLocation(this.prog, 'uOrigin'),
+      uVP: gl.getUniformLocation(this.prog, 'uVP'), uOrigin: gl.getUniformLocation(this.prog, 'uOrigin'), uScale: gl.getUniformLocation(this.prog, 'uScale'),
       uEye: gl.getUniformLocation(this.prog, 'uEye'), uFog: gl.getUniformLocation(this.prog, 'uFog'),
       uFogR: gl.getUniformLocation(this.prog, 'uFogR'), uAlpha: gl.getUniformLocation(this.prog, 'uAlpha'),
       aP: gl.getAttribLocation(this.sky, 'aP'), uTop: gl.getUniformLocation(this.sky, 'uTop'), uLow: gl.getUniformLocation(this.sky, 'uLow')
@@ -306,8 +325,20 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    // 照準を合わせたブロックの枠（立方体の 12 辺）
+    var E = [], c = [[0, 0, 0], [16, 0, 0], [16, 0, 16], [0, 0, 16], [0, 16, 0], [16, 16, 0], [16, 16, 16], [0, 16, 16]];
+    [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]].forEach(function (e) {
+      E.push(c[e[0]][0], c[e[0]][1], c[e[0]][2], 0, c[e[1]][0], c[e[1]][1], c[e[1]][2], 0);
+    });
+    this.edge = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer() };
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.pos); gl.bufferData(gl.ARRAY_BUFFER, new Int16Array(E), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.col); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(24 * 4), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.uv); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(24 * 4), gl.STATIC_DRAW);
     this.parts = [];
     this.vol = null;
+    this.fp = null;       // 一人称のカメラ（歩くとき）
+    this.cull = null;     // 描かない部分を決める関数（歩くとき）
+    this.outline = null;  // 枠を描くブロックの座標
     this.yaw = 0.75; this.pitch = 0.55; this.dist = 160;
     this.target = [0, 64, 0];
     this.res = 1;
@@ -317,12 +348,20 @@
   View3D.prototype.clear = function () {
     var gl = this.gl;
     if (!gl) return;
-    this.parts.forEach(function (p) { [p.op, p.wa].forEach(function (m) { if (m) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.col); gl.deleteBuffer(m.uv); gl.deleteBuffer(m.idx); } }); });
+    var self = this;
+    this.parts.slice().forEach(function (p) { self.remove(p); });
     this.parts = [];
     this.vol = null;
   };
 
-  View3D.prototype.upload = function (mesh) {
+  View3D.prototype.remove = function (p) {
+    var gl = this.gl, i = this.parts.indexOf(p);
+    if (i >= 0) this.parts.splice(i, 1);
+    [p.op, p.wa].forEach(function (m) { if (m) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.col); gl.deleteBuffer(m.uv); gl.deleteBuffer(m.idx); } });
+  };
+
+  // origin を渡すと、その部分だけ別の原点で描く（歩くときのチャンクごとの面）
+  View3D.prototype.upload = function (mesh, origin) {
     var gl = this.gl;
     function up(m) {
       if (!m.idx.length) return null;
@@ -333,7 +372,9 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.idx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.idx, gl.STATIC_DRAW);
       return o;
     }
-    this.parts.push({ op: up(mesh.opaque), wa: up(mesh.water) });
+    var part = { op: up(mesh.opaque), wa: up(mesh.water), origin: origin || null };
+    this.parts.push(part);
+    return part;
   };
 
   View3D.prototype.setVolume = function (vol, palette, keepCamera) {
@@ -357,6 +398,12 @@
   };
 
   View3D.prototype.matrices = function () {
+    var aspect0 = this.canvas.width / this.canvas.height;
+    if (this.fp) {
+      var f = this.fp, c0 = Math.cos(f.pitch), e = f.eye;
+      var at = [e[0] - Math.sin(f.yaw) * c0, e[1] + Math.sin(f.pitch), e[2] - Math.cos(f.yaw) * c0];
+      return { eye: e, vp: mul(perspective(f.fov, aspect0, 0.05, f.far), lookAt(e, at, [0, 1, 0])) };
+    }
     var cp = Math.cos(this.pitch), t = this.target;
     var eye = [t[0] + this.dist * cp * Math.sin(this.yaw), t[1] + this.dist * Math.sin(this.pitch), t[2] + this.dist * cp * Math.cos(this.yaw)];
     var aspect = this.canvas.width / this.canvas.height;
@@ -370,6 +417,7 @@
     this.resize();
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     var pal = this.palette, top = pal.skyTop.map(function (v) { return v / 255; }), low = pal.skyLow.map(function (v) { return v / 255; });
+    if (this.fp && this.fp.fogColor) top = low = this.fp.fogColor;
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
     gl.useProgram(this.sky);
     gl.uniform3fv(this.loc.uTop, top); gl.uniform3fv(this.loc.uLow, low);
@@ -378,19 +426,25 @@
     gl.vertexAttribPointer(this.loc.aP, 2, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.disableVertexAttribArray(this.loc.aP);
-    if (!this.vol) return;
+    if (!this.vol && !this.fp) return;
 
-    var m = this.matrices(), L = this.loc, vol = this.vol;
+    var m = this.matrices(), L = this.loc, vol = this.vol, fp = this.fp, self = this;
     this.vp = m.vp; this.eye = m.eye;
     gl.useProgram(this.prog);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.disable(gl.CULL_FACE);
     gl.uniformMatrix4fv(L.uVP, false, m.vp);
-    gl.uniform3f(L.uOrigin, vol.x0, vol.yMin, vol.z0);
     gl.uniform3fv(L.uEye, m.eye);
     gl.uniform3fv(L.uFog, low);
-    gl.uniform2f(L.uFogR, this.dist * 0.95, this.dist * 2.6 + vol.size);
+    if (fp) gl.uniform2f(L.uFogR, fp.fogNear, fp.fogFar);
+    else gl.uniform2f(L.uFogR, this.dist * 0.95, this.dist * 2.6 + vol.size);
+    gl.uniform1f(L.uScale, 1);
+    function origin(p) {
+      if (p.origin) gl.uniform3f(L.uOrigin, p.origin[0], p.origin[1], p.origin[2]);
+      else gl.uniform3f(L.uOrigin, vol.x0, vol.yMin, vol.z0);
+    }
+    var parts = this.cull ? this.parts.filter(function (p) { return self.cull(p, m.eye); }) : this.parts;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.atlasTex); gl.uniform1i(L.uAtlas, 0);
     gl.enableVertexAttribArray(L.aPos); gl.enableVertexAttribArray(L.aCol); gl.enableVertexAttribArray(L.aUV);
     function draw(o) {
@@ -401,10 +455,22 @@
       gl.drawElements(gl.TRIANGLES, o.n, gl.UNSIGNED_INT, 0);
     }
     gl.uniform1f(L.uAlpha, 1);
-    this.parts.forEach(function (p) { if (p.op) draw(p.op); });
-    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    parts.forEach(function (p) { if (p.op) { origin(p); draw(p.op); } });
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    if (this.outline) {
+      // 照準のブロックの枠（少しだけ大きくして、面に埋もれないようにする）
+      var o = this.outline;
+      gl.uniform3f(L.uOrigin, o[0] - 0.002, o[1] - 0.002, o[2] - 0.002);
+      gl.uniform1f(L.uScale, 1.004); gl.uniform1f(L.uAlpha, 0.5);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.pos); gl.vertexAttribPointer(L.aPos, 4, gl.SHORT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.col); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.uv); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+      gl.drawArrays(gl.LINES, 0, 24);
+      gl.uniform1f(L.uScale, 1);
+    }
+    gl.depthMask(false);
     gl.uniform1f(L.uAlpha, 0.8);
-    this.parts.forEach(function (p) { if (p.wa) draw(p.wa); });
+    parts.forEach(function (p) { if (p.wa) { origin(p); draw(p.wa); } });
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.disableVertexAttribArray(L.aPos); gl.disableVertexAttribArray(L.aCol); gl.disableVertexAttribArray(L.aUV);
   };
