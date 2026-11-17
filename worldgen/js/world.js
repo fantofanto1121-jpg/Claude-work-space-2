@@ -127,9 +127,9 @@
       for (; y >= minY; y--) { id = bl[((y - minY) << 8) | i]; if (id !== 0) break; }
       if (y < minY) { topId[i] = 0; topY[i] = minY; floorId[i] = 0; floorY[i] = minY; continue; }
       topId[i] = id; topY[i] = y;
-      if (id === B.WATER || id === B.LAVA) {
+      if (WG.FLUID[id]) {
         var fy = y - 1, fid = 0;
-        for (; fy >= minY; fy--) { fid = bl[((fy - minY) << 8) | i]; if (fid !== id && fid !== 0) break; }
+        for (; fy >= minY; fy--) { fid = bl[((fy - minY) << 8) | i]; if (!WG.FLUID[fid] && fid !== 0) break; }
         floorId[i] = fy >= minY ? fid : 0; floorY[i] = Math.max(fy, minY);
       } else { floorId[i] = id; floorY[i] = y; }
     }

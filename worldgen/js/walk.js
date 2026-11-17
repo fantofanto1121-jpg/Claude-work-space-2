@@ -58,6 +58,8 @@
     this.walkDist = 0; this.prevWalkDist = 0; this.bob = 0; this.prevBob = 0;
     this.acc = 0; this.ready = false; this.running = false; this.frameN = 0;
     this.target = null;
+    this.lights = new Map();   // チャンクごとの明るさ
+    this.dirty = new Map();    // あとで作り直すチャンク（0 が先）
   }
 
   Walker.prototype.solid = function (x, y, z) { return SOLID[this.world.block(x, y, z)]; };
@@ -67,7 +69,7 @@
     var w = this.world, top = Math.min(w.maxY - 2, w.dim.view.yMax);
     for (var y = top; y > w.minY; y--) {
       var below = w.block(x, y - 1, z), here = w.block(x, y, z), up = w.block(x, y + 1, z);
-      if ((SOLID[below] || below === B.WATER) && !TREE[below] && !SOLID[here] && !SOLID[up] && here !== B.LAVA && up !== B.LAVA && below !== B.LAVA) return y;
+      if ((SOLID[below] || WG.isWater(below)) && !TREE[below] && !SOLID[here] && !SOLID[up] && !WG.isLava(here) && !WG.isLava(up) && !WG.isLava(below)) return y;
     }
     return null;
   };
@@ -127,8 +129,8 @@
       for (var z = Math.floor(b[2] + 0.001); z <= Math.floor(b[5] - 0.001); z++)
         for (var x = Math.floor(b[0] + 0.001); x <= Math.floor(b[3] - 0.001); x++) {
           var id = this.world.block(x, y, z);
-          if (id === B.LAVA) return 'lava';
-          if (id === B.WATER) found = 'water';
+          if (WG.isLava(id)) return 'lava';
+          if (WG.isWater(id)) found = 'water';
         }
     return found;
   };
@@ -200,7 +202,8 @@
     } else if (k.Space) {
       if (fl) {
         v[1] += 0.04;
-        if (this.collidedH) v[1] = 0.3; // 水から岸へ上がる
+        // 水から岸へ上がる：Minecraft と同じく、0.6 上が空いていて水もない（水面の近く）ときだけ
+        if (this.collidedH && this.freeAbove(v[0], v[2])) v[1] = 0.3;
       } else if (this.onGround && this.jumpDelay === 0) {
         v[1] = 0.42;
         if (this.sprint) { v[0] += fx * 0.2; v[2] += fz * 0.2; }
@@ -208,6 +211,10 @@
       }
     } else this.jumpDelay = 0;
 
+    if (fl && !this.flying) {
+      var push = this.flowPush();
+      if (push) { var pk = fl === 'water' ? 0.014 : this.world.dimKey === 'nether' ? 0.007 : 0.0023; v[0] += push[0] * pk; v[1] += push[1] * pk; v[2] += push[2] * pk; }
+    }
     var y0 = this.pos[1], wasGround = this.onGround;
     var moved = this.move(v[0], v[1], v[2]);
 
@@ -242,18 +249,65 @@
     else this.lastSpace = t;
   };
 
-  // 置いた・壊したブロックの周りの面を作り直す（境目なら隣のチャンクも）
-  Walker.prototype.remesh = function (x, z) {
+  // 体の上 0.6 が、固いブロックにも流体にも当たらないか（水から岸へ上がれるか）
+  Walker.prototype.freeAbove = function (dx, dz) {
+    var b = this.box(), o = [b[0] + dx, b[1] + 0.6, b[2] + dz, b[3] + dx, b[4] + 0.6, b[5] + dz];
+    for (var y = Math.floor(o[1]); y <= Math.floor(o[4] - 1e-7); y++)
+      for (var z = Math.floor(o[2]); z <= Math.floor(o[5] - 1e-7); z++)
+        for (var x = Math.floor(o[0]); x <= Math.floor(o[3] - 1e-7); x++) {
+          var id = this.world.block(x, y, z);
+          if (SOLID[id] || WG.FLUID[id]) return false;
+        }
+    return true;
+  };
+
+  // 体が触れている流れの向きの合計
+  Walker.prototype.flowPush = function () {
+    var b = this.box(), sx = 0, sy = 0, sz = 0, n = 0;
+    for (var y = Math.floor(b[1] + 0.001); y <= Math.floor(b[4] - 0.001); y++)
+      for (var z = Math.floor(b[2] + 0.001); z <= Math.floor(b[5] - 0.001); z++)
+        for (var x = Math.floor(b[0] + 0.001); x <= Math.floor(b[3] - 0.001); x++) {
+          var f = WG.fluidFlow(this.world, x, y, z);
+          if (f) { sx += f[0]; sy += f[1]; sz += f[2]; n++; }
+        }
+    var len = Math.hypot(sx, sy, sz);
+    return n && len > 1e-6 ? [sx / len, sy / len, sz / len] : null;
+  };
+
+  // チャンクの面を作る（歩く表示では光も付ける）
+  Walker.prototype.build = function (cx, cz) {
+    var key = cx + ',' + cz, old = this.loaded.get(key);
+    if (old) this.view.remove(old);
+    var vol = chunkVolume(this.world, cx, cz);
+    vol.light = WG.chunkLight(this.world, cx, cz);
+    vol.ambient = WG.AMBIENT[this.world.dimKey] || 0;
+    this.lights.set(key, vol.light);
+    var mesh = WG.meshPart(vol, 1, 1, 17, 17);
+    this.loaded.set(key, mesh.opaque.idx.length || mesh.water.idx.length ? this.view.upload(mesh, [cx << 4, this.world.minY, cz << 4]) : null);
+    this.dirty.delete(key);
+  };
+
+  // ブロックが変わったチャンクを作り直す。now が false でなければ、そのチャンク（と面が接する隣）をすぐ作り直す。
+  // 光だけが変わるかもしれない周りのチャンクは、あとで少しずつ作り直す。
+  Walker.prototype.remesh = function (x, z, now) {
     var cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
     for (var dz = -1; dz <= 1; dz++) for (var dx = -1; dx <= 1; dx++) {
-      if ((dx === -1 && lx !== 0) || (dx === 1 && lx !== 15) || (dz === -1 && lz !== 0) || (dz === 1 && lz !== 15)) continue;
       var key = (cx + dx) + ',' + (cz + dz);
       if (!this.loaded.has(key)) continue;
-      var old = this.loaded.get(key);
-      if (old) this.view.remove(old);
-      var mesh = WG.meshPart(chunkVolume(this.world, cx + dx, cz + dz), 1, 1, 17, 17);
-      this.loaded.set(key, mesh.opaque.idx.length || mesh.water.idx.length ? this.view.upload(mesh, [(cx + dx) << 4, this.world.minY, (cz + dz) << 4]) : null);
+      var touch = (dx === 0 || (dx === -1 && lx === 0) || (dx === 1 && lx === 15)) && (dz === 0 || (dz === -1 && lz === 0) || (dz === 1 && lz === 15));
+      if (touch && now !== false) this.build(cx + dx, cz + dz);
+      else if (!this.dirty.has(key) || this.dirty.get(key) > (touch ? 0 : 1)) this.dirty.set(key, touch ? 0 : 1);
     }
+  };
+
+  // ある場所の明るさ（0〜1）。落ちているアイテムなどに使う。
+  Walker.prototype.brightness = function (x, y, z) {
+    var bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z), L = this.lights.get((bx >> 4) + ',' + (bz >> 4));
+    var amb = WG.AMBIENT[this.world.dimKey] || 0;
+    if (!L || by < this.world.minY || by > this.world.maxY) return 1;
+    var lv = L[((by - this.world.minY + 1) * 18 + (bz & 15) + 1) * 18 + (bx & 15) + 1];
+    var b = Math.max(WG.lightCurve[lv >> 4], WG.lightCurve[lv & 15]);
+    return amb + (1 - amb) * b;
   };
 
   // 視線の先のブロック（液体と空気は通り抜ける）
@@ -267,7 +321,7 @@
     var prev = null;
     for (var n = 0; n < 32; n++) {
       var id = this.world.peekBlock(c[0], c[1], c[2]);
-      if (id > 0 && id !== B.WATER && id !== B.LAVA) {
+      if (id > 0 && !WG.FLUID[id]) {
         return { x: c[0], y: c[1], z: c[2], id: id, px: prev ? prev[0] : c[0], py: prev ? prev[1] : c[1] + 1, pz: prev ? prev[2] : c[2] };
       }
       k = tMax[0] < tMax[1] ? (tMax[0] < tMax[2] ? 0 : 2) : (tMax[1] < tMax[2] ? 1 : 2);
@@ -283,16 +337,21 @@
     var t0 = WG.now(), pcx = Math.floor(this.pos[0] / 16), pcz = Math.floor(this.pos[2] / 16), self = this;
     this.loaded.forEach(function (part, key) {
       var p = key.split(','), dx = +p[0] - pcx, dz = +p[1] - pcz;
-      if (dx * dx + dz * dz > (RADIUS + 1.5) * (RADIUS + 1.5)) { if (part) self.view.remove(part); self.loaded.delete(key); }
+      if (dx * dx + dz * dz > (RADIUS + 1.5) * (RADIUS + 1.5)) { if (part) self.view.remove(part); self.loaded.delete(key); self.lights.delete(key); self.dirty.delete(key); }
     });
     var pending = 0;
     for (var i = 0; i < OFFSETS.length; i++) {
       var cx = pcx + OFFSETS[i][0], cz = pcz + OFFSETS[i][1], key = cx + ',' + cz;
       if (this.loaded.has(key)) continue;
       if (WG.now() - t0 > budget) { pending++; continue; }
-      var mesh = WG.meshPart(chunkVolume(this.world, cx, cz), 1, 1, 17, 17);
-      var empty = !mesh.opaque.idx.length && !mesh.water.idx.length;
-      this.loaded.set(key, empty ? null : this.view.upload(mesh, [cx << 4, this.world.minY, cz << 4]));
+      this.build(cx, cz);
+    }
+    // 作り直しを待っているチャンク（面が接するもの、近いものから）
+    if (this.dirty.size && WG.now() - t0 < budget) {
+      var list = [];
+      this.dirty.forEach(function (pr, key) { var p = key.split(','); list.push([pr, Math.abs(+p[0] - pcx) + Math.abs(+p[1] - pcz), +p[0], +p[1]]); });
+      list.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+      for (var j2 = 0; j2 < list.length && WG.now() - t0 < budget; j2++) this.build(list[j2][2], list[j2][3]);
     }
     if (!this.ready) {
       var ok = true;
@@ -355,8 +414,8 @@
     // 目が液体の中にあるときは、色の付いた近い霞にする
     var eyeId = this.world.peekBlock(Math.floor(eye[0]), Math.floor(eye[1]), Math.floor(eye[2]));
     var far = RADIUS * 16, fp = { eye: eye, yaw: this.yaw, pitch: this.pitch, fov: FOV * this.fovK, far: far + 32, fogNear: far * 0.55, fogFar: far - 4 };
-    if (eyeId === B.WATER) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
-    else if (eyeId === B.LAVA) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }
+    if (WG.isWater(eyeId)) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
+    else if (WG.isLava(eyeId)) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }
     this.view.fp = fp;
     this.view.outline = this.target ? [this.target.x, this.target.y, this.target.z] : null;
     this.view.res = 1;

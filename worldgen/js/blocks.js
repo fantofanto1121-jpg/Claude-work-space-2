@@ -65,7 +65,41 @@
     ['END_PORTAL_FRAME', 'エンドポータルフレーム', '#4f6d60', 'solid'],
     ['CHORUS_PLANT', 'コーラスプラント', '#6b5173', 'solid'],
     ['CHORUS_FLOWER', 'コーラスフラワー', '#9c85a3', 'solid'],
-    ['COBBLED_DEEPSLATE', '丸石状の深層岩', '#4d4d52', 'solid']
+    ['COBBLED_DEEPSLATE', '丸石状の深層岩', '#4d4d52', 'solid'],
+    // クラフトで作るブロック
+    ['OAK_PLANKS', 'オークの板材', '#a5824f', 'solid'],
+    ['BIRCH_PLANKS', 'シラカバの板材', '#c9b783', 'solid'],
+    ['SPRUCE_PLANKS', 'トウヒの板材', '#73563a', 'solid'],
+    ['JUNGLE_PLANKS', 'ジャングルの板材', '#a2734f', 'solid'],
+    ['ACACIA_PLANKS', 'アカシアの板材', '#aa5a32', 'solid'],
+    ['CRAFTING_TABLE', '作業台', '#8d6a43', 'solid'],
+    ['FURNACE', 'かまど', '#6e6e6e', 'solid'],
+    ['FURNACE_LIT', 'かまど（燃焼中）', '#6e6e6e', 'solid'],
+    ['TORCH', 'トーチ', '#e2a83a', 'deco'],
+    ['WALL_TORCH_N', '壁掛けトーチ', '#e2a83a', 'deco'],
+    ['WALL_TORCH_S', '壁掛けトーチ', '#e2a83a', 'deco'],
+    ['WALL_TORCH_E', '壁掛けトーチ', '#e2a83a', 'deco'],
+    ['WALL_TORCH_W', '壁掛けトーチ', '#e2a83a', 'deco'],
+    ['COAL_BLOCK', '石炭ブロック', '#1e1e20', 'solid'],
+    ['IRON_BLOCK', '鉄ブロック', '#d8d8d8', 'solid'],
+    ['GOLD_BLOCK', '金ブロック', '#e8c540', 'solid'],
+    ['COPPER_BLOCK', '銅ブロック', '#c06f52', 'solid'],
+    ['DIAMOND_BLOCK', 'ダイヤモンドブロック', '#66d6cf', 'solid'],
+    ['LAPIS_BLOCK', 'ラピスラズリブロック', '#244a9a', 'solid'],
+    ['REDSTONE_BLOCK', 'レッドストーンブロック', '#a8180f', 'solid'],
+    ['QUARTZ_BLOCK', '水晶ブロック', '#e8e3dc', 'solid'],
+    ['STONE_BRICKS', '石レンガ', '#7b7b7b', 'solid'],
+    ['BRICKS', 'レンガ', '#a5604d', 'solid'],
+    ['NETHER_BRICKS', 'ネザーレンガ', '#2f1719', 'solid'],
+    // 流れる水と溶岩（1〜7 は流れの段階、FALL は落ちているもの）
+    ['WATER_1', '水（流れ）', '#3c66a5', 'fluid'], ['WATER_2', '水（流れ）', '#3c66a5', 'fluid'],
+    ['WATER_3', '水（流れ）', '#3c66a5', 'fluid'], ['WATER_4', '水（流れ）', '#3c66a5', 'fluid'],
+    ['WATER_5', '水（流れ）', '#3c66a5', 'fluid'], ['WATER_6', '水（流れ）', '#3c66a5', 'fluid'],
+    ['WATER_7', '水（流れ）', '#3c66a5', 'fluid'], ['WATER_FALL', '水（落ちる）', '#3c66a5', 'fluid'],
+    ['LAVA_1', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_2', '溶岩（流れ）', '#d4621c', 'fluid', 1],
+    ['LAVA_3', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_4', '溶岩（流れ）', '#d4621c', 'fluid', 1],
+    ['LAVA_5', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_6', '溶岩（流れ）', '#d4621c', 'fluid', 1],
+    ['LAVA_7', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_FALL', '溶岩（落ちる）', '#d4621c', 'fluid', 1]
   ];
 
   // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
@@ -89,6 +123,9 @@
   }
 
   var B = {}, LIST = [], N = DEF.length, TEX = WG.TEXTURES || {};
+  // 流れる水・溶岩は、元の水・溶岩と同じ見た目
+  function texOf(key) { return TEX[key] || (/^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : null); }
+  var CUT = [];
   var RGB = [], RGB_FACE = [], PIX = [], OPAQUE = new Uint8Array(N), KIND = [], EMIT = new Float32Array(N), TINT = new Uint8Array(N);
   DEF.forEach(function (d, id) {
     B[d[0]] = id;
@@ -96,7 +133,13 @@
     KIND[id] = d[3];
     EMIT[id] = d[4] || 0;
     OPAQUE[id] = (d[3] === 'solid' || d[0] === 'LAVA') ? 1 : 0;
-    var t = TEX[d[0]], base = d[2] ? hex(d[2]) : [0, 0, 0];
+    var t = texOf(d[0]), base = d[2] ? hex(d[2]) : [0, 0, 0];
+    if (t && t.mask) {
+      // 切り抜きの見た目（RGBA）
+      var rgb = decode(t.side), m = decode(t.mask), cut = new Uint8Array(256);
+      for (var q = 0; q < 64; q++) { cut[q * 4] = rgb[q * 3]; cut[q * 4 + 1] = rgb[q * 3 + 1]; cut[q * 4 + 2] = rgb[q * 3 + 2]; cut[q * 4 + 3] = m[q]; }
+      CUT[id] = cut;
+    }
     RGB_FACE[id] = {}; PIX[id] = null;
     if (t) {
       PIX[id] = {};
@@ -138,6 +181,39 @@
     return t;
   }
 
+  // ---- 流体 ----
+  // FLUID: 0 なし、1 水、2 溶岩。FLUID_LEVEL: 0 が元（水源）、1〜7 が流れ、8 が落ちているもの。
+  var FLUID = new Uint8Array(N), FLUID_LEVEL = new Uint8Array(N), FLUID_ID = [[], [], []];
+  LIST.forEach(function (b) {
+    var m = /^(WATER|LAVA)(?:_(\d|FALL))?$/.exec(b.key);
+    if (!m) return;
+    var type = m[1] === 'WATER' ? 1 : 2, lv = m[2] === 'FALL' ? 8 : m[2] ? +m[2] : 0;
+    FLUID[b.id] = type; FLUID_LEVEL[b.id] = lv; FLUID_ID[type][lv] = b.id;
+    if (type === 2) OPAQUE[b.id] = lv === 0 ? 1 : 0;   // 流れる溶岩は低いので、隣の面を隠さない
+  });
+
+  // ---- 光 ----
+  // LIGHT_EMIT: 自分が出す光（0〜15）。PDF の「光源レベル」と同じ値。
+  // LIGHT_BLOCK: 光を遮る量。不透明なブロックは 15、葉・水・氷は 1（1 マスごとに 1 余分に暗くなる）、空気・草花・トーチは 0。
+  var LIGHT_EMIT = new Uint8Array(N), LIGHT_BLOCK = new Uint8Array(N);
+  LIST.forEach(function (b) {
+    var k = b.key;
+    if (OPAQUE[b.id]) LIGHT_BLOCK[b.id] = 15;
+    if (/_LEAVES$/.test(k) || FLUID[b.id] === 1 || k === 'ICE') LIGHT_BLOCK[b.id] = 1;
+    if (FLUID[b.id] === 2) { LIGHT_EMIT[b.id] = 15; LIGHT_BLOCK[b.id] = 0; }
+  });
+  [['GLOWSTONE', 15], ['MAGMA', 3], ['TORCH', 14], ['WALL_TORCH_N', 14], ['WALL_TORCH_S', 14], ['WALL_TORCH_E', 14], ['WALL_TORCH_W', 14],
+    ['FURNACE_LIT', 13], ['END_PORTAL_FRAME', 1]].forEach(function (e) { LIGHT_EMIT[B[e[0]]] = e[1]; });
+  EMIT[B.FURNACE_LIT] = 0.25;
+
+  WG.FLUID = FLUID;
+  WG.FLUID_LEVEL = FLUID_LEVEL;
+  WG.fluidId = function (type, level) { return FLUID_ID[type][level]; };
+  WG.isWater = function (id) { return FLUID[id] === 1; };
+  WG.isLava = function (id) { return FLUID[id] === 2; };
+  WG.LIGHT_EMIT = LIGHT_EMIT;
+  WG.LIGHT_BLOCK = LIGHT_BLOCK;
+
   WG.B = B;
   WG.BLOCKS = LIST;
   WG.OPAQUE = OPAQUE;
@@ -145,6 +221,8 @@
   WG.blockKind = function (id) { return KIND[id]; };
   WG.blockName = function (id) { return LIST[id] ? LIST[id].name : '不明'; };
   WG.skinColor = skinColor;
+  // 切り抜きの見た目（RGBA 8×8、透明な所は描かない）。なければ null。
+  WG.skinCutout = function (id) { return CUT[id] || null; };
   WG.skinTexture = skinTexture;
   WG.tintOf = tintOf;
   WG.blockColor = blockColor;

@@ -34,15 +34,18 @@
   };
 
   // ---- 見た目のアトラス ----
-  // 8×8 の見た目を 16×16 枚並べた 128×128 の画像。0 番は白（見た目のないブロック用）。
-  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 128, tileTable = null, atlasPixels = null;
+  // 8×8 の見た目を 32×32 枚並べた 256×256 の画像。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
+  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 256, PER_ROW = 32, tileTable = null, atlasPixels = null, seen = {};
   function atlas() {
     if (tileTable) return tileTable;
     tileTable = new Uint16Array(WG.BLOCKS.length * 3);
     atlasPixels = new Uint8Array(ATLAS * ATLAS * 4);
     var n = 0, k;
     function tile(src) {
-      var tx = (n % 16) * 8, ty = ((n / 16) | 0) * 8;
+      var sig = src ? Array.prototype.join.call(src) : 'white';
+      if (seen[sig] != null) return seen[sig];
+      seen[sig] = n;
+      var tx = (n % PER_ROW) * 8, ty = ((n / PER_ROW) | 0) * 8;
       for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
         var o = ((ty + j) * ATLAS + tx + i) * 4;
         if (src) { k = (j * 8 + i) * 3; atlasPixels[o] = src[k]; atlasPixels[o + 1] = src[k + 1]; atlasPixels[o + 2] = src[k + 2]; }
@@ -62,6 +65,8 @@
     Object.keys(PLANT_SHAPE).forEach(function (key) {
       tileTable[WG.B[key] * 3 + FACE_IX.side] = rgbaTile(plantPixels(WG.B[key], false));
     });
+    // 切り抜きの見た目があるブロック（トーチ）は、横の面をそれにする
+    WG.BLOCKS.forEach(function (b) { var cut = WG.skinCutout(b.id); if (cut) tileTable[b.id * 3 + FACE_IX.side] = rgbaTile(cut); });
     // ブロックではないアイテムの絵と、壊している途中のひび（4 段階）
     if (WG.ITEMS) Object.keys(WG.ITEMS).forEach(function (k) { var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px); });
     CRACKS.forEach(function (rows) {
@@ -71,7 +76,10 @@
     });
     return tileTable;
     function rgbaTile(px) {
-      var tx = (n % 16) * 8, ty = ((n / 16) | 0) * 8;
+      var sig = 'a' + Array.prototype.join.call(px);
+      if (seen[sig] != null) return seen[sig];
+      seen[sig] = n;
+      var tx = (n % PER_ROW) * 8, ty = ((n / PER_ROW) | 0) * 8;
       for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
         var o = ((ty + j) * ATLAS + tx + i) * 4, q = (j * 8 + i) * 4;
         atlasPixels[o] = px[q]; atlasPixels[o + 1] = px[q + 1]; atlasPixels[o + 2] = px[q + 2]; atlasPixels[o + 3] = px[q + 3];
@@ -165,7 +173,41 @@
     var dOff = DIRS.map(function (d) { return d.n[0] + d.n[2] * sx + d.n[1] * sxz; });
     var uOff = DIRS.map(function (d) { return d.u[0] + d.u[2] * sx + d.u[1] * sxz; });
     var vOff = DIRS.map(function (d) { return d.v[0] + d.v[2] * sx + d.v[1] * sxz; });
-    var ao = [0, 0, 0, 0];
+    var ao = [0, 0, 0, 0], FL = WG.FLUID, FLV = WG.FLUID_LEVEL;
+    // 明るさ（歩く表示のときだけ。立体の模型では切り口が暗くならないよう、明るさを付けない）
+    var LT = vol.light || null, amb = vol.ambient || 0, CUR = WG.lightCurve, LB = [1, 0.9, 0.76];
+    var lit = [1, 1, 1];
+    function curve(l) { var a = Math.floor(l), t = l - a; return a >= 15 ? CUR[15] : CUR[a] + (CUR[a + 1] - CUR[a]) * t; }
+    function light(sky, blk) {
+      var bs = curve(sky), bb = curve(blk);
+      for (var c = 0; c < 3; c++) { var x = Math.max(bs, bb * LB[c]); lit[c] = amb + (1 - amb) * x; }
+      return lit;
+    }
+    // 角の明るさ：角を囲む空いたマスの光の平均（Minecraft のなめらかな明るさ）
+    function cornerLight(cells, n) {
+      var s = 0, b = 0, m = 0;
+      for (var q = 0; q < n; q++) { var lv = LT[cells[q]]; s += lv >> 4; b += lv & 15; m++; }
+      return light(s / m, b / m);
+    }
+    var cells = [0, 0, 0, 0];
+    // 流体の高さ（1/16 単位）。元と落ちているものは 8/9、流れは段階に合わせて低い。
+    function fh(id, type) {
+      if (FL[id] !== type) return -1;
+      var lv = FLV[id];
+      return lv === 0 || lv === 8 ? 14.22 : (8 - lv) / 9 * 16;
+    }
+    // 角の高さ：角を囲む 4 マスの平均（上に同じ流体があれば満杯、元は重く数える）
+    function cornerH(i, cx, cz, type) {
+      var c4 = [i, i + (cx ? 1 : -1), i + (cz ? sx : -sx), i + (cx ? 1 : -1) + (cz ? sx : -sx)], sum = 0, wsum = 0;
+      for (var q = 0; q < 4; q++) {
+        var id2 = v[c4[q]];
+        if (FL[v[c4[q] + sxz]] === type && FL[id2] === type) return 16;
+        var h = fh(id2, type);
+        if (h >= 0) { var wgt = FLV[id2] === 0 ? 10 : 1; sum += h * wgt; wsum += wgt; }
+        else if (!OPQ[id2]) wsum += 1;
+      }
+      return wsum ? sum / wsum : 14.22;
+    }
     for (var vy = 1; vy <= vol.ny; vy++) {
       var wy = vol.yMin + vy - 1;
       for (var vz = vz0; vz < vz1; vz++) {
@@ -177,62 +219,83 @@
           var bio = vol.bio[(vz - 1) * vol.size + vx - 1];
           var lx = (vx - 1) * P, ly = (vy - 1) * P, lz = (vz - 1) * P;
           var jit = 0.95 + (WG.hash(0, wx, wy, wz, 99) & 255) / 2550;
-          var kind = WG.blockKind(id);
+          var kind = WG.blockKind(id), ftype = FL[id], k, v0, px, py, pz, cu, cv, D, d, L;
           if (OPQ[id]) {
             var em = EMIT[id];
-            for (var d = 0; d < 6; d++) {
+            for (d = 0; d < 6; d++) {
               var ni = i + dOff[d];
               if (OPQ[v[ni]]) continue;
-              var D = DIRS[d], c = faceBase(id, D.face, bio), tile = TT[id * 3 + FACE_IX[D.face]], side = D.n[1] === 0;
+              D = DIRS[d];
+              var c = faceBase(id, D.face, bio), tile = TT[id * 3 + FACE_IX[D.face]], side = D.n[1] === 0;
               var uo = uOff[d], vo = vOff[d];
-              for (var k = 0; k < 4; k++) {
+              for (k = 0; k < 4; k++) {
                 var su = CORNERS[k][0] ? uo : -uo, sv = CORNERS[k][1] ? vo : -vo;
                 var s1 = OPQ[v[ni + su]], s2 = OPQ[v[ni + sv]], s3 = OPQ[v[ni + su + sv]];
                 ao[k] = (s1 && s2) ? 0 : 3 - s1 - s2 - s3;
               }
-              var v0 = op.nv;
-              for (k = 0; k < 4; k++) {
-                var cu = CORNERS[k][0], cv = CORNERS[k][1];
-                var px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
-                var py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
-                var pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
-                var f = em > 0 ? (0.82 + 0.18 * D.shade) * (0.85 + 0.15 * AO[ao[k]]) * jit : D.shade * AO[ao[k]] * jit;
-                f *= 0.5;
-                op.vert(px, py, pz, c8(c[0] * f), c8(c[1] * f), c8(c[2] * f), (em * 255) | 0, cu * 16, side ? 16 - cv * 16 : cv * 16, tile);
-              }
-              op.quad(v0, ao[0] + ao[2] < ao[1] + ao[3]);
-            }
-          } else if (id === B.WATER) {
-            var topLow = v[i + sxz] !== B.WATER;
-            var wc = faceBase(id, 'top', bio);
-            for (d = 0; d < 6; d++) {
-              var nid = v[i + dOff[d]];
-              if (nid === B.WATER || OPQ[nid]) continue;
-              D = DIRS[d];
-              var wf = (d === 2 ? 0.92 : D.shade * 0.85) * (0.98 + (jit - 0.95) * 0.4) * 0.5;
-              var wt = TT[id * 3 + FACE_IX[D.face]], ws = D.n[1] === 0;
-              v0 = wa.nv;
+              v0 = op.nv;
               for (k = 0; k < 4; k++) {
                 cu = CORNERS[k][0]; cv = CORNERS[k][1];
                 px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
                 py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
                 pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
-                if (topLow && py === ly + P) py = ly + 14;
-                wa.vert(px, py, pz, c8(wc[0] * wf), c8(wc[1] * wf), c8(wc[2] * wf), 0, cu * 16, ws ? 16 - cv * 16 : cv * 16, wt);
+                var f = em > 0 ? (0.82 + 0.18 * D.shade) * (0.85 + 0.15 * AO[ao[k]]) * jit : D.shade * AO[ao[k]] * jit;
+                f *= 0.5;
+                L = lit;
+                if (LT && !(em > 0)) {
+                  var su2 = CORNERS[k][0] ? uOff[d] : -uOff[d], sv2 = CORNERS[k][1] ? vOff[d] : -vOff[d], nc = 1;
+                  cells[0] = ni;
+                  if (!OPQ[v[ni + su2]]) cells[nc++] = ni + su2;
+                  if (!OPQ[v[ni + sv2]]) cells[nc++] = ni + sv2;
+                  if (nc === 3 && !OPQ[v[ni + su2 + sv2]]) cells[nc++] = ni + su2 + sv2;
+                  L = cornerLight(cells, nc);
+                } else { lit[0] = lit[1] = lit[2] = 1; }
+                op.vert(px, py, pz, c8(c[0] * f * L[0]), c8(c[1] * f * L[1]), c8(c[2] * f * L[2]), (em * 255) | 0, cu * 16, side ? 16 - cv * 16 : cv * 16, tile);
               }
-              wa.quad(v0, false);
+              op.quad(v0, ao[0] + ao[2] < ao[1] + ao[3]);
             }
-          } else if (kind === 'plant') {
-            // 対角に交差する 2 枚。草は色味を頂点の色で、花は切り抜きの色そのままで描く。
+          } else if (ftype) {
+            // 水と流れる溶岩：段階に合わせて上の面を下げ、角ごとの高さでなめらかに傾ける
+            var buf = ftype === 1 ? wa : op, emf = ftype === 2 ? 255 : 0;
+            var wc = faceBase(id, 'top', bio), aboveSame = FL[v[i + sxz]] === ftype;
+            var hc = aboveSame ? null : [cornerH(i, 0, 0, ftype), cornerH(i, 1, 0, ftype), cornerH(i, 0, 1, ftype), cornerH(i, 1, 1, ftype)];
+            for (d = 0; d < 6; d++) {
+              var nid = v[i + dOff[d]];
+              if (FL[nid] === ftype || (OPQ[nid] && d !== 2)) continue;
+              if (d === 2 && aboveSame) continue;
+              D = DIRS[d];
+              var wf = (ftype === 2 ? 1 : (d === 2 ? 0.92 : D.shade * 0.85) * (0.98 + (jit - 0.95) * 0.4)) * 0.5;
+              if (LT && ftype === 1) { var lv2 = LT[i + dOff[d]]; L = light(lv2 >> 4, lv2 & 15); } else { lit[0] = lit[1] = lit[2] = 1; L = lit; }
+              var wt = TT[id * 3 + FACE_IX[D.face]], ws = D.n[1] === 0;
+              v0 = buf.nv;
+              for (k = 0; k < 4; k++) {
+                cu = CORNERS[k][0]; cv = CORNERS[k][1];
+                px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
+                py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
+                pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
+                if (hc && py === ly + P) py = ly + Math.round(hc[(px > lx ? 1 : 0) + (pz > lz ? 2 : 0)]);
+                buf.vert(px, py, pz, c8(wc[0] * wf * L[0]), c8(wc[1] * wf * L[1]), c8(wc[2] * wf * L[2]), emf, cu * 16, ws ? 16 - cv * 16 : cv * 16, wt);
+              }
+              buf.quad(v0, false);
+            }
+          } else if (kind === 'plant' || kind === 'deco') {
+            // 対角に交差する 2 枚。草は色味を頂点の色で、花とトーチは切り抜きの色そのままで描く。
             var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? WG.blockColor(id, 'side', bio) : [255, 255, 255];
+            var torch = kind === 'deco', emit = torch ? 255 : 0;
+            if (LT && !torch) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else { lit[0] = lit[1] = lit[2] = 1; L = lit; }
+            // トーチは少し小さく、壁掛けは壁に寄せて傾ける
+            var s0 = torch ? 3 : 0, s1b = torch ? 13 : 16, hgt = torch ? 12 : 16, wdx = 0, wdz = 0, lift = 0;
+            if (id === B.WALL_TORCH_N) wdz = 1; else if (id === B.WALL_TORCH_S) wdz = -1; else if (id === B.WALL_TORCH_E) wdx = -1; else if (id === B.WALL_TORCH_W) wdx = 1;
+            if (wdx || wdz) lift = 3;
             for (var q = 0; q < 2; q++) {
-              var za = q ? 16 : 0, zb = q ? 0 : 16;
-              var f1 = 0.36 * jit, f2 = 0.48 * jit;
+              var za = q ? s1b : s0, zb = q ? s0 : s1b;
+              var f1 = (torch ? 0.5 : 0.36) * jit, f2 = (torch ? 0.5 : 0.48) * jit;
+              var bx = wdx * 5, bz = wdz * 5, tx = wdx * 2, tz = wdz * 2;
               v0 = op.nv;
-              op.vert(lx, ly, lz + za, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 0, 16, pt);
-              op.vert(lx + 16, ly, lz + zb, c8(pc[0] * f1), c8(pc[1] * f1), c8(pc[2] * f1), 0, 16, 16, pt);
-              op.vert(lx + 16, ly + 16, lz + zb, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 16, 0, pt);
-              op.vert(lx, ly + 16, lz + za, c8(pc[0] * f2), c8(pc[1] * f2), c8(pc[2] * f2), 0, 0, 0, pt);
+              op.vert(lx + s0 + bx, ly + lift, lz + za + bz, c8(pc[0] * f1 * L[0]), c8(pc[1] * f1 * L[1]), c8(pc[2] * f1 * L[2]), emit, 0, 16, pt);
+              op.vert(lx + s1b + bx, ly + lift, lz + zb + bz, c8(pc[0] * f1 * L[0]), c8(pc[1] * f1 * L[1]), c8(pc[2] * f1 * L[2]), emit, 16, 16, pt);
+              op.vert(lx + s1b + tx, ly + lift + hgt, lz + zb + tz, c8(pc[0] * f2 * L[0]), c8(pc[1] * f2 * L[1]), c8(pc[2] * f2 * L[2]), emit, 16, 0, pt);
+              op.vert(lx + s0 + tx, ly + lift + hgt, lz + za + tz, c8(pc[0] * f2 * L[0]), c8(pc[1] * f2 * L[1]), c8(pc[2] * f2 * L[2]), emit, 0, 0, pt);
               op.quad(v0, false);
             }
           }
@@ -297,8 +360,8 @@
     'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist;',
     'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
     'void main(){',
-    '  float t = floor(vTile + 0.5); vec2 org = vec2(mod(t, 16.0), floor(t / 16.0)) * 8.0;',
-    '  vec2 uv = (org + clamp(vUV, 0.0625, 0.9375) * 8.0) / 128.0;',
+    '  float t = floor(vTile + 0.5); vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 8.0;',
+    '  vec2 uv = (org + clamp(vUV, 0.0625, 0.9375) * 8.0) / 256.0;',
     '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
     '  vec3 c = tx.rgb * vCol.rgb * 2.0;',
     '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',

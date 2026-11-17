@@ -27,7 +27,14 @@
     ['GLOWSTONE', 0.3, 'GLOWSTONE_DUST', 2, 4], ['BASALT', 1.25, 'BASALT'], ['QUARTZ_ORE', 3, 'QUARTZ'],
     ['NETHER_GOLD_ORE', 3, 'GOLD_NUGGET', 2, 6], ['END_STONE', 3, 'END_STONE'], ['OBSIDIAN', 50, 'OBSIDIAN'],
     ['END_PORTAL_FRAME', -1, null], ['CHORUS_PLANT', 0.4, 'CHORUS_FRUIT'], ['CHORUS_FLOWER', 0.4, null],
-    ['COBBLED_DEEPSLATE', 3.5, 'COBBLED_DEEPSLATE']
+    ['COBBLED_DEEPSLATE', 3.5, 'COBBLED_DEEPSLATE'],
+    ['OAK_PLANKS', 2, 'OAK_PLANKS'], ['BIRCH_PLANKS', 2, 'BIRCH_PLANKS'], ['SPRUCE_PLANKS', 2, 'SPRUCE_PLANKS'],
+    ['JUNGLE_PLANKS', 2, 'JUNGLE_PLANKS'], ['ACACIA_PLANKS', 2, 'ACACIA_PLANKS'],
+    ['CRAFTING_TABLE', 2.5, 'CRAFTING_TABLE'], ['FURNACE', 3.5, 'FURNACE'], ['FURNACE_LIT', 3.5, 'FURNACE'],
+    ['TORCH', 0, 'TORCH'], ['WALL_TORCH_N', 0, 'TORCH'], ['WALL_TORCH_S', 0, 'TORCH'], ['WALL_TORCH_E', 0, 'TORCH'], ['WALL_TORCH_W', 0, 'TORCH'],
+    ['COAL_BLOCK', 5, 'COAL_BLOCK'], ['IRON_BLOCK', 5, 'IRON_BLOCK'], ['GOLD_BLOCK', 3, 'GOLD_BLOCK'], ['COPPER_BLOCK', 3, 'COPPER_BLOCK'],
+    ['DIAMOND_BLOCK', 5, 'DIAMOND_BLOCK'], ['LAPIS_BLOCK', 3, 'LAPIS_BLOCK'], ['REDSTONE_BLOCK', 5, 'REDSTONE_BLOCK'],
+    ['QUARTZ_BLOCK', 0.8, 'QUARTZ_BLOCK'], ['STONE_BRICKS', 1.5, 'STONE_BRICKS'], ['BRICKS', 2, 'BRICKS'], ['NETHER_BRICKS', 2, 'NETHER_BRICKS']
   ];
 
   // ブロックではないアイテム [キー, 名前, 形, 色, 最大スタック数]
@@ -37,7 +44,11 @@
     ['REDSTONE', 'レッドストーン', 'dust', '#b02b22'], ['QUARTZ', '水晶', 'gem', '#e2dad2'], ['GOLD_NUGGET', '金のナゲット', 'nugget', '#e2c24c'],
     ['GLOWSTONE_DUST', 'グロウストーンダスト', 'dust', '#e0c06a'], ['CLAY_BALL', '粘土玉', 'ball', '#a3a9b4'],
     ['SNOWBALL', '雪玉', 'ball', '#eef1f3', 16], ['CHORUS_FRUIT', 'コーラスフルーツ', 'ball', '#957aa0'],
-    ['WHEAT_SEEDS', '小麦の種', 'seeds', '#5c8a3b']
+    ['WHEAT_SEEDS', '小麦の種', 'seeds', '#5c8a3b'],
+    ['STICK', '棒', 'stick', '#8a6a3e'], ['CHARCOAL', '木炭', 'lump', '#3b3029'],
+    ['IRON_INGOT', '鉄インゴット', 'ingot', '#d6d6d4'], ['GOLD_INGOT', '金インゴット', 'ingot', '#e6c443'],
+    ['COPPER_INGOT', '銅インゴット', 'ingot', '#c4714f'], ['BRICK', 'レンガ（アイテム）', 'ingot', '#a8584a'],
+    ['NETHER_BRICK', 'ネザーレンガ（アイテム）', 'ingot', '#46222a']
   ];
 
   // 8×8 の絵。# が基本色、l が明るい色、d が暗い色。
@@ -47,7 +58,9 @@
     dust: ['........', '..#..#..', '.#.##.#.', '..#l##..', '.######.', '#.####.#', '..#..#..', '........'],
     ball: ['........', '..###...', '.#ll##d.', '.#l###d.', '.####dd.', '..#ddd..', '........', '........'],
     nugget: ['........', '........', '...##...', '..#l#d..', '..##dd..', '...dd...', '........', '........'],
-    seeds: ['........', '.#...#..', '..#.....', '....#..#', '.#..#...', '...#..#.', '#.......', '........']
+    seeds: ['........', '.#...#..', '..#.....', '....#..#', '.#..#...', '...#..#.', '#.......', '........'],
+    stick: ['........', '......l.', '.....#d.', '....#d..', '...#d...', '..#d....', '.#d.....', '........'],
+    ingot: ['........', '........', '...llll.', '..#lll#d', '.######d', '.#####dd', '........', '........']
   };
 
   var ITEMS = {};
@@ -78,7 +91,9 @@
   }
 
   // 置けるブロック（クリエイティブの一覧に出すもの）
-  var PLACEABLE = WG.BLOCKS.filter(function (b) { return b.id !== B.AIR && b.id !== B.WATER && b.id !== B.LAVA; }).map(function (b) { return b.key; });
+  var PLACEABLE = WG.BLOCKS.filter(function (b) {
+    return b.id !== B.AIR && !WG.FLUID[b.id] && b.key !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(b.key);
+  }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----
   function Inventory() {
@@ -137,7 +152,7 @@
     c.width = c.height = S;
     var x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
-    var sprite = it.shape ? itemPixels(key) : (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
+    var sprite = it.shape ? itemPixels(key) : WG.skinCutout(it.block) || (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
     if (sprite) {
       x.drawImage(spriteCanvas(sprite), 4, 4, 40, 40);
     } else {

@@ -40,18 +40,18 @@
       if (id === 0) { px(P, x, z, 0, null, pal.void[0], pal.void[1], pal.void[2]); continue; }
       var bio = s.biome ? s.biome[i] : -1;
       var c = WG.blockColor(id, 'top', bio), r = c[0], g = c[1], b = c[2];
-      var fluid = id === B.WATER || id === B.LAVA;
+      var fluid = WG.FLUID[id] > 0;
       var hy = fluid ? s.floorY[i] : y;
       var hw = x > 0 ? (fluid ? s.floorY[i - 1] : s.topY[i - 1]) : (fluid ? sw.floorY[i + 15] : sw.topY[i + 15]);
       var hn = z > 0 ? (fluid ? s.floorY[i - 16] : s.topY[i - 16]) : (fluid ? sn.floorY[i + 240] : sn.topY[i + 240]);
       var sh = 1 + clamp((hy - hw) * 0.07 + (hy - hn) * 0.07, -0.3, 0.3);
-      if (id === B.WATER) {
+      if (WG.isWater(id)) {
         var fc = WG.blockColor(s.floorId[i], 'top', bio), depth = y - s.floorY[i];
         var k = 0.52 + 0.42 * (1 - Math.exp(-depth / 7));
         var fs = 0.78 * (1 + (sh - 1) * 0.6);
         r = fc[0] * fs * (1 - k) + r * k; g = fc[1] * fs * (1 - k) + g * k; b = fc[2] * fs * (1 - k) + b * k;
         sh = 1 - 0.18 * (1 - Math.exp(-depth / 18));
-      } else if (id === B.LAVA) {
+      } else if (WG.isLava(id)) {
         sh = 1;
       }
       sh *= 0.95 + clamp((y - refY) / 420, -0.12, 0.2);
@@ -101,8 +101,8 @@
         var row = yMax - y, id = bl[((y - minY) << 8) | i];
         if (id !== 0) {
           var face = OPQ[prev] ? 'side' : 'top', col = WG.blockColor(id, face, bio);
-          var sh = (OPQ[prev] || prev === B.WATER ? 0.9 : 1.06) * jitter(wx, y, wz);
-          if (id === B.WATER) sh = 0.95;
+          var sh = (OPQ[prev] || WG.isWater(prev) ? 0.9 : 1.06) * jitter(wx, y, wz);
+          if (WG.isWater(id)) sh = 0.95;
           px(P, u, row, id, face, clamp(col[0] * sh, 0, 255), clamp(col[1] * sh, 0, 255), clamp(col[2] * sh, 0, 255));
           if (OPQ[id]) covered = true;
         } else if (covered) {

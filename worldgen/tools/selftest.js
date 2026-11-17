@@ -194,5 +194,79 @@ console.log('シード ' + SEED + '\n');
   check(!bad.length && !noData.length, 'ドロップと硬度の表がそろっている' + (bad.length || noData.length ? '（' + bad.concat(noData).join(', ') + '）' : ''));
 })();
 
+// ---- 水の流れ・光・クラフト・持ち物（遊ぶ） ----
+function flatWorld(fn) {
+  var set = new Map(), w = { minY: 0, maxY: 255, height: 256, dimKey: 'overworld', dim: { view: { yMax: 255 } } };
+  w.block = function (x, y, z) { var k = x + ',' + y + ',' + z; return set.has(k) ? set.get(k) : fn(x, y, z); };
+  w.peekBlock = w.block;
+  w.setBlock = function (x, y, z, id) { set.set(x + ',' + y + ',' + z, id); return true; };
+  return w;
+}
+var nullView = { upload: function () { return {}; }, remove: function () {}, render: function () {} };
+var nullUI = (function () {
+  var cl = { add: function () {}, remove: function () {}, toggle: function () {} }, el = { classList: cl };
+  return { locked: function () { return true; }, lock: function () {}, unlock: function () {}, status: function () {}, hurt: function () {}, hud: el, inv: el, dead: el, cursor: el };
+})();
+(function () {
+  // 水源 1 つから 7 マスまで広がり、水源を取ると引く
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), f = new WG.Fluids(w), i, n = 0, x, z;
+  w.setBlock(0, 11, 0, B.WATER); f.notify(0, 11, 0);
+  for (i = 0; i < 200; i++) f.tick();
+  for (x = -9; x <= 9; x++) for (z = -9; z <= 9; z++) if (WG.FLUID[w.block(x, 11, z)]) n++;
+  w.setBlock(0, 11, 0, B.AIR); f.notify(0, 11, 0);
+  for (i = 0; i < 300; i++) f.tick();
+  var left = 0;
+  for (x = -9; x <= 9; x++) for (z = -9; z <= 9; z++) if (WG.FLUID[w.block(x, 11, z)]) left++;
+  check(n === 113 && left === 0 && WG.FLUID_LEVEL[w.block(7, 11, 0)] === 0, '水が 7 マスまで広がり（' + n + ' マス）、水源を取ると引く（残り ' + left + '）');
+  // 無限水源と、水と溶岩
+  var w2 = flatWorld(function (x, y, z) { if (y <= 10) return B.STONE; if (y === 11 && !(x >= 0 && x <= 1 && z >= 0 && z <= 1)) return B.STONE; return 0; }), f2 = new WG.Fluids(w2);
+  w2.setBlock(0, 11, 0, B.WATER); w2.setBlock(1, 11, 1, B.WATER); f2.notify(0, 11, 0); f2.notify(1, 11, 1);
+  for (i = 0; i < 100; i++) f2.tick();
+  var w3 = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), f3 = new WG.Fluids(w3);
+  w3.setBlock(0, 11, 0, B.LAVA); w3.setBlock(3, 11, 0, B.WATER); f3.notify(0, 11, 0); f3.notify(3, 11, 0);
+  for (i = 0; i < 400; i++) f3.tick();
+  check(w2.block(0, 11, 1) === B.WATER && w2.block(1, 11, 0) === B.WATER && w3.block(0, 11, 0) === B.OBSIDIAN, '2 つの水源の間に水源ができ、水が溶岩の元に触れると黒曜石になる');
+})();
+(function () {
+  var wd = new WG.World(SEED, 'overworld'), c = wd.chunk(0, 0), x = 8, z = 8, h = c.hmap[(z << 4) | x];
+  for (var dx = -3; dx <= 3; dx++) for (var dz = -3; dz <= 3; dz++) for (var dy = 0; dy < 3; dy++) wd.setBlock(x + dx, h - 10 + dy, z + dz, B.AIR);
+  wd.setBlock(x, h - 10, z, B.TORCH);
+  var L = WG.chunkLight(wd, 0, 0), at = function (xx, yy, zz) { var v = L[((yy + 65) * 18 + zz + 1) * 18 + xx + 1]; return [v >> 4, v & 15]; };
+  var sky = at(x, h + 1, z), t1 = at(x + 1, h - 10, z), t3 = at(x + 3, h - 10, z), deep = at(3, -40, 3);
+  check(sky[0] === 15 && t1[0] === 0 && t1[1] === 13 && t3[1] === 11 && deep[0] === 0, '光：空の下は 15、地下の部屋は空の光 0、トーチの隣 13・3 マス先 11（' + [sky, t1, t3, deep].map(function (a) { return a.join('/'); }).join(' ') + '）');
+})();
+(function () {
+  var m = WG.Craft.match;
+  var r1 = m(['OAK_LOG', null, null, null], 2), r2 = m(['OAK_PLANKS', 'OAK_PLANKS', 'OAK_PLANKS', 'OAK_PLANKS'], 2);
+  var r3 = m([null, 'COAL', null, null, 'STICK', null, null, null, null], 3), r4 = m(['STICK', 'COAL', null, null], 2);
+  var f = new WG.Craft.Furnace(); f.slots = [{ key: 'RAW_IRON', n: 3 }, { key: 'COAL', n: 1 }, null];
+  for (var i = 0; i < 700; i++) f.tick();
+  check(r1.key === 'OAK_PLANKS' && r1.n === 4 && r2.key === 'CRAFTING_TABLE' && r3.key === 'TORCH' && r3.n === 4 && !r4 && f.slots[2] && f.slots[2].key === 'IRON_INGOT' && f.slots[2].n === 3,
+    'クラフト（原木→板材 4、板材 4→作業台、石炭と棒→トーチ 4）と、かまど（粗い鉄 3 → 鉄インゴット 3）');
+})();
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), p = new WG.Player();
+  var g = new WG.Game(nullView, w, nullUI, p);
+  g.inv.add('DIRT', 5); g.health = 13; g.spawnItem('COAL', 2, 3, 11, 3, 0, 10);
+  g.walker.stop = function () {}; g.stop();
+  var g2 = new WG.Game(nullView, w, nullUI, p), g3 = new WG.Game(nullView, flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), nullUI, p);
+  check(g2.inv.slots[0] && g2.inv.slots[0].n === 5 && g2.health === 13 && g2.entities.length === 1 && g3.inv.slots[0] && g3.entities.length === 0,
+    '表示や次元を切り替えても、持ち物と体力が残る（落ちているアイテムは世界ごと）');
+  // 水中の壁で速く上がらない
+  var rise = [false, true].map(function (wall) {
+    var ww = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : (wall && x === 3 && y <= 40) ? B.STONE : y <= 40 ? B.WATER : 0 });
+    var k = new WG.Walker(nullView, ww, {}); k.pos = [1.5, 11, 0.5]; k.prev = k.pos.slice(); k.yaw = -Math.PI / 2;
+    k.keys = { KeyW: true, Space: true }; for (var i = 0; i < 40; i++) k.tick();
+    return k.pos[1];
+  });
+  check(Math.abs(rise[0] - rise[1]) < 0.01, '水中で壁に沿っても、速く上がらない（' + rise.map(function (v) { return v.toFixed(2); }).join(' / ') + '）');
+  // ブロックの中のアイテムは押し出される
+  var w4 = flatWorld(function (x, y, z) { return y <= 20 ? B.STONE : 0; }), g4 = new WG.Game(nullView, w4, nullUI);
+  g4.walker.pos = [50, 21, 50];
+  var e = g4.spawnItem('DIRT', 1, 0.5, 20.5, 0.5, 0, 10);
+  for (var i = 0; i < 40; i++) g4.tickEntities();
+  check(e.y >= 21 - 1e-6, 'ブロックの中のアイテムが外へ押し出される（y ' + e.y.toFixed(2) + '）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

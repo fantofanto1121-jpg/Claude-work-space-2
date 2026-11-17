@@ -247,6 +247,8 @@
   // ---------------- 歩く・遊ぶ（パソコン版のみ） ----------------
   var DESKTOP = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var game = null, walker = null, walkKey = '', walkEdits = 0, gameMode = 'survival';
+  // 持ち物・体力は、表示や次元を切り替えても残す（シードを変えたときだけ新しくする）
+  var player = new WG.Player();
   function locked() { return document.pointerLockElement === c3d; }
 
   var gameUI = {
@@ -277,7 +279,7 @@
     view3d.palette = world().dim.palette;
     walkKey = key;
     walkEdits = world().editCount;
-    game = new WG.Game(view3d, world(), gameUI);
+    game = new WG.Game(view3d, world(), gameUI, player);
     game.mode = gameMode;
     walker = game.walker;
     walker.spawnCenter = [state.cx, state.cz];
@@ -419,6 +421,8 @@
   // ---------------- 入力 ----------------
   $('apply').onclick = function () {
     state.seed = $('seed').value.trim() || '0';
+    stopWalk();
+    player = new WG.Player();
     tileCache.clear(); texCache.clear(); lastVolKey = '';
     syncUI(); refresh();
   };
