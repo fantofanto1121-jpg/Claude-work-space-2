@@ -47,6 +47,10 @@
   #hover { color: var(--text); }
   #progress { color: var(--muted); }
   .seg .wide { grid-column: span 2; }
+  .seg.four { grid-template-columns: repeat(4, 1fr); }
+  .slot .dur { position: absolute; left: 5px; right: 5px; bottom: 3px; height: 3px; background: #1a1a1a; pointer-events: none; }
+  .slot .dur i { display: block; height: 100%; }
+  #inv .grid.chest { margin-bottom: 14px; }
   #cross { position: absolute; left: 50%; top: calc(50% - 14px); width: 18px; height: 18px; margin: -9px 0 0 -9px;
     pointer-events: none; mix-blend-mode: difference; }
   #cross::before, #cross::after { content: ""; position: absolute; background: #e8e8e8; }
@@ -141,6 +145,11 @@
       <div class="seg" id="modesGame"><button data-v="survival">サバイバル</button><button data-v="creative">クリエイティブ</button></div>
     </div>
 
+    <div class="group hide" id="g-time">
+      <div class="label">時刻　<span id="timeNow"></span></div>
+      <div class="seg four" id="times"><button data-t="1000">朝</button><button data-t="6000">昼</button><button data-t="12000">夕方</button><button data-t="18000">夜</button></div>
+    </div>
+
     <div class="group" id="g-slice">
       <div class="label">断面の高さ</div>
       <div class="row"><input id="sliceY" type="range" min="-64" max="319" step="1"><span class="val" id="sliceYv"></span></div>
@@ -196,6 +205,7 @@
         <dt>左クリック</dt><dd>壊す（サバイバルは押し続ける）</dd>
         <dt>右クリック</dt><dd>置く</dd>
         <dt>中クリック</dt><dd>見ているブロックを持つ</dd>
+        <dt>右クリック（作業台など）</dt><dd>作業台・かまど・チェストを開く</dd>
         <dt>1〜9・ホイール</dt><dd>持ち替える</dd>
         <dt>E</dt><dd>インベントリ</dd>
         <dt>Q</dt><dd>捨てる（Ctrl＋Q でまとめて）</dd>

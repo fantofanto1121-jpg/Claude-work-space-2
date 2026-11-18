@@ -99,7 +99,8 @@
     ['LAVA_1', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_2', '溶岩（流れ）', '#d4621c', 'fluid', 1],
     ['LAVA_3', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_4', '溶岩（流れ）', '#d4621c', 'fluid', 1],
     ['LAVA_5', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_6', '溶岩（流れ）', '#d4621c', 'fluid', 1],
-    ['LAVA_7', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_FALL', '溶岩（落ちる）', '#d4621c', 'fluid', 1]
+    ['LAVA_7', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_FALL', '溶岩（落ちる）', '#d4621c', 'fluid', 1],
+    ['GLASS', 'ガラス', '#d7e7e9', 'solid']
   ];
 
   // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
@@ -205,6 +206,8 @@
   [['GLOWSTONE', 15], ['MAGMA', 3], ['TORCH', 14], ['WALL_TORCH_N', 14], ['WALL_TORCH_S', 14], ['WALL_TORCH_E', 14], ['WALL_TORCH_W', 14],
     ['FURNACE_LIT', 13], ['END_PORTAL_FRAME', 1]].forEach(function (e) { LIGHT_EMIT[B[e[0]]] = e[1]; });
   EMIT[B.FURNACE_LIT] = 0.25;
+  // ガラス：固くて通れないが、向こうが見え、光も通す
+  OPAQUE[B.GLASS] = 0; LIGHT_BLOCK[B.GLASS] = 0;
 
   WG.FLUID = FLUID;
   WG.FLUID_LEVEL = FLUID_LEVEL;
@@ -223,6 +226,8 @@
   WG.skinColor = skinColor;
   // 切り抜きの見た目（RGBA 8×8、透明な所は描かない）。なければ null。
   WG.skinCutout = function (id) { return CUT[id] || null; };
+  // 6 面とも切り抜きのブロック（ガラス）
+  WG.cutoutAllFaces = function (id) { var t = texOf(LIST[id].key); return !!(t && t.allFaces); };
   WG.skinTexture = skinTexture;
   WG.tintOf = tintOf;
   WG.blockColor = blockColor;

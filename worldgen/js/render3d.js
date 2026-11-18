@@ -66,7 +66,13 @@
       tileTable[WG.B[key] * 3 + FACE_IX.side] = rgbaTile(plantPixels(WG.B[key], false));
     });
     // 切り抜きの見た目があるブロック（トーチ）は、横の面をそれにする
-    WG.BLOCKS.forEach(function (b) { var cut = WG.skinCutout(b.id); if (cut) tileTable[b.id * 3 + FACE_IX.side] = rgbaTile(cut); });
+    WG.BLOCKS.forEach(function (b) {
+      var cut = WG.skinCutout(b.id);
+      if (!cut) return;
+      var t = rgbaTile(cut);
+      tileTable[b.id * 3 + FACE_IX.side] = t;
+      if (WG.cutoutAllFaces(b.id)) tileTable[b.id * 3 + FACE_IX.top] = tileTable[b.id * 3 + FACE_IX.bottom] = t;
+    });
     // ブロックではないアイテムの絵と、壊している途中のひび（4 段階）
     if (WG.ITEMS) Object.keys(WG.ITEMS).forEach(function (k) { var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px); });
     CRACKS.forEach(function (rows) {
@@ -135,9 +141,10 @@
 
   function Buf() { this.cap = 0; this.nv = 0; this.ni = 0; this.grow(4096); }
   Buf.prototype.grow = function (cap) {
-    var pos = new Int16Array(cap * 4), col = new Uint8Array(cap * 4), uv = new Uint8Array(cap * 4), idx = new Uint32Array(cap * 3 / 2);
-    if (this.pos) { pos.set(this.pos); col.set(this.col); uv.set(this.uv); idx.set(this.idx); }
-    this.pos = pos; this.col = col; this.uv = uv; this.idx = idx; this.cap = cap;
+    var pos = new Int16Array(cap * 4), col = new Uint8Array(cap * 4), uv = new Uint8Array(cap * 4), lt = new Uint8Array(cap * 4), idx = new Uint32Array(cap * 3 / 2);
+    if (this.pos) { pos.set(this.pos); col.set(this.col); uv.set(this.uv); lt.set(this.lt); idx.set(this.idx); }
+    this.pos = pos; this.col = col; this.uv = uv; this.lt = lt; this.idx = idx; this.cap = cap;
+    if (this.curS == null) { this.curS = 255; this.curB = 0; }
   };
   // 色は 2 倍して使う（明るさ 1 = 127.5）。tu, tv は面の中の位置（0〜16）、tile はアトラスの番号。
   Buf.prototype.vert = function (x, y, z, r, g, b, a, tu, tv, tile) {
@@ -146,6 +153,8 @@
     this.pos[o] = x; this.pos[o + 1] = y; this.pos[o + 2] = z;
     this.col[o] = r; this.col[o + 1] = g; this.col[o + 2] = b; this.col[o + 3] = a;
     this.uv[o] = tu; this.uv[o + 1] = tv; this.uv[o + 2] = tile & 255; this.uv[o + 3] = tile >> 8;
+    // 光の段階（空の光 × 17、ブロックの光 × 17）。明るさは描くときに時刻に合わせて決める。
+    this.lt[o] = this.curS; this.lt[o + 1] = this.curB;
     return this.nv++;
   };
   Buf.prototype.quad = function (v0, flip) {
@@ -155,7 +164,7 @@
     this.ni += 6;
   };
   Buf.prototype.trim = function () {
-    return { pos: this.pos.subarray(0, this.nv * 4), col: this.col.subarray(0, this.nv * 4), uv: this.uv.subarray(0, this.nv * 4), idx: this.idx.subarray(0, this.ni) };
+    return { pos: this.pos.subarray(0, this.nv * 4), col: this.col.subarray(0, this.nv * 4), uv: this.uv.subarray(0, this.nv * 4), lt: this.lt.subarray(0, this.nv * 4), idx: this.idx.subarray(0, this.ni) };
   };
 
   function c8(v) { return v > 255 ? 255 : v < 0 ? 0 : v | 0; }
@@ -177,12 +186,11 @@
     // 明るさ（歩く表示のときだけ。立体の模型では切り口が暗くならないよう、明るさを付けない）
     var LT = vol.light || null, amb = vol.ambient || 0, CUR = WG.lightCurve, LB = [1, 0.9, 0.76];
     var lit = [1, 1, 1];
-    function curve(l) { var a = Math.floor(l), t = l - a; return a >= 15 ? CUR[15] : CUR[a] + (CUR[a + 1] - CUR[a]) * t; }
-    function light(sky, blk) {
-      var bs = curve(sky), bb = curve(blk);
-      for (var c = 0; c < 3; c++) { var x = Math.max(bs, bb * LB[c]); lit[c] = amb + (1 - amb) * x; }
-      return lit;
-    }
+    // 光は色に焼き込まず、段階を頂点に持たせる（昼と夜で作り直さなくてよいように）
+    function setL(sky, blk) { op.curS = wa.curS = Math.round(sky); op.curB = wa.curB = Math.round(blk); }
+    function light(sky, blk) { setL(sky * 17, blk * 17); lit[0] = lit[1] = lit[2] = 1; return lit; }
+    function noLight() { setL(255, 0); lit[0] = lit[1] = lit[2] = 1; return lit; }
+    void amb; void CUR; void LB;
     // 角の明るさ：角を囲む空いたマスの光の平均（Minecraft のなめらかな明るさ）
     function cornerLight(cells, n) {
       var s = 0, b = 0, m = 0;
@@ -249,10 +257,27 @@
                   if (!OPQ[v[ni + sv2]]) cells[nc++] = ni + sv2;
                   if (nc === 3 && !OPQ[v[ni + su2 + sv2]]) cells[nc++] = ni + su2 + sv2;
                   L = cornerLight(cells, nc);
-                } else { lit[0] = lit[1] = lit[2] = 1; }
+                } else noLight();
                 op.vert(px, py, pz, c8(c[0] * f * L[0]), c8(c[1] * f * L[1]), c8(c[2] * f * L[2]), (em * 255) | 0, cu * 16, side ? 16 - cv * 16 : cv * 16, tile);
               }
               op.quad(v0, ao[0] + ao[2] < ao[1] + ao[3]);
+            }
+          } else if (id === B.GLASS) {
+            for (d = 0; d < 6; d++) {
+              var gi = i + dOff[d], gn = v[gi];
+              if (gn === B.GLASS || OPQ[gn]) continue;
+              D = DIRS[d];
+              var gt = TT[id * 3 + FACE_IX[D.face]], gs = D.n[1] === 0, gf = D.shade * 0.5 * jit;
+              if (LT) { var lv4 = LT[gi]; light(lv4 >> 4, lv4 & 15); } else noLight();
+              v0 = op.nv;
+              for (k = 0; k < 4; k++) {
+                cu = CORNERS[k][0]; cv = CORNERS[k][1];
+                px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
+                py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
+                pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
+                op.vert(px, py, pz, c8(255 * gf), c8(255 * gf), c8(255 * gf), 0, cu * 16, gs ? 16 - cv * 16 : cv * 16, gt);
+              }
+              op.quad(v0, false);
             }
           } else if (ftype) {
             // 水と流れる溶岩：段階に合わせて上の面を下げ、角ごとの高さでなめらかに傾ける
@@ -265,7 +290,7 @@
               if (d === 2 && aboveSame) continue;
               D = DIRS[d];
               var wf = (ftype === 2 ? 1 : (d === 2 ? 0.92 : D.shade * 0.85) * (0.98 + (jit - 0.95) * 0.4)) * 0.5;
-              if (LT && ftype === 1) { var lv2 = LT[i + dOff[d]]; L = light(lv2 >> 4, lv2 & 15); } else { lit[0] = lit[1] = lit[2] = 1; L = lit; }
+              if (LT && ftype === 1) { var lv2 = LT[i + dOff[d]]; L = light(lv2 >> 4, lv2 & 15); } else L = noLight();
               var wt = TT[id * 3 + FACE_IX[D.face]], ws = D.n[1] === 0;
               v0 = buf.nv;
               for (k = 0; k < 4; k++) {
@@ -282,7 +307,7 @@
             // 対角に交差する 2 枚。草は色味を頂点の色で、花とトーチは切り抜きの色そのままで描く。
             var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? WG.blockColor(id, 'side', bio) : [255, 255, 255];
             var torch = kind === 'deco', emit = torch ? 255 : 0;
-            if (LT && !torch) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else { lit[0] = lit[1] = lit[2] = 1; L = lit; }
+            if (LT && !torch) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else L = noLight();
             // トーチは少し小さく、壁掛けは壁に寄せて傾ける
             var s0 = torch ? 3 : 0, s1b = torch ? 13 : 16, hgt = torch ? 12 : 16, wdx = 0, wdz = 0, lift = 0;
             if (id === B.WALL_TORCH_N) wdz = 1; else if (id === B.WALL_TORCH_S) wdz = -1; else if (id === B.WALL_TORCH_E) wdx = -1; else if (id === B.WALL_TORCH_W) wdx = 1;
@@ -348,22 +373,29 @@
 
   // ---- WebGL ----
   var VS = [
-    'attribute vec4 aPos; attribute vec4 aCol; attribute vec4 aUV;',
+    'attribute vec4 aPos; attribute vec4 aCol; attribute vec4 aUV; attribute vec4 aLt;',
     'uniform mat4 uVP; uniform vec3 uOrigin; uniform vec3 uEye; uniform float uScale;',
-    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist;',
+    'uniform float uSkyDark; uniform float uAmb; uniform vec3 uSkyTint;',
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL;',
+    // 明るさの曲線（Minecraft の曲線と、明るさ設定「中」の補正）
+    'float curve(float l){ float f = clamp(l / 15.0, 0.0, 1.0); float b = f / (4.0 - 3.0 * f); float g = 1.0 - pow(1.0 - b, 4.0); return b + (g - b) * 0.5; }',
     'void main(){ vec3 p = aPos.xyz / 16.0 * uScale + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0; vTile = aUV.z + aUV.w * 256.0;',
+    // 空の光は時刻で弱まる（夜は最大 11 段暗い）。ブロックの光は少し暖かい色。光るブロックはいつも明るい。
+    '  float sky = max(aLt.x / 17.0 - uSkyDark, 0.0), blk = aLt.y / 17.0;',
+    '  vec3 L = max(vec3(curve(sky)) * uSkyTint, vec3(curve(blk)) * vec3(1.0, 0.9, 0.76));',
+    '  vL = mix(vec3(uAmb) + (1.0 - uAmb) * L, vec3(1.0), step(0.01, aCol.a));',
     '  vDist = length(p - uEye); gl_Position = uVP * vec4(p, 1.0); }'
   ].join('\n');
   // 見た目は 8×8 の中だけを読む（隣の見た目がにじまないよう、端の画素の中心で止める）
   var FS = [
     'precision mediump float;',
-    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist;',
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL;',
     'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
     'void main(){',
     '  float t = floor(vTile + 0.5); vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 8.0;',
     '  vec2 uv = (org + clamp(vUV, 0.0625, 0.9375) * 8.0) / 256.0;',
     '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
-    '  vec3 c = tx.rgb * vCol.rgb * 2.0;',
+    '  vec3 c = tx.rgb * vCol.rgb * 2.0 * vL;',
     '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
     '  gl_FragColor = vec4(mix(c, uFog, f), uAlpha); }'
   ].join('\n');
@@ -405,6 +437,8 @@
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     this.loc = {
       aPos: gl.getAttribLocation(this.prog, 'aPos'), aCol: gl.getAttribLocation(this.prog, 'aCol'), aUV: gl.getAttribLocation(this.prog, 'aUV'),
+      aLt: gl.getAttribLocation(this.prog, 'aLt'), uSkyDark: gl.getUniformLocation(this.prog, 'uSkyDark'),
+      uAmb: gl.getUniformLocation(this.prog, 'uAmb'), uSkyTint: gl.getUniformLocation(this.prog, 'uSkyTint'),
       uAtlas: gl.getUniformLocation(this.prog, 'uAtlas'),
       uVP: gl.getUniformLocation(this.prog, 'uVP'), uOrigin: gl.getUniformLocation(this.prog, 'uOrigin'), uScale: gl.getUniformLocation(this.prog, 'uScale'),
       uEye: gl.getUniformLocation(this.prog, 'uEye'), uFog: gl.getUniformLocation(this.prog, 'uFog'),
@@ -430,7 +464,7 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.pos); gl.bufferData(gl.ARRAY_BUFFER, new Int16Array(E), gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.col); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(24 * 4), gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.uv); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(24 * 4), gl.STATIC_DRAW);
-    this.dynBuf = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer() };
+    this.dynBuf = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer(), lt: gl.createBuffer() };
     this.dynamic = null;  // 毎回作り直す面（落ちているアイテムなど）。[{pos, col, uv, count, alpha}]
     this.parts = [];
     this.vol = null;
@@ -455,7 +489,7 @@
   View3D.prototype.remove = function (p) {
     var gl = this.gl, i = this.parts.indexOf(p);
     if (i >= 0) this.parts.splice(i, 1);
-    [p.op, p.wa].forEach(function (m) { if (m) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.col); gl.deleteBuffer(m.uv); gl.deleteBuffer(m.idx); } });
+    [p.op, p.wa].forEach(function (m) { if (m) { gl.deleteBuffer(m.pos); gl.deleteBuffer(m.col); gl.deleteBuffer(m.uv); gl.deleteBuffer(m.lt); gl.deleteBuffer(m.idx); } });
   };
 
   // origin を渡すと、その部分だけ別の原点で描く（歩くときのチャンクごとの面）
@@ -463,7 +497,8 @@
     var gl = this.gl;
     function up(m) {
       if (!m.idx.length) return null;
-      var o = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer(), idx: gl.createBuffer(), n: m.idx.length };
+      var o = { pos: gl.createBuffer(), col: gl.createBuffer(), uv: gl.createBuffer(), lt: gl.createBuffer(), idx: gl.createBuffer(), n: m.idx.length };
+      gl.bindBuffer(gl.ARRAY_BUFFER, o.lt); gl.bufferData(gl.ARRAY_BUFFER, m.lt, gl.STATIC_DRAW);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.bufferData(gl.ARRAY_BUFFER, m.pos, gl.STATIC_DRAW);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.uv); gl.bufferData(gl.ARRAY_BUFFER, m.uv, gl.STATIC_DRAW);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.col); gl.bufferData(gl.ARRAY_BUFFER, m.col, gl.STATIC_DRAW);
@@ -515,6 +550,7 @@
     this.resize();
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     var pal = this.palette, top = pal.skyTop.map(function (v) { return v / 255; }), low = pal.skyLow.map(function (v) { return v / 255; });
+    if (this.fp && this.fp.skyTop) { top = this.fp.skyTop; low = this.fp.skyLow; }
     if (this.fp && this.fp.fogColor) top = low = this.fp.fogColor;
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
     gl.useProgram(this.sky);
@@ -534,7 +570,7 @@
     gl.disable(gl.CULL_FACE);
     gl.uniformMatrix4fv(L.uVP, false, m.vp);
     gl.uniform3fv(L.uEye, m.eye);
-    gl.uniform3fv(L.uFog, low);
+    gl.uniform3fv(L.uFog, fp && fp.skyFog && !fp.fogColor ? fp.skyFog : low);
     if (fp) gl.uniform2f(L.uFogR, fp.fogNear, fp.fogFar);
     else gl.uniform2f(L.uFogR, this.dist * 0.95, this.dist * 2.6 + vol.size);
     gl.uniform1f(L.uScale, 1);
@@ -544,11 +580,15 @@
     }
     var parts = this.cull ? this.parts.filter(function (p) { return self.cull(p, m.eye); }) : this.parts;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.atlasTex); gl.uniform1i(L.uAtlas, 0);
-    gl.enableVertexAttribArray(L.aPos); gl.enableVertexAttribArray(L.aCol); gl.enableVertexAttribArray(L.aUV);
+    gl.enableVertexAttribArray(L.aPos); gl.enableVertexAttribArray(L.aCol); gl.enableVertexAttribArray(L.aUV); gl.enableVertexAttribArray(L.aLt);
+    gl.uniform1f(L.uSkyDark, fp && fp.skyDark || 0); gl.uniform1f(L.uAmb, fp ? this.ambient || 0 : 0);
+    gl.uniform3fv(L.uSkyTint, fp && fp.skyTint || [1, 1, 1]);
+    if (fp && fp.celestial) this.drawCelestial(fp, m.eye);
     function draw(o) {
       gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.vertexAttribPointer(L.aPos, 4, gl.SHORT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.col); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.uv); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, o.lt); gl.vertexAttribPointer(L.aLt, 4, gl.UNSIGNED_BYTE, false, 0, 0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.idx);
       gl.drawElements(gl.TRIANGLES, o.n, gl.UNSIGNED_INT, 0);
     }
@@ -563,7 +603,9 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.pos); gl.vertexAttribPointer(L.aPos, 4, gl.SHORT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.col); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, this.edge.uv); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+      gl.disableVertexAttribArray(L.aLt); gl.vertexAttrib4f(L.aLt, 255, 0, 0, 0);
       gl.drawArrays(gl.LINES, 0, 24);
+      gl.enableVertexAttribArray(L.aLt);
       gl.uniform1f(L.uScale, 1);
     }
     if (this.dynamic) {
@@ -576,6 +618,7 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, db.pos); gl.bufferData(gl.ARRAY_BUFFER, d.pos, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aPos, 4, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, db.col); gl.bufferData(gl.ARRAY_BUFFER, d.col, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, db.uv); gl.bufferData(gl.ARRAY_BUFFER, d.uv, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, db.lt); gl.bufferData(gl.ARRAY_BUFFER, d.lt, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aLt, 4, gl.UNSIGNED_BYTE, false, 0, 0);
         gl.drawArrays(gl.TRIANGLES, 0, d.count);
       });
     }
@@ -583,7 +626,58 @@
     gl.uniform1f(L.uAlpha, 0.8);
     parts.forEach(function (p) { if (p.wa) { origin(p); draw(p.wa); } });
     gl.depthMask(true); gl.disable(gl.BLEND);
-    gl.disableVertexAttribArray(L.aPos); gl.disableVertexAttribArray(L.aCol); gl.disableVertexAttribArray(L.aUV);
+    gl.disableVertexAttribArray(L.aPos); gl.disableVertexAttribArray(L.aCol); gl.disableVertexAttribArray(L.aUV); gl.disableVertexAttribArray(L.aLt);
+  };
+
+  // 太陽・月・星（空の遠くに、カメラを中心に描く。地形より先に、奥行きを使わずに描く）
+  var STARS = null;
+  View3D.prototype.drawCelestial = function (fp, eye) {
+    var gl = this.gl, L = this.loc, c = fp.celestial, D = fp.far * 0.7, db = this.dynBuf;
+    if (!STARS) {
+      STARS = [];
+      for (var i = 0; i < 500; i++) {
+        var u = WG.rnd(1, i, 0, 0, 501) * 2 - 1, t = WG.rnd(1, i, 0, 0, 502) * Math.PI * 2, r = Math.sqrt(1 - u * u);
+        STARS.push([r * Math.cos(t), u, r * Math.sin(t), 0.15 + WG.rnd(1, i, 0, 0, 503) * 0.35]);
+      }
+    }
+    var pos = [], col = [], uv = [], lt = [];
+    function quad(dir, size, rgb) {
+      // dir に垂直な 2 方向
+      var ax = Math.abs(dir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      var ux = dir[1] * ax[2] - dir[2] * ax[1], uy = dir[2] * ax[0] - dir[0] * ax[2], uz = dir[0] * ax[1] - dir[1] * ax[0], ul = Math.hypot(ux, uy, uz);
+      ux /= ul; uy /= ul; uz /= ul;
+      var vx = dir[1] * uz - dir[2] * uy, vy = dir[2] * ux - dir[0] * uz, vz = dir[0] * uy - dir[1] * ux;
+      var cx = eye[0] + dir[0] * D, cy = eye[1] + dir[1] * D, cz = eye[2] + dir[2] * D;
+      [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]].forEach(function (q) {
+        pos.push((cx + (ux * q[0] + vx * q[1]) * size) * 16, (cy + (uy * q[0] + vy * q[1]) * size) * 16, (cz + (uz * q[0] + vz * q[1]) * size) * 16, 0);
+        col.push(rgb[0] >> 1, rgb[1] >> 1, rgb[2] >> 1, 255); uv.push(8, 8, 0, 0); lt.push(255, 0, 0, 0);
+      });
+    }
+    function rot(v, a) { var ca = Math.cos(a), sa = Math.sin(a); return [v[0] * ca - v[1] * sa, v[0] * sa + v[1] * ca, v[2]]; }
+    var batches = [];
+    if (c.stars > 0.01) {
+      STARS.forEach(function (st) { var d = rot(st, c.angle); if (d[1] > -0.1) quad(d, st[3] * D / 300, [230, 232, 240]); });
+      batches.push([pos, col, uv, lt, c.stars]);
+      pos = []; col = []; uv = []; lt = [];
+    }
+    var sun = rot([0, 1, 0], c.angle), moon = [-sun[0], -sun[1], -sun[2]];
+    quad(sun, D * 0.06, [250, 236, 186]);
+    quad(moon, D * 0.045, [214, 220, 228]);
+    batches.push([pos, col, uv, lt, 1]);
+    gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.uniform2f(L.uFogR, 1e7, 2e7);
+    gl.uniform3f(L.uOrigin, 0, 0, 0); gl.uniform1f(L.uScale, 1);
+    batches.forEach(function (bt) {
+      gl.uniform1f(L.uAlpha, bt[4]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, db.pos); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bt[0]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aPos, 4, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, db.col); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bt[1]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, db.uv); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bt[2]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, db.lt); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bt[3]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aLt, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, bt[0].length / 4);
+    });
+    gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.DEPTH_TEST);
+    gl.uniform2f(L.uFogR, fp.fogNear, fp.fogFar);
   };
 
   // 画面上の点（CSS ピクセル）の先にあるブロックを探す

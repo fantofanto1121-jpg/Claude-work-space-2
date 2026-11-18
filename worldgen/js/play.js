@@ -18,7 +18,12 @@
   var WALL = {};
   WALL[B.WALL_TORCH_E] = [-1, 0]; WALL[B.WALL_TORCH_W] = [1, 0]; WALL[B.WALL_TORCH_S] = [0, -1]; WALL[B.WALL_TORCH_N] = [0, 1];
 
-  var MAX_HEALTH = 20, MAX_AIR = 300;
+  var MAX_HEALTH = 20, MAX_AIR = 300, DAY = 24000;
+  // 下が空くと落ちるブロック（砂・砂利）。落ちて入れる場所は、空気・流体・草花。
+  var GRAVITY = {}; GRAVITY[B.SAND] = GRAVITY[B.GRAVEL] = 1;
+  function canFallInto(id) { return id === B.AIR || FLUID[id] > 0 || isPlant(id); }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 
   // プレイヤー（持ち物・体力など）。表示や次元を切り替えても残るよう、ゲームの外に置く。
   function Player() {
@@ -37,9 +42,11 @@
     // 落ちているアイテム、かまど、流体の動きは世界ごとに残す
     this.entities = world.items || (world.items = []);
     if (!world.furnaces) world.furnaces = new Map();
+    if (!world.chests) world.chests = new Map();
+    if (world.time == null) world.time = 1000;   // 朝（Minecraft の時刻 1000 = 午前 7 時）
     if (!world.fluids) world.fluids = new WG.Fluids(world);
     world.fluids.onChange = function (x, y, z, oldId, newId) { self.fluidChanged(x, y, z, oldId, newId); };
-    this.particles = [];
+    this.particles = []; this.falling = [];
     this.breaking = null; this.breakDelay = 0; this.placeDelay = 0;
     this.mouseL = false; this.mouseR = false;
     this.clickL = false; this.clickR = false;   // 短いクリックも次の刻みで必ず受け付ける
@@ -52,7 +59,8 @@
       tick: function () { self.tick(); },
       land: function (d) { self.land(d); },
       voidDamage: function () { return self.mode === 'survival'; },
-      draw: function (w, a) { self.draw(a); }
+      draw: function (w, a) { self.draw(a); },
+      sky: function () { return self.sky(); }
     });
   }
 
@@ -114,12 +122,17 @@
     if (holdL && t && !this.invOpen && this.breakDelay === 0) {
       if (!surv) { this.breakBlock(t.x, t.y, t.z); this.breakDelay = 5; this.breaking = null; }
       else {
-        var it = ITEMS[WG.BLOCKS[t.id].key], h = it ? it.hardness : 1;
-        if (h >= 0) {
+        // 掘る速さとドロップは、持っている道具で変わる（Minecraft と同じ式）
+        var bkey = WG.BLOCKS[t.id].key, held = this.inv.held(), mn = WG.mining(bkey, held);
+        if (mn.perTick > 0) {
           var b = this.breaking;
-          if (!b || b.x !== t.x || b.y !== t.y || b.z !== t.z) b = this.breaking = { x: t.x, y: t.y, z: t.z, p: 0 };
-          b.p += h === 0 ? 1 : 1 / (h * 1.5 * 20);
-          if (b.p >= 1) { this.breakBlock(t.x, t.y, t.z); this.breaking = null; this.breakDelay = 5; }
+          if (!b || b.x !== t.x || b.y !== t.y || b.z !== t.z || b.tool !== (held ? held.key : '')) b = this.breaking = { x: t.x, y: t.y, z: t.z, p: 0, tool: held ? held.key : '' };
+          b.p += mn.perTick;
+          if (b.p >= 1) {
+            this.breakBlock(t.x, t.y, t.z, mn.harvest);
+            this.breaking = null; this.breakDelay = 5;
+            this.wearTool(ITEMS[bkey] ? ITEMS[bkey].hardness : 1);
+          }
         } else this.breaking = null;
       }
     } else if (!holdL || !t) this.breaking = null;
@@ -141,7 +154,88 @@
       self.walker.remesh(p[0], p[2]);
     });
 
+    this.tickFalling();
     this.tickEntities();
+    if (wd.dimKey === 'overworld') wd.time = (wd.time + 1) % DAY;
+  };
+
+  // 道具を使うと耐久値が減り、なくなると壊れる（硬さ 0 のブロックでは減らない）
+  Game.prototype.wearTool = function (hardness) {
+    var held = this.inv.held(), it = held ? ITEMS[held.key] : null;
+    if (!it || !it.dur || !(hardness > 0)) return;
+    held.dmg = (held.dmg || 0) + 1;
+    if (held.dmg >= it.dur) this.inv.slots[this.inv.sel] = null;
+    this.inv.changed();
+  };
+
+  // ---------------- 昼と夜 ----------------
+  // Minecraft と同じく 1 日は 24000 刻み（20 分）。0 が日の出（午前 6 時）、6000 が正午、18000 が真夜中。
+  Game.prototype.dayAngle = function () {
+    var f = ((this.world.time / DAY - 0.25) % 1 + 1) % 1;
+    return f + (1 - (Math.cos(f * Math.PI) + 1) / 2 - f) / 3;
+  };
+  Game.prototype.sky = function () {
+    if (this.world.dimKey !== 'overworld') return null;
+    var f = this.dayAngle(), c = Math.cos(f * Math.PI * 2), bright = clamp(c * 2 + 0.5, 0, 1);
+    var pal = this.world.dim.palette;
+    var dayTop = pal.skyTop.map(function (v) { return v / 255; }), dayLow = pal.skyLow.map(function (v) { return v / 255; });
+    var top = mix([0.02, 0.03, 0.07], dayTop, bright), low = mix([0.05, 0.07, 0.12], dayLow, bright);
+    // 朝焼けと夕焼け（太陽が地平線の近くにある間だけ）。遠くの霞には少しだけ混ぜる。
+    var fog = low;
+    if (Math.abs(c) < 0.4) {
+      var k = 1 - Math.abs(c) / 0.4;
+      fog = mix(low, [0.86, 0.5, 0.3], k * 0.12);
+      low = mix(low, [0.86, 0.5, 0.3], k * 0.5);
+    }
+    return {
+      top: top, low: low, fog: fog, dark: (1 - bright) * 11,
+      tint: mix([0.7, 0.76, 1.0], [1, 1, 1], bright),
+      celestial: { angle: f * Math.PI * 2, stars: clamp((1 - bright) * 1.3 - 0.3, 0, 1) * 0.9 }
+    };
+  };
+  Game.prototype.setTime = function (t) { this.world.time = ((t % DAY) + DAY) % DAY; };
+  Game.prototype.timeText = function () {
+    if (this.world.dimKey !== 'overworld') return '';
+    var h = (this.world.time / 1000 + 6) % 24, hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+    return hh + ':' + (mm < 10 ? '0' : '') + mm;
+  };
+
+  // ---------------- 落ちる砂と砂利 ----------------
+  // 下が空いたら、ブロックを外して落ちるものにする（上に積もった分も続けて落ちる）
+  Game.prototype.checkFall = function (x, y, z) {
+    var wd = this.world, id = wd.block(x, y, z);
+    if (!GRAVITY[id] || y <= wd.minY || !canFallInto(wd.block(x, y - 1, z))) return;
+    wd.setBlock(x, y, z, B.AIR);
+    this.walker.remesh(x, z);
+    wd.fluids.notify(x, y, z);
+    this.falling.push({ id: id, x: x + 0.5, y: y, z: z + 0.5, py: y, vy: 0 });
+    this.checkFall(x, y + 1, z);
+  };
+  Game.prototype.tickFalling = function () {
+    var wd = this.world, keep = [];
+    for (var i = 0; i < this.falling.length; i++) {
+      var f = this.falling[i], bx = Math.floor(f.x), bz = Math.floor(f.z);
+      f.py = f.y; f.vy -= 0.04;
+      var ny = f.y + f.vy, land = null;
+      f.vy *= 0.98;
+      for (var cy = Math.floor(f.y) - 1; cy >= Math.floor(ny); cy--) {
+        if (!canFallInto(wd.block(bx, cy, bz))) { land = cy + 1; break; }
+      }
+      if (land === null) {
+        f.y = ny;
+        if (f.y > wd.minY - 64) keep.push(f);
+        continue;
+      }
+      // 着地：草花なら押しのけて置き、置けない所ならアイテムになる
+      var cur = wd.block(bx, land, bz);
+      if (cur === B.AIR || FLUID[cur] || isPlant(cur)) {
+        if (isPlant(cur) && this.mode === 'survival') this.dropFor(cur, bx, land, bz, true);
+        wd.setBlock(bx, land, bz, f.id);
+        this.walker.remesh(bx, bz);
+        wd.fluids.notify(bx, land, bz);
+      } else this.spawnItem(WG.BLOCKS[f.id].key, 1, f.x, land + 0.2, f.z, 0.05, 10);
+    }
+    this.falling = keep;
   };
 
   Game.prototype.damage = function (n, ignoreInvuln) {
@@ -162,7 +256,7 @@
     this.closeInventory();
     this.dead = true;
     this.mouseL = this.mouseR = false;
-    for (var i = 0; i < s.length; i++) if (s[i]) this.spawnItem(s[i].key, s[i].n, w.pos[0], w.pos[1] + 0.5, w.pos[2], 0.25, 40);
+    for (var i = 0; i < s.length; i++) if (s[i]) this.spawnItem(s[i].key, s[i].n, w.pos[0], w.pos[1] + 0.5, w.pos[2], 0.25, 40, s[i].dmg);
     this.inv.clear();
     this.ui.dead.classList.remove('hide');
     this.ui.unlock();
@@ -177,16 +271,23 @@
   };
 
   // ---------------- 壊す・置く ----------------
-  Game.prototype.breakBlock = function (x, y, z) {
+  // harvest が false なら（道具が足りないとき）ドロップしない
+  Game.prototype.breakBlock = function (x, y, z, harvest) {
     var wd = this.world, id = wd.block(x, y, z), surv = this.mode === 'survival', self = this;
     if (id === B.AIR || FLUID[id]) return;
+    // チェストの中身は、その場に落ちる（まだ開けていない地下のチェストも）
+    if (id === B.CHEST) {
+      this.chestAt(x, y, z).forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10, s.dmg); });
+      wd.chests.delete(x + ',' + y + ',' + z);
+      if (this.chestKey === x + ',' + y + ',' + z) this.closeInventory();
+    }
     wd.setBlock(x, y, z, B.AIR);
     this.burst(x, y, z, id);
-    if (surv) this.dropFor(id, x, y, z);
+    if (surv && harvest !== false) this.dropFor(id, x, y, z);
     // かまどの中身は、その場に落ちる
     var fk = x + ',' + y + ',' + z, fur = wd.furnaces.get(fk);
     if (fur) {
-      fur.slots.forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10); });
+      fur.slots.forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10, s.dmg); });
       wd.furnaces.delete(fk);
       if (this.furnaceKey === fk) this.closeInventory();
     }
@@ -198,6 +299,7 @@
     });
     this.walker.remesh(x, z);
     wd.fluids.notify(x, y, z);
+    this.checkFall(x, y + 1, z);
   };
 
   // 支えを失って取れる（サバイバルならドロップ）
@@ -207,6 +309,7 @@
     if (this.mode === 'survival') this.dropFor(id, x, y, z);
     this.walker.remesh(x, z);
     wd.fluids.notify(x, y, z);
+    this.checkFall(x, y + 1, z);
   };
 
   Game.prototype.dropFor = function (id, x, y, z) {
@@ -227,6 +330,13 @@
     var w = this.walker, t = w.target;
     if (t && !(w.keys.ShiftLeft || w.keys.ShiftRight)) {
       if (t.id === B.CRAFTING_TABLE) { this.mouseR = this.clickR = false; this.openInventory('table'); return; }
+      if (t.id === B.CHEST) {
+        this.mouseR = this.clickR = false;
+        this.chestAt(t.x, t.y, t.z);
+        this.chestKey = t.x + ',' + t.y + ',' + t.z;
+        this.openInventory('chest');
+        return;
+      }
       if (t.id === B.FURNACE || t.id === B.FURNACE_LIT) {
         this.mouseR = this.clickR = false;
         var key = t.x + ',' + t.y + ',' + t.z;
@@ -261,9 +371,30 @@
       if (b[0] < x + 1 && b[3] > x && b[1] < y + 1 && b[4] > y && b[2] < z + 1 && b[5] > z) return;
     }
     wd.setBlock(x, y, z, blockId);
+    if (blockId === B.CHEST) wd.chests.set(x + ',' + y + ',' + z, new Array(27).fill(null));   // 置いたチェストは空
     if (this.mode === 'survival') this.inv.take(this.inv.sel, 1);
     w.remesh(x, z);
     wd.fluids.notify(x, y, z);
+    this.checkFall(x, y, z);
+  };
+
+  // チェストの中身（27 枠）。地下の部屋のチェストは、初めて開いたときに中身が決まる（場所とシードで決まる）。
+  var LOOT = [['COAL', 1, 6, 10], ['IRON_INGOT', 1, 4, 10], ['GOLD_INGOT', 1, 4, 5], ['REDSTONE', 1, 4, 10], ['WHEAT_SEEDS', 2, 4, 10],
+    ['LAPIS', 1, 3, 6], ['RAW_COPPER', 1, 5, 8], ['TORCH', 2, 6, 6], ['DIAMOND', 1, 2, 2], ['IRON_PICKAXE', 1, 1, 2]];
+  Game.prototype.chestAt = function (x, y, z) {
+    var wd = this.world, key = x + ',' + y + ',' + z, c = wd.chests.get(key);
+    if (c) return c;
+    c = new Array(27).fill(null);
+    var seed = wd.seed || 0, n = 3 + WG.hash(seed, x, y, z, 71) % 4, total = LOOT.reduce(function (a, l) { return a + l[3]; }, 0);
+    for (var i = 0; i < n; i++) {
+      var r = WG.hash(seed, x, y, z, 72 + i) % total, l = LOOT[0];
+      for (var j = 0; j < LOOT.length; j++) { if (r < LOOT[j][3]) { l = LOOT[j]; break; } r -= LOOT[j][3]; }
+      var cnt = l[1] + WG.hash(seed, x, y, z, 82 + i) % (l[2] - l[1] + 1), at = WG.hash(seed, x, y, z, 92 + i) % 27;
+      while (c[at]) at = (at + 1) % 27;
+      c[at] = { key: l[0], n: cnt };
+    }
+    wd.chests.set(key, c);
+    return c;
   };
 
   // 見ているブロックを持つ（中クリック）
@@ -291,13 +422,14 @@
     var w = this.walker, held = this.inv.held();
     if (!held || !w.eye) return;
     var s = this.inv.take(this.inv.sel, all ? held.n : 1), d = w.dir;
-    var e = this.spawnItem(s.key, s.n, w.eye[0], w.eye[1] - 0.3, w.eye[2], 0, 40);
+    var e = this.spawnItem(s.key, s.n, w.eye[0], w.eye[1] - 0.3, w.eye[2], 0, 40, held.dmg);
     e.vx = d[0] * 0.3; e.vy = d[1] * 0.3 + 0.1; e.vz = d[2] * 0.3;
   };
 
   // ---------------- 落ちているアイテムと粒 ----------------
-  Game.prototype.spawnItem = function (key, n, x, y, z, spread, delay) {
+  Game.prototype.spawnItem = function (key, n, x, y, z, spread, delay, dmg) {
     var e = {
+      dmg: dmg || 0,
       key: key, n: n, x: x, y: y, z: z, px: x, py: y, pz: z,
       vx: (Math.random() - 0.5) * spread, vy: 0.2 * (spread > 0 ? 1 : 0), vz: (Math.random() - 0.5) * spread,
       age: Math.floor(Math.random() * 100), delay: delay, ground: false
@@ -357,7 +489,7 @@
       if (e.delay > 0) e.delay--;
       // 拾う（体の周り 1 ブロック、上下 0.5 ブロックの範囲）
       if (!this.dead && e.delay === 0 && e.x > pb[0] - 1 && e.x < pb[3] + 1 && e.y + 0.25 > pb[1] - 0.5 && e.y < pb[4] + 0.5 && e.z > pb[2] - 1 && e.z < pb[5] + 1) {
-        e.n -= this.inv.add(e.key, e.n);
+        e.n -= this.inv.add(e.key, e.n, e.dmg);
       }
       if (e.n > 0 && e.age < 6000 && e.y > wd.minY - 64) keep.push(e);
     }
@@ -385,39 +517,42 @@
   ];
   var UV = [[0, 0], [16, 0], [16, 16], [0, 16]], TRI = [0, 1, 2, 0, 2, 3];
 
-  function Batch(alpha) { this.pos = []; this.col = []; this.uv = []; this.alpha = alpha; }
+  function Batch(alpha) { this.pos = []; this.col = []; this.uv = []; this.lt = []; this.alpha = alpha; this.L = [15, 0]; }
   Batch.prototype.v = function (x, y, z, c, f, u, v, tile) {
     this.pos.push(x * 16, y * 16, z * 16, 0);
     this.col.push(Math.min(255, c[0] * f * 0.5) | 0, Math.min(255, c[1] * f * 0.5) | 0, Math.min(255, c[2] * f * 0.5) | 0, 0);
     this.uv.push(u, v, tile & 255, tile >> 8);
+    this.lt.push(this.L[0] * 17, this.L[1] * 17, 0, 0);   // 光の段階（明るさは描くときに時刻で決まる）
   };
   Batch.prototype.done = function () {
-    return { pos: new Float32Array(this.pos), col: new Uint8Array(this.col), uv: new Uint8Array(this.uv), count: this.pos.length / 4, alpha: this.alpha };
+    return { pos: new Float32Array(this.pos), col: new Uint8Array(this.col), uv: new Uint8Array(this.uv), lt: new Uint8Array(this.lt), count: this.pos.length / 4, alpha: this.alpha };
   };
-  // 回した立方体（中心 cx, cz、底 y、大きさ s、回転 r、明るさ lt）
+  // 回した立方体（中心 cx, cz、底 y、大きさ s、回転 r、光の段階 lt）
   function cube(bt, cx, y, cz, s, r, tileOf, colorOf, lt) {
+    bt.L = lt;
     var cr = Math.cos(r), sr = Math.sin(r);
     FACES.forEach(function (F) {
       var tile = tileOf(F[2]), c = colorOf(F[2]);
       TRI.forEach(function (k) {
         var p = F[0][k], lx = (p[0] - 0.5) * s, lz = (p[2] - 0.5) * s;
-        bt.v(cx + lx * cr - lz * sr, y + p[1] * s, cz + lx * sr + lz * cr, c, F[1] * lt, UV[k][0], UV[k][1], tile);
+        bt.v(cx + lx * cr - lz * sr, y + p[1] * s, cz + lx * sr + lz * cr, c, F[1], UV[k][0], UV[k][1], tile);
       });
     });
   }
   // 平らな絵（回しながら見せる）
   function sprite(bt, cx, y, cz, s, r, tile, c, lt) {
+    bt.L = lt;
     var cr = Math.cos(r) * s / 2, sr = Math.sin(r) * s / 2;
     var P = [[cx - cr, y + s, cz - sr], [cx + cr, y + s, cz + sr], [cx + cr, y, cz + sr], [cx - cr, y, cz - sr]];
-    TRI.forEach(function (k) { bt.v(P[k][0], P[k][1], P[k][2], c, lt, UV[k][0], UV[k][1], tile); });
+    TRI.forEach(function (k) { bt.v(P[k][0], P[k][1], P[k][2], c, 1, UV[k][0], UV[k][1], tile); });
   }
 
   Game.prototype.draw = function (a) {
     var solid = new Batch(1), crack = new Batch(0.55), plains = WG.BI ? WG.BI.PLAINS : -1, WHITE = [255, 255, 255], w = this.walker;
     this.entities.forEach(function (e) {
       var x = e.px + (e.x - e.px) * a, y = e.py + (e.y - e.py) * a, z = e.pz + (e.z - e.pz) * a;
-      var t = e.age + a, r = t / 20, bob = Math.sin(t / 10) * 0.1 + 0.1, it = ITEMS[e.key], lt = w.brightness(x, y + 0.2, z);
-      if (it.block >= 0 && !isPlant(it.block) && !WG.skinCutout(it.block)) {
+      var t = e.age + a, r = t / 20, bob = Math.sin(t / 10) * 0.1 + 0.1, it = ITEMS[e.key], lt = w.lightLevels(x, y + 0.2, z);
+      if (it.block >= 0 && !isPlant(it.block) && !isDeco(it.block)) {
         cube(solid, x, y + bob, z, 0.25, r, function (f) { return WG.atlasTile(it.block, f); }, function (f) {
           return WG.skinTexture(it.block, f) ? WG.tintOf(it.block, f, plains).map(function (m) { return m * 255; }) : WG.blockColor(it.block, f, plains);
         }, lt);
@@ -428,12 +563,17 @@
       }
     });
     this.particles.forEach(function (p) {
-      cube(solid, p.x, p.y, p.z, 0.08, 0, function () { return 0; }, function () { return p.c; }, w.brightness(p.x, p.y, p.z));
+      cube(solid, p.x, p.y, p.z, 0.08, 0, function () { return 0; }, function () { return p.c; }, w.lightLevels(p.x, p.y, p.z));
+    });
+    // 落ちてくる砂・砂利（ブロックと同じ大きさ）
+    this.falling.forEach(function (f) {
+      var y = f.py + (f.y - f.py) * a;
+      cube(solid, f.x, y, f.z, 1, 0, function (fc) { return WG.atlasTile(f.id, fc); }, function () { return WHITE; }, w.lightLevels(f.x, y + 0.5, f.z));
     });
     var b = this.breaking;
     if (b && b.p > 0) {
       var ct = WG.crackTile(Math.floor(b.p * 4));
-      cube(crack, b.x + 0.5, b.y - 0.003, b.z + 0.5, 1.006, 0, function () { return ct; }, function () { return WHITE; }, 1);
+      cube(crack, b.x + 0.5, b.y - 0.003, b.z + 0.5, 1.006, 0, function () { return ct; }, function () { return WHITE; }, [15, 0]);
     }
     this.view.dynamic = [solid.done(), crack.done()];
     this.updateHud();
@@ -463,7 +603,12 @@
 
   function slotHTML(s) {
     if (!s) return '';
-    return '<img src="' + WG.iconURL(s.key) + '" alt="">' + (s.n > 1 ? '<span class="n">' + s.n + '</span>' : '');
+    var it = ITEMS[s.key], bar = '';
+    if (it && it.dur && s.dmg) {
+      var left = 1 - s.dmg / it.dur;
+      bar = '<span class="dur"><i style="width:' + Math.round(left * 100) + '%;background:hsl(' + Math.round(left * 110) + ',55%,48%)"></i></span>';
+    }
+    return '<img src="' + WG.iconURL(s.key) + '" alt="">' + (s.n > 1 ? '<span class="n">' + s.n + '</span>' : '') + bar;
   }
 
   Game.prototype.updateHud = function () {
@@ -521,10 +666,10 @@
     var back = this.craft.filter(Boolean);
     if (this.cursor && !(this.screen === 'creative')) back.push(this.cursor);
     back.forEach(function (s) {
-      var left = s.n - self.inv.add(s.key, s.n);
-      if (left > 0) self.spawnItem(s.key, left, w.pos[0], w.pos[1] + 1, w.pos[2], 0.1, 40);
+      var left = s.n - self.inv.add(s.key, s.n, s.dmg);
+      if (left > 0) self.spawnItem(s.key, left, w.pos[0], w.pos[1] + 1, w.pos[2], 0.1, 40, s.dmg);
     });
-    this.craft = []; this.craftResult = null; this.cursor = null; this.screen = null; this.furnaceKey = null;
+    this.craft = []; this.craftResult = null; this.cursor = null; this.screen = null; this.furnaceKey = null; this.chestKey = null;
     this.ui.inv.classList.add('hide');
     this.ui.cursor.classList.add('hide');
   };
@@ -537,7 +682,7 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど' }[sc];
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト' }[sc];
     if (sc === 'creative') {
       html += '<div class="grid pal">';
       WG.PLACEABLE.concat(Object.keys(ITEMS).filter(function (k) { return ITEMS[k].block < 0; })).forEach(function (k) {
@@ -549,6 +694,11 @@
       html += '<div class="craft"><div class="cgrid" style="grid-template-columns:repeat(' + n + ',44px)">';
       for (i = 0; i < n * n; i++) html += slot('craft', i, this.craft[i]);
       html += '</div><div class="arrow"></div>' + slot('res', 0, this.craftResult, ' result') + '</div>';
+    } else if (sc === 'chest') {
+      var ch = this.world.chests.get(this.chestKey);
+      html += '<div class="grid chest">';
+      for (i = 0; i < 27; i++) html += slot('ch', i, ch[i]);
+      html += '</div>';
     } else if (sc === 'furnace') {
       var f = this.furnace();
       html += '<div class="craft furn"><div class="fcol">' + slot('fur', 0, f.slots[0]) + '<div class="flame"><i id="flameBar"></i></div>' + slot('fur', 1, f.slots[1]) +
@@ -583,6 +733,7 @@
     if (c === 'inv') return this.inv.slots[i];
     if (c === 'craft') return this.craft[i];
     if (c === 'fur') return this.furnace().slots[i];
+    if (c === 'ch') return this.world.chests.get(this.chestKey)[i];
     return null;
   };
   Game.prototype.setSlot = function (c, i, v) {
@@ -590,6 +741,7 @@
     if (c === 'inv') this.inv.slots[i] = v;
     else if (c === 'craft') this.craft[i] = v;
     else if (c === 'fur') this.furnace().slots[i] = v;
+    else if (c === 'ch') this.world.chests.get(this.chestKey)[i] = v;
   };
   Game.prototype.updateCraft = function () {
     this.craftResult = this.craft.length ? Craft.match(this.craft.map(function (s) { return s ? s.key : null; }), this.craftN) : null;
@@ -644,7 +796,8 @@
         sl.n += m; cur.n -= m; if (cur.n <= 0) this.cursor = null;
       } else { this.setSlot(c, i, cur); this.cursor = sl; }
     } else if (button === 2) {
-      if (!cur && sl) { var half = Math.ceil(sl.n / 2); this.cursor = { key: sl.key, n: half }; sl.n -= half; if (sl.n <= 0) this.setSlot(c, i, null); }
+      if (!cur && sl && sl.n === 1) { this.cursor = sl; this.setSlot(c, i, null); }
+      else if (!cur && sl) { var half = Math.ceil(sl.n / 2); this.cursor = { key: sl.key, n: half }; sl.n -= half; if (sl.n <= 0) this.setSlot(c, i, null); }
       else if (cur && (!sl || (sl.key === cur.key && sl.n < ITEMS[sl.key].max))) {
         if (!sl) this.setSlot(c, i, { key: cur.key, n: 1 }); else sl.n++;
         cur.n--; if (cur.n <= 0) this.cursor = null;
@@ -659,8 +812,15 @@
   Game.prototype.shiftMove = function (c, i, sl) {
     var inv = this.inv, s = inv.slots;
     if (c !== 'inv') {
-      var moved = inv.add(sl.key, sl.n);
+      var moved = inv.add(sl.key, sl.n, sl.dmg);
       sl.n -= moved; if (sl.n <= 0) this.setSlot(c, i, null);
+      return;
+    }
+    if (this.screen === 'chest') {
+      var chest = this.world.chests.get(this.chestKey), mx = ITEMS[sl.key].max, k2;
+      for (k2 = 0; k2 < 27 && sl.n > 0; k2++) if (chest[k2] && chest[k2].key === sl.key && chest[k2].n < mx) { var a2 = Math.min(sl.n, mx - chest[k2].n); chest[k2].n += a2; sl.n -= a2; }
+      for (k2 = 0; k2 < 27 && sl.n > 0; k2++) if (!chest[k2]) { chest[k2] = sl; s[i] = null; return; }
+      if (sl.n <= 0) s[i] = null;
       return;
     }
     if (this.mode === 'creative' && this.screen === 'creative') { s[i] = null; return; }

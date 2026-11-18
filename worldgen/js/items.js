@@ -34,8 +34,34 @@
     ['TORCH', 0, 'TORCH'], ['WALL_TORCH_N', 0, 'TORCH'], ['WALL_TORCH_S', 0, 'TORCH'], ['WALL_TORCH_E', 0, 'TORCH'], ['WALL_TORCH_W', 0, 'TORCH'],
     ['COAL_BLOCK', 5, 'COAL_BLOCK'], ['IRON_BLOCK', 5, 'IRON_BLOCK'], ['GOLD_BLOCK', 3, 'GOLD_BLOCK'], ['COPPER_BLOCK', 3, 'COPPER_BLOCK'],
     ['DIAMOND_BLOCK', 5, 'DIAMOND_BLOCK'], ['LAPIS_BLOCK', 3, 'LAPIS_BLOCK'], ['REDSTONE_BLOCK', 5, 'REDSTONE_BLOCK'],
-    ['QUARTZ_BLOCK', 0.8, 'QUARTZ_BLOCK'], ['STONE_BRICKS', 1.5, 'STONE_BRICKS'], ['BRICKS', 2, 'BRICKS'], ['NETHER_BRICKS', 2, 'NETHER_BRICKS']
+    ['QUARTZ_BLOCK', 0.8, 'QUARTZ_BLOCK'], ['STONE_BRICKS', 1.5, 'STONE_BRICKS'], ['BRICKS', 2, 'BRICKS'], ['NETHER_BRICKS', 2, 'NETHER_BRICKS'],
+    ['GLASS', 0.3, null]
   ];
+
+  // 掘るのに向いた道具と、ドロップに必要な道具の段階（Minecraft の値）。
+  // 段階：0 木、1 石、2 鉄、3 ダイヤモンド（金は 0 と同じ）。表にないブロックは素手でもドロップする。
+  // PDF の「採掘道具」の欄には Minecraft と食い違う所（鉄鉱石が「素手でも可」など）があるため、ここは Minecraft に合わせた。
+  var MINE = {};
+  function mine(tool, tier, keys) { keys.split(' ').forEach(function (k) { MINE[k] = { tool: tool, tier: tier }; }); }
+  mine('pickaxe', 0, 'STONE COBBLESTONE MOSSY_COBBLESTONE DEEPSLATE COBBLED_DEEPSLATE SANDSTONE COAL_ORE DEEPSLATE_COAL_ORE NETHERRACK ' +
+    'QUARTZ_ORE NETHER_GOLD_ORE BASALT END_STONE MAGMA SPAWNER FURNACE FURNACE_LIT COAL_BLOCK QUARTZ_BLOCK STONE_BRICKS BRICKS NETHER_BRICKS REDSTONE_BLOCK');
+  mine('pickaxe', 1, 'IRON_ORE DEEPSLATE_IRON_ORE COPPER_ORE DEEPSLATE_COPPER_ORE LAPIS_ORE DEEPSLATE_LAPIS_ORE IRON_BLOCK COPPER_BLOCK LAPIS_BLOCK');
+  mine('pickaxe', 2, 'GOLD_ORE DEEPSLATE_GOLD_ORE DIAMOND_ORE DEEPSLATE_DIAMOND_ORE REDSTONE_ORE DEEPSLATE_REDSTONE_ORE GOLD_BLOCK DIAMOND_BLOCK');
+  mine('pickaxe', 3, 'OBSIDIAN');
+  mine('shovel', 0, 'SNOW');
+  // 速く掘れるが、素手でもドロップするもの
+  var FAST = {};
+  'ICE GLASS'.split(' ').forEach(function (k) { FAST[k] = 'pickaxe'; });
+  'OAK_LOG BIRCH_LOG SPRUCE_LOG JUNGLE_LOG ACACIA_LOG OAK_PLANKS BIRCH_PLANKS SPRUCE_PLANKS JUNGLE_PLANKS ACACIA_PLANKS CRAFTING_TABLE CHEST'.split(' ').forEach(function (k) { FAST[k] = 'axe'; });
+  'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
+
+  // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）
+  var TOOL_MATS = [
+    ['WOODEN', '木', 2, 0, 59, '#a5824f', 'PLANKS'], ['STONE', '石', 4, 1, 131, '#8c8c8a', 'COBBLES'],
+    ['IRON', '鉄', 6, 2, 250, '#dcdcda', 'IRON_INGOT'], ['GOLDEN', '金', 12, 0, 32, '#e8c540', 'GOLD_INGOT'],
+    ['DIAMOND', 'ダイヤモンド', 8, 3, 1561, '#62c9c0', 'DIAMOND']
+  ];
+  var TOOL_TYPES = [['PICKAXE', 'pickaxe', 'ツルハシ'], ['AXE', 'axe', '斧'], ['SHOVEL', 'shovel', 'シャベル']];
 
   // ブロックではないアイテム [キー, 名前, 形, 色, 最大スタック数]
   var ITEM_DATA = [
@@ -60,6 +86,10 @@
     nugget: ['........', '........', '...##...', '..#l#d..', '..##dd..', '...dd...', '........', '........'],
     seeds: ['........', '.#...#..', '..#.....', '....#..#', '.#..#...', '...#..#.', '#.......', '........'],
     stick: ['........', '......l.', '.....#d.', '....#d..', '...#d...', '..#d....', '.#d.....', '........'],
+    // 道具（S は柄の色）
+    pickaxe: ['.d####d.', 'd..S...d', '...S....', '...S....', '...S....', '...S....', '...S....', '........'],
+    axe: ['..l#S...', '.##dS...', '.#d.S...', '....S...', '....S...', '....S...', '....S...', '........'],
+    shovel: ['...l#...', '..####..', '..#dd#..', '...dd...', '...S....', '...S....', '...S....', '...S....'],
     ingot: ['........', '........', '...llll.', '..#lll#d', '.######d', '.#####dd', '........', '........']
   };
 
@@ -72,20 +102,44 @@
     };
   });
   ITEM_DATA.forEach(function (d) { ITEMS[d[0]] = { key: d[0], name: d[1], block: -1, max: d[4] || 64, shape: d[2], color: d[3] }; });
+  TOOL_MATS.forEach(function (m) {
+    TOOL_TYPES.forEach(function (t) {
+      var key = m[0] + '_' + t[0];
+      ITEMS[key] = { key: key, name: m[1] + 'の' + t[2], block: -1, max: 1, shape: t[1], color: m[5], tool: t[1], speed: m[2], tier: m[3], dur: m[4], mat: m[6] };
+    });
+  });
+  Object.keys(ITEMS).forEach(function (k) {
+    var it = ITEMS[k];
+    if (it.block < 0) return;
+    if (MINE[k]) { it.tool = MINE[k].tool; it.needTier = MINE[k].tier; }
+    else if (FAST[k]) it.tool = FAST[k];
+  });
+
+  // 掘る速さとドロップ（Minecraft と同じ式）。held は持っている束（なければ null）。
+  // 1 刻みに進む割合 = 速さ ÷ 硬度 ÷（ドロップできるなら 30、できないなら 100）。
+  function mining(blockKey, held) {
+    var b = ITEMS[blockKey], h = b ? b.hardness : 1, tool = held ? ITEMS[held.key] : null;
+    var match = !!(tool && tool.tool && b && b.tool === tool.tool);
+    var speed = match ? tool.speed : 1;
+    var harvest = !(b && b.needTier != null) || (match && tool.tier >= b.needTier);
+    if (h < 0) return { perTick: 0, harvest: false, match: match };
+    return { perTick: h === 0 ? 1 : speed / h / (harvest ? 30 : 100), harvest: harvest, match: match };
+  }
 
   function hex(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
 
   // アイテムの絵（RGBA 8×8）。ブロックのアイテムは null（ブロックの見た目を使う）。
-  var pixCache = {};
+  var pixCache = {}, HANDLE = [107, 79, 46];
   function itemPixels(key) {
     var it = ITEMS[key];
     if (!it || !it.shape) return null;
     if (pixCache[key]) return pixCache[key];
     var rows = SHAPES[it.shape], c = hex(it.color), out = new Uint8Array(256);
     for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
-      var ch = rows[j][i], o = (j * 8 + i) * 4, k = ch === 'l' ? 1.3 : ch === 'd' ? 0.7 : 1;
+      var ch = rows[j][i], o = (j * 8 + i) * 4, k = ch === 'l' ? 1.3 : ch === 'd' ? 0.7 : 1, cc = ch === 'S' ? HANDLE : c;
       if (ch === '.') continue;
-      out[o] = Math.min(255, c[0] * k); out[o + 1] = Math.min(255, c[1] * k); out[o + 2] = Math.min(255, c[2] * k); out[o + 3] = 255;
+      if (ch === 'S') k = 1;
+      out[o] = Math.min(255, cc[0] * k); out[o + 1] = Math.min(255, cc[1] * k); out[o + 2] = Math.min(255, cc[2] * k); out[o + 3] = 255;
     }
     return (pixCache[key] = out);
   }
@@ -103,13 +157,14 @@
   }
   Inventory.prototype.changed = function () { this.version++; };
   // 入れられた個数を返す（ホットバーから先に、同じアイテムの束を優先）
-  Inventory.prototype.add = function (key, n) {
+  // dmg は道具の使った回数（道具だけ。束にならないので 1 つずつ持たせる）
+  Inventory.prototype.add = function (key, n, dmg) {
     var max = ITEMS[key].max, s = this.slots, left = n, i;
     for (i = 0; i < 36 && left > 0; i++) {
       if (s[i] && s[i].key === key && s[i].n < max) { var a = Math.min(left, max - s[i].n); s[i].n += a; left -= a; }
     }
     for (i = 0; i < 36 && left > 0; i++) {
-      if (!s[i]) { var b = Math.min(left, max); s[i] = { key: key, n: b }; left -= b; }
+      if (!s[i]) { var b = Math.min(left, max); s[i] = { key: key, n: b }; if (dmg) s[i].dmg = dmg; left -= b; }
     }
     if (left !== n) this.changed();
     return n - left;
@@ -152,7 +207,7 @@
     c.width = c.height = S;
     var x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
-    var sprite = it.shape ? itemPixels(key) : WG.skinCutout(it.block) || (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
+    var sprite = it.shape ? itemPixels(key) : (WG.blockKind(it.block) === 'deco' && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
     if (sprite) {
       x.drawImage(spriteCanvas(sprite), 4, 4, 40, 40);
     } else {
@@ -170,6 +225,9 @@
   }
 
   WG.ITEMS = ITEMS;
+  WG.mining = mining;
+  WG.TOOL_MATS = TOOL_MATS;
+  WG.TOOL_TYPES = TOOL_TYPES;
   WG.PLACEABLE = PLACEABLE;
   WG.itemPixels = itemPixels;
   WG.Inventory = Inventory;

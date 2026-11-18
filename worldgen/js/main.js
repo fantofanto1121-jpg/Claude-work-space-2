@@ -304,6 +304,8 @@
     var p = w.pos, t = 'X ' + p[0].toFixed(1) + '　Y ' + p[1].toFixed(1) + '　Z ' + p[2].toFixed(1) + '　' + w.facing() + '向き';
     if (state.dim === 'overworld') t += '　（' + WG.BIOMES[world().biomeAt(Math.floor(p[0]), Math.floor(p[2]))].name + '）';
     if (w.flying) t += '　飛行中';
+    var tt = game ? game.timeText() : '';
+    if (tt) { t += '　' + tt; $('timeNow').textContent = tt; }
     $('hover').textContent = t;
     var r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
@@ -328,6 +330,10 @@
   }
   $('walkCard').addEventListener('click', lockPointer);
   $('respawn').addEventListener('click', function () { if (game) game.respawn(); });
+  $('times').addEventListener('click', function (e) {
+    var t = e.target.dataset && e.target.dataset.t;
+    if (t != null && game) game.setTime(+t);
+  });
   $('modesGame').addEventListener('click', function (e) {
     var v = e.target.dataset && e.target.dataset.v;
     if (!v) return;
@@ -392,6 +398,7 @@
     $('g-range').classList.toggle('hide', walk);
     $('walkBtn').classList.toggle('hide', !DESKTOP);
     $('g-game').classList.toggle('hide', !walk);
+    $('g-time').classList.toggle('hide', !walk || state.dim !== 'overworld');
     [].forEach.call($('modesGame').children, function (b) { b.classList.toggle('on', b.dataset.v === gameMode); });
     c2d.classList.toggle('hide', state.mode === '3d' || walk);
     c3d.classList.toggle('hide', state.mode !== '3d' && !walk);

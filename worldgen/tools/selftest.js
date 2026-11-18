@@ -268,5 +268,44 @@ var nullUI = (function () {
   check(e.y >= 21 - 1e-6, 'ブロックの中のアイテムが外へ押し出される（y ' + e.y.toFixed(2) + '）');
 })();
 
+// ---- 道具・チェスト・落ちる砂・昼と夜・ガラス ----
+(function () {
+  var hand = WG.mining('STONE', null), wood = WG.mining('STONE', { key: 'WOODEN_PICKAXE' }), stoneOnDia = WG.mining('DIAMOND_ORE', { key: 'STONE_PICKAXE' }),
+    ironOnDia = WG.mining('DIAMOND_ORE', { key: 'IRON_PICKAXE' }), obs = WG.mining('OBSIDIAN', { key: 'DIAMOND_PICKAXE' });
+  var t = function (m) { return Math.ceil(1 / m.perTick); };
+  check(t(hand) === 150 && !hand.harvest && t(wood) === 23 && wood.harvest && !stoneOnDia.harvest && ironOnDia.harvest && t(obs) === 188,
+    '道具：石は素手 7.5 秒でドロップなし・木のツルハシ 1.15 秒、ダイヤ鉱石は鉄のツルハシから、黒曜石はダイヤのツルハシで 9.4 秒');
+  var r = WG.Craft.match(['OAK_PLANKS', 'BIRCH_PLANKS', 'OAK_PLANKS', null, 'STICK', null, null, 'STICK', null], 3);
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = new WG.Game(nullView, w, nullUI);
+  g.inv.slots[0] = { key: 'GOLDEN_PICKAXE', n: 1, dmg: 31 }; g.wearTool(1.5);
+  check(r && r.key === 'WOODEN_PICKAXE' && g.inv.slots[0] === null, 'ツルハシを作れ、耐久値がなくなると壊れる');
+})();
+(function () {
+  var wd = new WG.World(SEED, 'overworld'), found = null;
+  for (var cz = -6; cz <= 6 && !found; cz++) for (var cx = -6; cx <= 6 && !found; cx++) {
+    var c = wd.chunk(cx, cz);
+    for (var i = 0; i < c.blocks.length; i++) if (c.blocks[i] === B.CHEST) { found = [(cx << 4) + (i & 15), (i >> 8) - 64, (cz << 4) + ((i >> 4) & 15)]; break; }
+  }
+  var g = new WG.Game(nullView, wd, nullUI), a = g.chestAt(found[0], found[1], found[2]);
+  var w2 = new WG.World(SEED, 'overworld'), b = new WG.Game(nullView, w2, nullUI).chestAt(found[0], found[1], found[2]);
+  check(a.filter(Boolean).length >= 3 && JSON.stringify(a) === JSON.stringify(b), '地下のチェストの中身は、場所とシードで決まる（' + a.filter(Boolean).map(function (s) { return s.key + '×' + s.n; }).join(' ') + '）');
+})();
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : (x === 0 && z === 0 && y >= 15 && y <= 17) ? B.SAND : (x === 0 && z === 0 && y === 14) ? B.DIRT : 0; });
+  var g = new WG.Game(nullView, w, nullUI); g.walker.pos = [20.5, 11, 20.5]; g.setMode('creative');
+  g.breakBlock(0, 14, 0);
+  for (var i = 0; i < 60; i++) g.tick();
+  check(w.block(0, 11, 0) === B.SAND && w.block(0, 13, 0) === B.SAND && w.block(0, 14, 0) === B.AIR && !g.falling.length, '下を壊すと、積んだ砂が全部落ちて積もる');
+})();
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; });
+  w.dim = { view: { yMax: 255 }, palette: WG.DIMS.overworld.palette };
+  var g = new WG.Game(nullView, w, nullUI), d = [];
+  [6000, 12000, 18000].forEach(function (t) { g.setTime(t); d.push(g.sky().dark); });
+  g.setTime(23999); g.tick();
+  check(d[0] === 0 && d[1] < 2 && d[2] === 11 && w.time === 0, '昼と夜：正午は空の光そのまま、真夜中は 11 段暗い、1 日 24000 刻み');
+  check(WG.blockKind(B.GLASS) === 'solid' && !WG.OPAQUE[B.GLASS] && WG.LIGHT_BLOCK[B.GLASS] === 0 && WG.Craft.SMELT.SAND === 'GLASS', 'ガラス：通れないが光を通し、砂を焼いて作れる');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

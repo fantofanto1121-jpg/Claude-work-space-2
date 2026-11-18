@@ -301,13 +301,12 @@
   };
 
   // ある場所の明るさ（0〜1）。落ちているアイテムなどに使う。
-  Walker.prototype.brightness = function (x, y, z) {
+  // ある場所の光の段階 [空の光, ブロックの光]（0〜15）。落ちているアイテムなどに使う。
+  Walker.prototype.lightLevels = function (x, y, z) {
     var bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z), L = this.lights.get((bx >> 4) + ',' + (bz >> 4));
-    var amb = WG.AMBIENT[this.world.dimKey] || 0;
-    if (!L || by < this.world.minY || by > this.world.maxY) return 1;
+    if (!L || by < this.world.minY || by > this.world.maxY) return [15, 0];
     var lv = L[((by - this.world.minY + 1) * 18 + (bz & 15) + 1) * 18 + (bx & 15) + 1];
-    var b = Math.max(WG.lightCurve[lv >> 4], WG.lightCurve[lv & 15]);
-    return amb + (1 - amb) * b;
+    return [lv >> 4, lv & 15];
   };
 
   // 視線の先のブロック（液体と空気は通り抜ける）
@@ -414,6 +413,10 @@
     // 目が液体の中にあるときは、色の付いた近い霞にする
     var eyeId = this.world.peekBlock(Math.floor(eye[0]), Math.floor(eye[1]), Math.floor(eye[2]));
     var far = RADIUS * 16, fp = { eye: eye, yaw: this.yaw, pitch: this.pitch, fov: FOV * this.fovK, far: far + 32, fogNear: far * 0.55, fogFar: far - 4 };
+    // 昼と夜（空の色、空の光の弱まり、太陽・月・星）
+    var sky = this.hooks.sky ? this.hooks.sky(dt) : null;
+    if (sky) { fp.skyTop = sky.top; fp.skyLow = sky.low; fp.skyFog = sky.fog; fp.skyDark = sky.dark; fp.skyTint = sky.tint; fp.celestial = sky.celestial; }
+    this.view.ambient = WG.AMBIENT[this.world.dimKey] || 0;
     if (WG.isWater(eyeId)) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
     else if (WG.isLava(eyeId)) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }
     this.view.fp = fp;

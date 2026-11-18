@@ -38,6 +38,12 @@
     ['DIAMOND', 'DIAMOND_BLOCK'], ['LAPIS', 'LAPIS_BLOCK'], ['REDSTONE', 'REDSTONE_BLOCK'], ['GOLD_NUGGET', 'GOLD_INGOT']].forEach(function (p) {
     SHAPED.push([['###', '###', '###'], { '#': p[0] }, p[1], 1]);
   });
+  // 道具：ツルハシ・斧・シャベル（素材は板材・丸石・鉄インゴット・金インゴット・ダイヤモンド）
+  WG.TOOL_MATS.forEach(function (m) {
+    SHAPED.push([['###', ' S ', ' S '], { '#': m[6], S: 'STICK' }, m[0] + '_PICKAXE', 1]);
+    SHAPED.push([['##', '#S', ' S'], { '#': m[6], S: 'STICK' }, m[0] + '_AXE', 1]);
+    SHAPED.push([['#', 'S', 'S'], { '#': m[6], S: 'STICK' }, m[0] + '_SHOVEL', 1]);
+  });
   // 形のないレシピ：[材料の配列, できるもの, 個数]
   var SHAPELESS = [
     [['OAK_LOG'], 'OAK_PLANKS', 4], [['BIRCH_LOG'], 'BIRCH_PLANKS', 4], [['SPRUCE_LOG'], 'SPRUCE_PLANKS', 4],
@@ -87,10 +93,11 @@
   // かまど：精錬（材料 → できるもの）と、燃料の燃える長さ（刻み）。1 個焼くのに 200 刻み（10 秒）。
   var SMELT = {
     RAW_IRON: 'IRON_INGOT', RAW_GOLD: 'GOLD_INGOT', RAW_COPPER: 'COPPER_INGOT',
-    COBBLESTONE: 'STONE', COBBLED_DEEPSLATE: 'DEEPSLATE', CLAY_BALL: 'BRICK', NETHERRACK: 'NETHER_BRICK',
+    COBBLESTONE: 'STONE', COBBLED_DEEPSLATE: 'DEEPSLATE', CLAY_BALL: 'BRICK', NETHERRACK: 'NETHER_BRICK', SAND: 'GLASS',
     OAK_LOG: 'CHARCOAL', BIRCH_LOG: 'CHARCOAL', SPRUCE_LOG: 'CHARCOAL', JUNGLE_LOG: 'CHARCOAL', ACACIA_LOG: 'CHARCOAL'
   };
-  var FUEL = { COAL: 1600, CHARCOAL: 1600, COAL_BLOCK: 16000, STICK: 100, CRAFTING_TABLE: 300, CHEST: 300 };
+  var FUEL = { COAL: 1600, CHARCOAL: 1600, COAL_BLOCK: 16000, STICK: 100, CRAFTING_TABLE: 300, CHEST: 300,
+    WOODEN_PICKAXE: 200, WOODEN_AXE: 200, WOODEN_SHOVEL: 200 };
   GROUPS.PLANKS.concat(GROUPS.LOGS).forEach(function (k) { FUEL[k] = 300; });
   var COOK = 200;
 
