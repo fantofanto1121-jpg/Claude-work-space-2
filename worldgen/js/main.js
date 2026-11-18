@@ -250,6 +250,7 @@
   // 持ち物・体力は、表示や次元を切り替えても残す（シードを変えたときだけ新しくする）
   var player = new WG.Player();
   function locked() { return document.pointerLockElement === c3d; }
+  var toastTimer = 0;
 
   var gameUI = {
     locked: locked,
@@ -257,7 +258,9 @@
     unlock: function () { if (locked()) document.exitPointerLock(); },
     status: walkStatus,
     hurt: function () { var h = $('hurt'); h.classList.remove('on'); void h.offsetWidth; h.classList.add('on'); },
-    hud: $('hud'), hotbar: $('hotbar'), hearts: $('hearts'), air: $('air'), itemName: $('itemName'),
+    hud: $('hud'), hotbar: $('hotbar'), hearts: $('hearts'), air: $('air'), food: $('food'), itemName: $('itemName'),
+    toast: function (t) { var el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('on'); }, 2600); },
+    sleep: function (k) { $('sleepFade').style.opacity = k * 0.92; },
     inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead')
   };
 
@@ -307,7 +310,9 @@
     var tt = game ? game.timeText() : '';
     if (tt) { t += '　' + tt; $('timeNow').textContent = tt; }
     $('hover').textContent = t;
-    var r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
+    var mt = game && game.mobs.target, r;
+    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + T.name + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + T.hp + '）'; }
+    else r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
     setProgress(r);
     if (!w.ready !== walkLoading) { walkLoading = !w.ready; updateWalkCard(); }

@@ -4,6 +4,8 @@
   var WG = G.WG = G.WG || {};
   var B = WG.B, rnd = WG.rnd, hash = WG.hash;
   var H = 128, LAVA_Y = 31;
+  // 鉱脈 [鉱石, -, 最低 y, 最高 y, 1 チャンクの数, 大きさ, 分布]（Minecraft と同じ数と大きさ）
+  var NETHER_ORES = [[B.QUARTZ_ORE, 0, 10, 117, 16, 14, 'u'], [B.NETHER_GOLD_ORE, 0, 10, 117, 10, 10, 'u']];
   var S = { DENS: 41, BASALT: 42, SOUL: 43, SOUL2: 44, GLOW: 45, BEDROCK: 46, ORE: 47, MAGMA: 48, GLOWLEN: 49, FORT: 50 };
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -65,11 +67,6 @@
         else if (d > 0) {
           id = B.NETHERRACK;
           if (this.nBasalt.noise(wx / 15, y / 12, wz / 15) > 0.5) id = B.BASALT;
-          else if (y >= 10 && y <= 117) {
-            var r = rnd(seed, wx, y, wz, S.ORE);
-            if (r < 0.014) id = B.QUARTZ_ORE;
-            else if (r < 0.020) id = B.NETHER_GOLD_ORE;
-          }
         } else id = y <= LAVA_Y ? B.LAVA : B.AIR;
         blocks[idx] = id;
       }
@@ -97,6 +94,9 @@
         }
       }
     }
+
+    // 鉱脈（ネザークォーツとネザー金。ネザーラックだけを置き換える）
+    WG.oreVeins(seed, S.ORE * 10, NETHER_ORES, blocks, cx, cz, 0, H - 1, function (id, L) { return id === B.NETHERRACK ? L[0] : 0; });
 
     // 要塞の廊下（長さ 40、内側の幅 5、内側の高さ 4。床・壁・天井は玄武岩）
     var fo = this.fortressAt(Math.floor(x0 / 128), Math.floor(z0 / 128));

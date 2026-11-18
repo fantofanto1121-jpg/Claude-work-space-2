@@ -29,6 +29,9 @@
   function Player() {
     this.inv = new WG.Inventory();
     this.health = MAX_HEALTH; this.air = MAX_AIR; this.dead = false;
+    // 空腹（Minecraft と同じ）：満腹度 0〜20、隠し満腹度（はじめ 5）、疲れ
+    this.food = 20; this.sat = 5; this.exhaust = 0;
+    this.bed = null;   // リスポーン地点にしたベッド { x, y, z, dim }
   }
 
   function Game(view, world, ui, player) {
@@ -47,6 +50,9 @@
     if (!world.fluids) world.fluids = new WG.Fluids(world);
     world.fluids.onChange = function (x, y, z, oldId, newId) { self.fluidChanged(x, y, z, oldId, newId); };
     this.particles = []; this.falling = [];
+    this.food = this.player.food; this.sat = this.player.sat; this.exhaust = this.player.exhaust;
+    this.foodTimer = 0; this.eating = null; this.sleeping = null; this.tickCount = 0;
+    this.mobs = new WG.Mobs(this);
     this.breaking = null; this.breakDelay = 0; this.placeDelay = 0;
     this.mouseL = false; this.mouseR = false;
     this.clickL = false; this.clickR = false;   // 短いクリックも次の刻みで必ず受け付ける
@@ -60,7 +66,8 @@
       land: function (d) { self.land(d); },
       voidDamage: function () { return self.mode === 'survival'; },
       draw: function (w, a) { self.draw(a); },
-      sky: function () { return self.sky(); }
+      sky: function () { return self.sky(); },
+      chunkBuilt: function (cx, cz) { self.mobs.populate(cx, cz); }
     });
   }
 
@@ -72,6 +79,8 @@
   Game.prototype.stop = function () {
     this.closeInventory();
     this.player.health = this.health; this.player.air = this.air; this.player.dead = this.dead;
+    this.player.food = this.food; this.player.sat = this.sat; this.player.exhaust = this.exhaust;
+    this.walker.using = false;
     this.world.items = this.entities;
     this.world.fluids.onChange = function () {};
     this.walker.stop();
@@ -102,7 +111,18 @@
     var w = this.walker, surv = this.mode === 'survival', wd = this.world;
     if (this.invuln > 0) this.invuln--;
 
-    // 体力：溶岩、奈落、おぼれる、自然に回復（空腹はない）
+    this.tickCount++;
+    // 眠っている間は動かない。100 刻み（5 秒）で朝になる。
+    if (this.sleeping) {
+      var sl = this.sleeping;
+      w.keys = {}; w.vel = [0, 0, 0]; w.pos = sl.pos.slice(); w.prev = sl.pos.slice();
+      this.ui.sleep(Math.min(1, ++sl.t / 60));
+      if (this.mobs.near(w.pos[0], w.pos[1], w.pos[2], 8, 5, true)) { this.wake(); this.ui.toast('近くに敵がいるため、起こされました'); }
+      else if (sl.t >= 100) { wd.time = 0; this.wake(); }
+      return;
+    }
+
+    // 体力：溶岩、奈落、おぼれる。回復と空腹は下の hunger で。
     if (surv) {
       if (w.fluid() === 'lava') this.damage(4);
       if (w.pos[1] < wd.minY - 64) this.damage(4);
@@ -111,8 +131,18 @@
         this.air--;
         if (this.air <= -20) { this.air = 0; this.damage(2, true); }
       } else this.air = Math.min(MAX_AIR, this.air + 4);
-      if (this.health < MAX_HEALTH && !this.dead && ++this.regen >= 40) { this.health++; this.regen = 0; }
+      this.hunger();
     }
+    w.canSprint = !surv || this.food > 6;
+
+    // 生き物を叩く（クリックしたときだけ。ブロックより手前にいるとき）
+    if (this.clickL && this.mobs.target && !this.invOpen) {
+      this.attack(this.mobs.target.mob);
+      this.clickL = false; this.mouseL = false;
+    }
+
+    // 食べる：食べ物を持って右クリックを押し続けると、32 刻み（1.6 秒）で食べる
+    this.tickEating();
 
     // 壊す
     if (this.breakDelay > 0) this.breakDelay--;
@@ -139,7 +169,7 @@
 
     // 置く・使う（押し続けると 4 刻みごとに置く）
     if (this.placeDelay > 0) this.placeDelay--;
-    if ((this.mouseR || this.clickR) && this.placeDelay === 0 && !this.invOpen) { this.use(); this.placeDelay = 4; }
+    if ((this.mouseR || this.clickR) && this.placeDelay === 0 && !this.invOpen && !this.eating) { this.use(); this.placeDelay = 4; }
     this.clickR = false;
 
     // 水と溶岩、かまど
@@ -156,6 +186,7 @@
 
     this.tickFalling();
     this.tickEntities();
+    this.mobs.tick();
     if (wd.dimKey === 'overworld') wd.time = (wd.time + 1) % DAY;
   };
 
@@ -177,7 +208,7 @@
   Game.prototype.sky = function () {
     if (this.world.dimKey !== 'overworld') return null;
     var f = this.dayAngle(), c = Math.cos(f * Math.PI * 2), bright = clamp(c * 2 + 0.5, 0, 1);
-    var pal = this.world.dim.palette;
+    var pal = (this.world.dim && this.world.dim.palette) || WG.DIMS.overworld.palette;
     var dayTop = pal.skyTop.map(function (v) { return v / 255; }), dayLow = pal.skyLow.map(function (v) { return v / 255; });
     var top = mix([0.02, 0.03, 0.07], dayTop, bright), low = mix([0.05, 0.07, 0.12], dayLow, bright);
     // 朝焼けと夕焼け（太陽が地平線の近くにある間だけ）。遠くの霞には少しだけ混ぜる。
@@ -239,11 +270,167 @@
   };
 
   Game.prototype.damage = function (n, ignoreInvuln) {
-    if (this.mode !== 'survival' || this.dead || (this.invuln > 0 && !ignoreInvuln)) return;
+    if (this.mode !== 'survival' || this.dead || (this.invuln > 0 && !ignoreInvuln)) return false;
     this.health = Math.max(0, this.health - n);
-    this.invuln = 10; this.regen = 0;
+    this.invuln = 10; this.regen = 0; this.exhaust += 0.1;
     this.ui.hurt();
+    if (this.sleeping) this.wake();
     if (this.health <= 0) this.die();
+    return true;
+  };
+  // 生き物や矢に傷つけられる（相手から離れる向きに押される）
+  Game.prototype.hurtPlayer = function (n, fx, fz) {
+    if (!this.damage(n)) return;
+    var w = this.walker, dx = w.pos[0] - fx, dz = w.pos[2] - fz, d = Math.hypot(dx, dz) || 1;
+    w.vel[0] += dx / d * 0.4; w.vel[2] += dz / d * 0.4; w.vel[1] = Math.max(w.vel[1], 0.4);
+  };
+
+  // ---------------- 空腹（Minecraft と同じ） ----------------
+  // 疲れが 4 たまるごとに隠し満腹度（なければ満腹度）が 1 減る。
+  // 満腹度 18 以上で 4 秒ごとに回復、満腹度 20 で隠し満腹度があれば 0.5 秒ごとに回復。0 だと 4 秒ごとに体力が減る（1 までは）。
+  Game.prototype.hunger = function () {
+    var w = this.walker;
+    this.exhaust += w.exhaustion || 0; w.exhaustion = 0;
+    while (this.exhaust >= 4) {
+      this.exhaust -= 4;
+      if (this.sat > 0) this.sat = Math.max(0, this.sat - 1); else this.food = Math.max(0, this.food - 1);
+    }
+    this.foodTimer++;
+    if (this.sat > 0 && this.food >= 20 && this.health < MAX_HEALTH) {
+      if (this.foodTimer >= 10) { this.health = Math.min(MAX_HEALTH, this.health + 1); this.exhaust += 6; this.foodTimer = 0; }
+    } else if (this.food >= 18 && this.health < MAX_HEALTH) {
+      if (this.foodTimer >= 80) { this.health = Math.min(MAX_HEALTH, this.health + 1); this.exhaust += 6; this.foodTimer = 0; }
+    } else if (this.food <= 0) {
+      if (this.foodTimer >= 80) { if (this.health > 1) this.damage(1, true); this.foodTimer = 0; }
+    } else this.foodTimer = 0;
+  };
+
+  Game.prototype.tickEating = function () {
+    var held = this.inv.held(), it = held ? ITEMS[held.key] : null, w = this.walker;
+    var canEat = this.mode === 'survival' && it && it.food && this.food < 20 && !this.invOpen;
+    var aimUse = w.target && (w.target.id === B.CRAFTING_TABLE || w.target.id === B.FURNACE || w.target.id === B.FURNACE_LIT || w.target.id === B.CHEST || WG.blockKind(w.target.id) === 'bed');
+    if (canEat && this.mouseR && !aimUse) {
+      if (!this.eating || this.eating.slot !== this.inv.sel) this.eating = { slot: this.inv.sel, t: 0 };
+      w.using = true;
+      if (++this.eating.t >= 32) {
+        this.food = Math.min(20, this.food + it.food);
+        this.sat = Math.min(this.food, this.sat + it.food * it.sat * 2);
+        this.inv.take(this.inv.sel, 1);
+        this.eating = null; w.using = false; this.mouseR = false;
+        var dir = w.dir || [0, 0, 0];
+        this.burst(w.pos[0] - 0.5 + dir[0] * 0.4, w.pos[1] + 1.2, w.pos[2] - 0.5 + dir[2] * 0.4, B.DIRT, held.key);
+      }
+    } else if (this.eating) { this.eating = null; w.using = false; }
+  };
+
+  // ---------------- 戦う ----------------
+  // 攻撃力は持っているもので決まり、落ちながら叩くと 1.5 倍（会心の一撃）。道具は 2 減る。
+  Game.prototype.attack = function (m) {
+    var w = this.walker, held = this.inv.held(), dmg = WG.attackDamage(held);
+    if (!w.onGround && w.vel[1] < 0 && !w.flying) dmg *= 1.5;
+    if (this.mobs.hurt(m, dmg, [w.pos[0], w.pos[2], w.sprint ? 0.8 : 0.4])) {
+      this.exhaust += 0.1;
+      if (this.mode === 'survival') { this.wearTool(1); this.wearTool(1); }
+    }
+  };
+
+  // 爆発（Minecraft の考え方を簡単にしたもの）：中心から離れるほど、硬いブロックほど壊れにくい。
+  // 体力の減り方は Minecraft と同じ式（威力 P、距離 d：(1 - d / 2P) から求める）。
+  Game.prototype.explode = function (x, y, z, power) {
+    var wd = this.world, R = Math.ceil(power * 1.6), touched = {}, self = this, below = [];
+    for (var dy = -R; dy <= R; dy++) for (var dz = -R; dz <= R; dz++) for (var dx = -R; dx <= R; dx++) {
+      var bx = Math.floor(x) + dx, by = Math.floor(y) + dy, bz = Math.floor(z) + dz, id = wd.block(bx, by, bz);
+      if (id === B.AIR) continue;
+      var dist = Math.hypot(bx + 0.5 - x, by + 0.5 - y, bz + 0.5 - z), res = resistance(id);
+      if (power * (0.7 + Math.random() * 0.6) - dist * 0.75 - (res + 0.3) * 0.3 <= 0) continue;
+      wd.setBlock(bx, by, bz, B.AIR);
+      if (Math.random() < 1 / power && !FLUID[id]) this.dropFor(id, bx, by, bz);
+      touched[(bx >> 4) + ',' + (bz >> 4)] = [bx, bz];
+      below.push([bx, by, bz]);
+    }
+    Object.keys(touched).forEach(function (k) { var c = touched[k]; self.walker.remesh(c[0], c[1]); });
+    below.forEach(function (c) { wd.fluids.notify(c[0], c[1], c[2]); self.checkFall(c[0], c[1] + 1, c[2]); });
+    // 体力とはじき飛ばし
+    var w = this.walker, pc = [w.pos[0], w.pos[1] + 0.9, w.pos[2]], d = Math.hypot(pc[0] - x, pc[1] - y, pc[2] - z);
+    if (d < power * 2) {
+      var imp = 1 - d / (power * 2), n = Math.floor((imp * imp + imp) / 2 * 7 * power * 2 + 1);
+      if (this.damage(n, true)) {
+        var k = (d || 1); w.vel[0] += (pc[0] - x) / k * imp; w.vel[1] += Math.max(0.2, (pc[1] - y) / k * imp); w.vel[2] += (pc[2] - z) / k * imp;
+      }
+    }
+    this.mobs.list.forEach(function (m) {
+      var md = Math.hypot(m.x - x, m.y + 0.5 - y, m.z - z);
+      if (md < power * 2) { var mi = 1 - md / (power * 2); self.mobs.hurt(m, Math.floor((mi * mi + mi) / 2 * 7 * power * 2 + 1), [x, z, mi]); }
+    });
+    this.puff(x, y, z, [235, 235, 230], 40, 0.5);
+  };
+  function resistance(id) {
+    var key = WG.BLOCKS[id].key;
+    if (FLUID[id] || key === 'OBSIDIAN' || key === 'BEDROCK' || key === 'END_PORTAL_FRAME') return 1e9;
+    var it = ITEMS[key];
+    if (it && it.tool === 'pickaxe' && it.needTier != null) return 6;
+    if (it && it.tool === 'axe') return 3;
+    return it ? Math.max(0.2, it.hardness) : 1;
+  }
+
+  // 煙や粉のような粒
+  Game.prototype.puff = function (x, y, z, c, n, spread) {
+    for (var i = 0; i < n; i++) {
+      var s = spread || 0.25;
+      this.particles.push({ x: x + (Math.random() - 0.5) * s * 2, y: y + (Math.random() - 0.5) * s * 2, z: z + (Math.random() - 0.5) * s * 2,
+        vx: (Math.random() - 0.5) * 0.2, vy: Math.random() * 0.15, vz: (Math.random() - 0.5) * 0.2, life: 10 + Math.floor(Math.random() * 15), c: c });
+    }
+  };
+
+  // ---------------- ベッド ----------------
+  function isBed(id) { return WG.blockKind(id) === 'bed'; }
+  // ベッドの足側の場所
+  Game.prototype.bedFoot = function (x, y, z) {
+    var id = this.world.block(x, y, z), d = WG.BED_DIR[id];
+    if (!d) return null;
+    return WG.BED_HEAD[id] ? [x - d[0], y, z - d[1]] : [x, y, z];
+  };
+  Game.prototype.useBed = function (x, y, z) {
+    var wd = this.world, w = this.walker, foot = this.bedFoot(x, y, z);
+    if (!foot) return;
+    // ネザーとエンドでは眠れず、爆発する（Minecraft と同じ）
+    if (wd.dimKey !== 'overworld') {
+      var head = [foot[0] + WG.BED_DIR[wd.block(foot[0], foot[1], foot[2])][0], foot[1], foot[2] + WG.BED_DIR[wd.block(foot[0], foot[1], foot[2])][1]];
+      wd.setBlock(foot[0], foot[1], foot[2], B.AIR); wd.setBlock(head[0], head[1], head[2], B.AIR);
+      this.explode(head[0] + 0.5, head[1] + 0.5, head[2] + 0.5, 5);
+      return;
+    }
+    this.player.bed = { x: foot[0], y: foot[1], z: foot[2], dim: wd.dimKey };
+    var t = wd.time;
+    if (t < 12542 || t >= 23460) { this.ui.toast('リスポーン地点を設定しました。眠れるのは夜だけです'); return; }
+    if (this.mobs.near(w.pos[0], w.pos[1], w.pos[2], 8, 5, true)) { this.ui.toast('リスポーン地点を設定しました。近くに敵がいるため眠れません'); return; }
+    var d = WG.BED_DIR[wd.block(foot[0], foot[1], foot[2])];
+    this.sleeping = { t: 0, pos: [foot[0] + 0.5 + d[0] * 0.5, foot[1] + 0.5625, foot[2] + 0.5 + d[1] * 0.5] };
+    w.pitch = 0.6;
+    this.ui.toast('リスポーン地点を設定しました');
+  };
+  Game.prototype.wake = function () {
+    var w = this.walker, sl = this.sleeping;
+    this.sleeping = null;
+    this.ui.sleep(0);
+    if (!sl) return;
+    // ベッドの横の空いた場所に立つ
+    var fx = Math.floor(sl.pos[0]), fz = Math.floor(sl.pos[2]), y = this.world.block(fx, Math.floor(sl.pos[1]), fz);
+    var stand = this.standNear(fx, Math.floor(sl.pos[1]), fz);
+    void y;
+    if (stand) { w.pos = stand; w.prev = stand.slice(); }
+  };
+  // ベッドのまわりで立てる場所
+  Game.prototype.standNear = function (x, y, z) {
+    var wd = this.world;
+    for (var r = 1; r <= 2; r++) for (var dz = -r; dz <= r; dz++) for (var dx = -r; dx <= r; dx++) for (var dy = 1; dy >= -1; dy--) {
+      var px = x + dx, py = y + dy, pz = z + dz;
+      if (WG.COLLIDE[wd.block(px, py - 1, pz)] > 0 && !WG.COLLIDE[wd.block(px, py, pz)] && !WG.COLLIDE[wd.block(px, py + 1, pz)] && !FLUID[wd.block(px, py, pz)]) {
+        var h = WG.COLLIDE[wd.block(px, py - 1, pz)];
+        return [px + 0.5, py - 1 + h, pz + 0.5];
+      }
+    }
+    return null;
   };
 
   Game.prototype.land = function (fall) {
@@ -263,9 +450,13 @@
   };
 
   Game.prototype.respawn = function () {
-    var w = this.walker;
+    var w = this.walker, bed = this.player.bed, at = null;
     this.dead = false; this.health = MAX_HEALTH; this.air = MAX_AIR; this.invuln = 0;
-    w.pos = w.spawnPoint.slice(); w.prev = w.pos.slice(); w.vel = [0, 0, 0]; w.fallDist = 0; w.flying = false;
+    this.food = 20; this.sat = 5; this.exhaust = 0;
+    // ベッドがあればその横、なければ始めた場所
+    if (bed && bed.dim === this.world.dimKey && isBed(this.world.block(bed.x, bed.y, bed.z))) at = this.standNear(bed.x, bed.y, bed.z);
+    else if (bed) { this.ui.toast('ベッドがないか、ふさがれています'); this.player.bed = null; }
+    w.pos = at || w.spawnPoint.slice(); w.prev = w.pos.slice(); w.vel = [0, 0, 0]; w.fallDist = 0; w.flying = false;
     this.ui.dead.classList.add('hide');
     this.ui.lock();
   };
@@ -292,6 +483,11 @@
       if (this.furnaceKey === fk) this.closeInventory();
     }
     // 支えを失ったもの：上の草花・トーチ、横に掛けたトーチ
+    // ベッドはもう半分も一緒に取れる（ドロップは 1 つ）
+    if (isBed(id)) {
+      var bd = WG.BED_DIR[id], ox = WG.BED_HEAD[id] ? x - bd[0] : x + bd[0], oz = WG.BED_HEAD[id] ? z - bd[1] : z + bd[1];
+      if (isBed(wd.block(ox, y, oz))) { wd.setBlock(ox, y, oz, B.AIR); this.walker.remesh(ox, oz); }
+    }
     var up = wd.block(x, y + 1, z);
     if (isPlant(up) || up === B.TORCH) this.popBlock(x, y + 1, z);
     [[1, 0, B.WALL_TORCH_E], [-1, 0, B.WALL_TORCH_W], [0, 1, B.WALL_TORCH_S], [0, -1, B.WALL_TORCH_N]].forEach(function (d) {
@@ -329,6 +525,7 @@
   Game.prototype.use = function () {
     var w = this.walker, t = w.target;
     if (t && !(w.keys.ShiftLeft || w.keys.ShiftRight)) {
+      if (isBed(t.id)) { this.mouseR = this.clickR = false; this.useBed(t.x, t.y, t.z); return; }
       if (t.id === B.CRAFTING_TABLE) { this.mouseR = this.clickR = false; this.openInventory('table'); return; }
       if (t.id === B.CHEST) {
         this.mouseR = this.clickR = false;
@@ -353,6 +550,7 @@
     var w = this.walker, t = w.target, held = this.inv.held();
     if (!t || !held) return;
     var it = ITEMS[held.key];
+    if (it && it.bed) { this.placeBed(t); return; }
     if (!it || it.block < 0) return;
     var x, y, z, wd = this.world, blockId = it.block;
     if (isPlant(t.id)) { x = t.x; y = t.y; z = t.z; } else { x = t.px; y = t.py; z = t.pz; }
@@ -376,6 +574,20 @@
     w.remesh(x, z);
     wd.fluids.notify(x, y, z);
     this.checkFall(x, y, z);
+  };
+
+  // ベッドを置く：見ている向きに頭が来るよう 2 マス。どちらのマスも空いていて、下が固いこと。
+  Game.prototype.placeBed = function (t) {
+    var w = this.walker, wd = this.world, fx = -Math.sin(w.yaw), fz = -Math.cos(w.yaw);
+    var dir = Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? 'E' : 'W') : (fz > 0 ? 'S' : 'N'), d = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }[dir];
+    var x = isPlant(t.id) ? t.x : t.px, y = isPlant(t.id) ? t.y : t.py, z = isPlant(t.id) ? t.z : t.pz, hx = x + d[0], hz = z + d[1];
+    if (!replaceable(wd.block(x, y, z)) || !replaceable(wd.block(hx, y, hz))) return;
+    if (WG.COLLIDE[wd.block(x, y - 1, z)] < 1 || WG.COLLIDE[wd.block(hx, y - 1, hz)] < 1) return;
+    var b = w.box();
+    if ([[x, z], [hx, hz]].some(function (c) { return b[0] < c[0] + 1 && b[3] > c[0] && b[1] < y + 0.5625 && b[4] > y && b[2] < c[1] + 1 && b[5] > c[1]; })) return;
+    wd.setBlock(x, y, z, B['BED_FOOT_' + dir]); wd.setBlock(hx, y, hz, B['BED_HEAD_' + dir]);
+    if (this.mode === 'survival') this.inv.take(this.inv.sel, 1);
+    w.remesh(x, z); w.remesh(hx, hz);
   };
 
   // チェストの中身（27 枠）。地下の部屋のチェストは、初めて開いたときに中身が決まる（場所とシードで決まる）。
@@ -439,8 +651,8 @@
     return e;
   };
 
-  Game.prototype.burst = function (x, y, z, id) {
-    var c = WG.blockColor(id, 'side', WG.BI ? WG.BI.PLAINS : -1);
+  Game.prototype.burst = function (x, y, z, id, itemKey) {
+    var c = itemKey && ITEMS[itemKey].color ? hexRGB(ITEMS[itemKey].color) : WG.blockColor(id, 'side', WG.BI ? WG.BI.PLAINS : -1);
     for (var i = 0; i < 14; i++) {
       this.particles.push({
         x: x + 0.15 + Math.random() * 0.7, y: y + 0.15 + Math.random() * 0.7, z: z + 0.15 + Math.random() * 0.7,
@@ -528,6 +740,14 @@
     return { pos: new Float32Array(this.pos), col: new Uint8Array(this.col), uv: new Uint8Array(this.uv), lt: new Uint8Array(this.lt), count: this.pos.length / 4, alpha: this.alpha };
   };
   // 回した立方体（中心 cx, cz、底 y、大きさ s、回転 r、光の段階 lt）
+  function hexRGB(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
+  // 生き物の体の箱：o（1/16 単位の角）、s（大きさ）、tf（ローカル → 世界の座標）、c（色）
+  function modelBox(bt, o, s, tf, c) {
+    FACES.forEach(function (F) {
+      var P = F[0].map(function (p) { return tf(o[0] + p[0] * s[0], o[1] + p[1] * s[1], o[2] + p[2] * s[2]); });
+      TRI.forEach(function (k) { bt.v(P[k][0], P[k][1], P[k][2], c, F[1], UV[k][0], UV[k][1], 0); });
+    });
+  }
   function cube(bt, cx, y, cz, s, r, tileOf, colorOf, lt) {
     bt.L = lt;
     var cr = Math.cos(r), sr = Math.sin(r);
@@ -575,6 +795,15 @@
       var ct = WG.crackTile(Math.floor(b.p * 4));
       cube(crack, b.x + 0.5, b.y - 0.003, b.z + 0.5, 1.006, 0, function () { return ct; }, function () { return WHITE; }, [15, 0]);
     }
+    // 生き物と矢。視線の先の生き物（叩ける相手）も探す。
+    this.mobs.draw(solid, a, modelBox);
+    var reach = this.mode === 'creative' ? 5 : 3, mt = w.eye ? this.mobs.pick(w.eye, w.dir, reach) : null;
+    if (mt && w.target) {
+      var tc = [w.target.x + 0.5 - w.eye[0], w.target.y + 0.5 - w.eye[1], w.target.z + 0.5 - w.eye[2]];
+      if (Math.hypot(tc[0], tc[1], tc[2]) < mt.dist - 0.5) mt = null;
+    }
+    this.mobs.target = mt;
+    if (mt) this.view.outline = null;
     this.view.dynamic = [solid.done(), crack.done()];
     this.updateHud();
   };
@@ -594,9 +823,14 @@
     var empty = H.map(function (r) { return r.replace(/f/g, 'e'); });
     var col = { o: '#1d1b1b', f: '#b9473f', e: '#3a3434' };
     var bubble = ['..ooo..', '.obbbo.', 'obwbbbo', 'obbbbbo', 'obbbbbo', '.obbbo.', '..ooo..'];
+    var meat = ['...ooo.', '..offfo', '.offffo', 'offfffo', 'obffoo.', 'ob.oo..', '.o.....'];
+    var meatHalf = meat.map(function (r) { return r.split('').map(function (ch, i) { return ch === 'f' && i < 4 ? 'e' : ch; }).join(''); });
+    var meatEmpty = meat.map(function (r) { return r.replace(/f/g, 'e'); });
+    var mc = { o: '#231a14', f: '#b0703c', e: '#3a3430', b: '#e3dccb' };
     heartURLs = {
       full: pixelIcon(H, col), half: pixelIcon(half, col), empty: pixelIcon(empty, col),
-      bubble: pixelIcon(bubble, { o: '#1d2733', b: '#6f9cc9', w: '#dce8f2' })
+      bubble: pixelIcon(bubble, { o: '#1d2733', b: '#6f9cc9', w: '#dce8f2' }),
+      food: pixelIcon(meat, mc), foodHalf: pixelIcon(meatHalf, mc), foodEmpty: pixelIcon(meatEmpty, mc)
     };
     return heartURLs;
   }
@@ -615,7 +849,7 @@
     var ui = this.ui, surv = this.mode === 'survival', inv = this.inv;
     ui.hud.classList.toggle('hide', this.dead);
     if (this.screen === 'furnace') this.updateFurnaceBars();
-    var key = [inv.version, inv.sel, this.mode, surv ? this.health : '', surv && this.air < MAX_AIR ? Math.ceil(Math.max(0, this.air) / 30) : ''].join('|');
+    var key = [inv.version, inv.sel, this.mode, surv ? this.health : '', surv && this.air < MAX_AIR ? Math.ceil(Math.max(0, this.air) / 30) : '', surv ? this.food : ''].join('|');
     if (key === this.hudKey) return;
     var prevSel = this.hudKey ? +this.hudKey.split('|')[1] : -1, prevVer = this.hudKey ? +this.hudKey.split('|')[0] : -1;
     this.hudKey = key;
@@ -628,6 +862,10 @@
     var bub = '';
     if (surv && this.air < MAX_AIR) for (i = 0; i < Math.ceil(Math.max(0, this.air) / 30); i++) bub += '<img src="' + hu.bubble + '" alt="">';
     ui.air.innerHTML = bub;
+    // 満腹度（右から減っていく）
+    var fd = '';
+    if (surv) for (i = 0; i < 10; i++) fd += '<img src="' + (this.food >= i * 2 + 2 ? hu.food : this.food === i * 2 + 1 ? hu.foodHalf : hu.foodEmpty) + '" alt="">';
+    ui.food.innerHTML = fd;
     // 持ち替えたら名前を少し見せる
     var held = inv.held();
     if (prevSel !== inv.sel || prevVer !== inv.version) {

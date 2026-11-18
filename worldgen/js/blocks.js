@@ -100,7 +100,13 @@
     ['LAVA_3', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_4', '溶岩（流れ）', '#d4621c', 'fluid', 1],
     ['LAVA_5', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_6', '溶岩（流れ）', '#d4621c', 'fluid', 1],
     ['LAVA_7', '溶岩（流れ）', '#d4621c', 'fluid', 1], ['LAVA_FALL', '溶岩（落ちる）', '#d4621c', 'fluid', 1],
-    ['GLASS', 'ガラス', '#d7e7e9', 'solid']
+    ['GLASS', 'ガラス', '#d7e7e9', 'solid'],
+    ['WHITE_WOOL', '白色の羊毛', '#e9e9e7', 'solid'],
+    // ベッド：足側と頭側の 2 マス。N・E・S・W は足から頭への向き。
+    ['BED_FOOT_N', '白色のベッド', '#e9e9e7', 'bed'], ['BED_FOOT_E', '白色のベッド', '#e9e9e7', 'bed'],
+    ['BED_FOOT_S', '白色のベッド', '#e9e9e7', 'bed'], ['BED_FOOT_W', '白色のベッド', '#e9e9e7', 'bed'],
+    ['BED_HEAD_N', '白色のベッド', '#e9e9e7', 'bed'], ['BED_HEAD_E', '白色のベッド', '#e9e9e7', 'bed'],
+    ['BED_HEAD_S', '白色のベッド', '#e9e9e7', 'bed'], ['BED_HEAD_W', '白色のベッド', '#e9e9e7', 'bed']
   ];
 
   // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
@@ -125,7 +131,7 @@
 
   var B = {}, LIST = [], N = DEF.length, TEX = WG.TEXTURES || {};
   // 流れる水・溶岩は、元の水・溶岩と同じ見た目
-  function texOf(key) { return TEX[key] || (/^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : null); }
+  function texOf(key) { return TEX[key] || (/^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : /^BED_/.test(key) ? TEX.BED : null); }
   var CUT = [];
   var RGB = [], RGB_FACE = [], PIX = [], OPAQUE = new Uint8Array(N), KIND = [], EMIT = new Float32Array(N), TINT = new Uint8Array(N);
   DEF.forEach(function (d, id) {
@@ -208,6 +214,16 @@
   EMIT[B.FURNACE_LIT] = 0.25;
   // ガラス：固くて通れないが、向こうが見え、光も通す
   OPAQUE[B.GLASS] = 0; LIGHT_BLOCK[B.GLASS] = 0;
+  // ぶつかる高さ（固いブロックは 1、ベッドは 9/16、ほかは 0）
+  var COLLIDE = new Float32Array(N);
+  LIST.forEach(function (b) { COLLIDE[b.id] = b.kind === 'solid' ? 1 : b.kind === 'bed' ? 9 / 16 : 0; });
+  WG.COLLIDE = COLLIDE;
+  // ベッド：足から頭への向き [dx, dz]、頭側か
+  WG.BED_DIR = {}; WG.BED_HEAD = {};
+  ['N', 'E', 'S', 'W'].forEach(function (d) {
+    var v = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }[d];
+    WG.BED_DIR[B['BED_FOOT_' + d]] = v; WG.BED_DIR[B['BED_HEAD_' + d]] = v; WG.BED_HEAD[B['BED_HEAD_' + d]] = true;
+  });
 
   WG.FLUID = FLUID;
   WG.FLUID_LEVEL = FLUID_LEVEL;

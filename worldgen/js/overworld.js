@@ -47,16 +47,23 @@
   var GRASS_P = [0, 0, 0, 0, 0, 0, 0, 0.35, 0.32, 0.1, 0.18, 0.15, 0.3];
   var FLOWER_P = [0, 0, 0, 0, 0, 0, 0, 0.004, 0.004, 0.004, 0, 0.025, 0.03];
 
-  // 鉱石 [石版, 深層岩版, 最低 y, 最高 y, 確率]
+  // 鉱脈 [石版, 深層岩版, 最低 y, 最高 y, 1 チャンクの数, 大きさ, 分布]（Minecraft 1.18 以降の数と大きさ）
   var ORES = [
-    [B.COAL_ORE, B.DEEPSLATE_COAL_ORE, 0, 192, 0.011],
-    [B.IRON_ORE, B.DEEPSLATE_IRON_ORE, -64, 120, 0.0075],
-    [B.COPPER_ORE, B.DEEPSLATE_COPPER_ORE, -16, 112, 0.0065],
-    [B.GOLD_ORE, B.DEEPSLATE_GOLD_ORE, -64, 32, 0.0022],
-    [B.REDSTONE_ORE, B.DEEPSLATE_REDSTONE_ORE, -64, 15, 0.0045],
-    [B.LAPIS_ORE, B.DEEPSLATE_LAPIS_ORE, -64, 64, 0.0016],
-    [B.DIAMOND_ORE, B.DEEPSLATE_DIAMOND_ORE, -64, 16, 0.0012]
+    [B.COAL_ORE, B.DEEPSLATE_COAL_ORE, 136, 320, 30, 17, 'u'],
+    [B.COAL_ORE, B.DEEPSLATE_COAL_ORE, 0, 192, 20, 17, 't'],
+    [B.IRON_ORE, B.DEEPSLATE_IRON_ORE, 80, 384, 90, 9, 't'],
+    [B.IRON_ORE, B.DEEPSLATE_IRON_ORE, -24, 56, 10, 9, 't'],
+    [B.IRON_ORE, B.DEEPSLATE_IRON_ORE, -64, 72, 10, 4, 'u'],
+    [B.COPPER_ORE, B.DEEPSLATE_COPPER_ORE, -16, 112, 16, 10, 't'],
+    [B.GOLD_ORE, B.DEEPSLATE_GOLD_ORE, -64, 32, 4, 9, 't'],
+    [B.REDSTONE_ORE, B.DEEPSLATE_REDSTONE_ORE, -64, 15, 4, 8, 'u'],
+    [B.REDSTONE_ORE, B.DEEPSLATE_REDSTONE_ORE, -96, -32, 8, 8, 't'],
+    [B.LAPIS_ORE, B.DEEPSLATE_LAPIS_ORE, -32, 32, 2, 7, 't'],
+    [B.LAPIS_ORE, B.DEEPSLATE_LAPIS_ORE, -64, 64, 4, 7, 'u'],
+    [B.DIAMOND_ORE, B.DEEPSLATE_DIAMOND_ORE, -144, 16, 4, 4, 't'],
+    [B.DIAMOND_ORE, B.DEEPSLATE_DIAMOND_ORE, -64, -4, 1, 8, 'u']
   ];
+  var ORE_SALT = 200;
 
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function smooth(a, b, v) { var t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
@@ -75,17 +82,7 @@
     this.nT1 = new WG.Perlin(seed, S.T1);
     this.nT2 = new WG.Perlin(seed, S.T2);
     this.roomCache = new Map();
-    // 高さごとの鉱石の確率の帯（累積）
-    this.oreCum = new Float32Array(H * ORES.length);
-    this.oreTot = new Float32Array(H);
-    for (var y = MINY; y <= MAXY; y++) {
-      var acc = 0, yi = y - MINY;
-      for (var k = 0; k < ORES.length; k++) {
-        if (y >= ORES[k][2] && y <= ORES[k][3]) acc += ORES[k][4];
-        this.oreCum[yi * ORES.length + k] = acc;
-      }
-      this.oreTot[yi] = acc;
-    }
+    this.structures = new WG.Structures(this);
   }
   Overworld.prototype.minY = MINY;
   Overworld.prototype.height = H;
@@ -168,11 +165,14 @@
     }
 
     if (!surfaceOnly) this.carve(blocks, hmap, x0, z0, maxH);
-    this.ores(blocks, hmap, x0, z0, surfaceOnly);
+    this.ores(blocks, hmap, cx, cz, surfaceOnly);
     // 部屋は必ず地表より 6 ブロック以上下にあるので、地表だけの生成では省略できる
     if (!surfaceOnly) this.rooms(blocks, cx, cz);
-    this.trees(blocks, hmap, biome, x0, z0);
+    // 構造物（村・砂漠のピラミッド・廃坑）。村とピラミッドの上には木を生やさない
+    var near = this.structures.near(x0, z0, !surfaceOnly);
+    this.trees(blocks, hmap, biome, x0, z0, near);
     this.plants(blocks, hmap, biome, x0, z0);
+    if (near.length) this.structures.draw(near, blocks, hmap, x0, z0, MINY, MAXY);
     return { blocks: blocks, biome: biome, hmap: hmap };
   };
 
@@ -221,23 +221,12 @@
     }
   };
 
-  // 鉱石。石のブロックごとに乱数を 1 回だけ作り、確率の帯で種類を決める。
-  Overworld.prototype.ores = function (blocks, hmap, x0, z0, surfaceOnly) {
-    var seed = this.seed, NO = ORES.length;
-    for (var i = 0; i < 256; i++) {
-      var wx = x0 + (i & 15), wz = z0 + (i >> 4), h = hmap[i];
-      for (var y = surfaceOnly ? h - 2 : MINY + 1; y <= h; y++) {
-        var yi = y - MINY, idx = (yi << 8) | i, id = blocks[idx];
-        if (id !== B.STONE && id !== B.DEEPSLATE) continue;
-        var tot = this.oreTot[yi];
-        if (tot === 0) continue;
-        var r = rnd(seed, wx, y, wz, S.ORE);
-        if (r >= tot) continue;
-        for (var k = 0; k < NO; k++) {
-          if (r < this.oreCum[yi * NO + k]) { blocks[idx] = id === B.DEEPSLATE ? ORES[k][1] : ORES[k][0]; break; }
-        }
-      }
-    }
+  // 鉱石。鉱脈（塊）で置く。石と深層岩だけを置き換える。地表だけの生成では地表から 2 段まで。
+  Overworld.prototype.ores = function (blocks, hmap, cx, cz, surfaceOnly) {
+    WG.oreVeins(this.seed, ORE_SALT, ORES, blocks, cx, cz, MINY, MAXY, function (id, L, idx) {
+      if (surfaceOnly && (idx >> 8) + MINY < hmap[idx & 255] - 2) return 0;
+      return id === B.STONE ? L[0] : id === B.DEEPSLATE ? L[1] : 0;
+    });
   };
 
   // 地下の部屋。チャンクごとに約 1/8 の確率。隣のチャンクの部屋も見て、自分の範囲だけ描く。
@@ -290,7 +279,7 @@
   };
 
   // 木。周囲の根を決まった順に集め、幹をすべて置いてから葉を置く。どちらも空気の場所だけ。
-  Overworld.prototype.trees = function (blocks, hmap, biome, x0, z0) {
+  Overworld.prototype.trees = function (blocks, hmap, biome, x0, z0, near) {
     var seed = this.seed, list = [];
     var g0x = Math.floor((x0 - TREE_R - 2) / 4), g1x = Math.floor((x0 + 15 + TREE_R) / 4);
     var g0z = Math.floor((z0 - TREE_R - 2) / 4), g1z = Math.floor((z0 + 15 + TREE_R) / 4);
@@ -300,6 +289,7 @@
       var hh = hash(seed, gx, 1, gz, S.TREE2);
       var rx = gx * 4 + (hh % 3), rz = gz * 4 + ((hh >>> 8) % 3);
       if (rx < x0 - TREE_R || rx > x0 + 15 + TREE_R || rz < z0 - TREE_R || rz > z0 + 15 + TREE_R) continue;
+      if (near && near.length && this.structures.treeFree(near, rx, rz)) continue;
       var h, b;
       if (rx >= x0 && rx < x0 + 16 && rz >= z0 && rz < z0 + 16) {
         var li = ((rz - z0) << 4) | (rx - x0); h = hmap[li]; b = biome[li];

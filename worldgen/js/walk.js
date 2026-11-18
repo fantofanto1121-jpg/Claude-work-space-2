@@ -14,6 +14,7 @@
   var HALF_W = 0.3;               // 体の幅の半分
   var HEIGHT = 1.8, HEIGHT_SNEAK = 1.5;
   var EYE = 1.62, EYE_SNEAK = 1.27;
+  var HEIGHT_SWIM = 0.6, EYE_SWIM = 0.4;   // 泳いでいるとき・狭いところで這うとき（Minecraft と同じ）
   var TICK = 0.05;                // 1 刻み（秒）
   var FOV = 70 * Math.PI / 180;   // 縦の視野角
   var REACH = 5;                  // 照準が届く距離（サバイバルは 4.5）
@@ -52,7 +53,7 @@
     this.yaw = 0; this.pitch = 0;
     this.pos = [0, 0, 0]; this.prev = [0, 0, 0]; this.vel = [0, 0, 0];
     this.onGround = false; this.collidedH = false;
-    this.sneak = false; this.sprint = false; this.sprintTap = false; this.lastW = 0; this.jumpDelay = 0;
+    this.sneak = false; this.sprint = false; this.sprintTap = false; this.swimming = false; this.crawl = false; this.lastW = 0; this.jumpDelay = 0;
     this.canFly = false; this.flying = false; this.lastSpace = 0; this.fallDist = 0; this.reach = REACH;
     this.eyeH = EYE; this.fovK = 1;
     this.walkDist = 0; this.prevWalkDist = 0; this.bob = 0; this.prevBob = 0;
@@ -62,7 +63,8 @@
     this.dirty = new Map();    // あとで作り直すチャンク（0 が先）
   }
 
-  Walker.prototype.solid = function (x, y, z) { return SOLID[this.world.block(x, y, z)]; };
+  // ぶつかる高さ（0 は通れる、1 は固いブロック、ベッドは 9/16）
+  Walker.prototype.solid = function (x, y, z) { return WG.COLLIDE[this.world.block(x, y, z)]; };
 
   // 立ち位置を探す：上から見て、足元が固体（か水）で、体の 2 マスが空いている場所（木の上は除く）
   Walker.prototype.findStand = function (x, z) {
@@ -92,7 +94,7 @@
     this.ready = false;
   };
 
-  Walker.prototype.height = function () { return this.sneak && !this.flying ? HEIGHT_SNEAK : HEIGHT; };
+  Walker.prototype.height = function () { return this.swimming || this.crawl ? HEIGHT_SWIM : this.sneak && !this.flying ? HEIGHT_SNEAK : HEIGHT; };
   Walker.prototype.box = function (p, h) {
     p = p || this.pos; h = h || this.height();
     return [p[0] - HALF_W, p[1], p[2] - HALF_W, p[0] + HALF_W, p[1] + h, p[2] + HALF_W];
@@ -102,7 +104,10 @@
   Walker.prototype.hits = function (b) {
     for (var y = Math.floor(b[1]); y <= Math.floor(b[4] - 1e-7); y++)
       for (var z = Math.floor(b[2]); z <= Math.floor(b[5] - 1e-7); z++)
-        for (var x = Math.floor(b[0]); x <= Math.floor(b[3] - 1e-7); x++) if (this.solid(x, y, z)) return true;
+        for (var x = Math.floor(b[0]); x <= Math.floor(b[3] - 1e-7); x++) {
+          var h = this.solid(x, y, z);
+          if (h && y + h > b[1] + 1e-7) return true;
+        }
     return false;
   };
 
@@ -114,10 +119,13 @@
     for (var y = Math.floor(lo[1]); y <= Math.floor(hi[1] - 1e-7); y++)
       for (var z = Math.floor(lo[2]); z <= Math.floor(hi[2] - 1e-7); z++)
         for (var x = Math.floor(lo[0]); x <= Math.floor(hi[0] - 1e-7); x++) {
-          if (!this.solid(x, y, z)) continue;
-          var c = axis === 0 ? x : axis === 1 ? y : z;
+          var h = this.solid(x, y, z);
+          if (!h) continue;
+          // 低いブロック（ベッド）は、上面より上を通る体とはぶつからない
+          if (axis !== 1 && y + h <= b[1] + 1e-7) continue;
+          var c = axis === 0 ? x : axis === 1 ? y : z, top = axis === 1 ? y + h : c + 1;
           if (d > 0 && c >= b[axis + 3] - 1e-7) d = Math.min(d, c - b[axis + 3]);
-          else if (d < 0 && c + 1 <= b[axis] + 1e-7) d = Math.max(d, c + 1 - b[axis]);
+          else if (d < 0 && top <= b[axis] + 1e-7) d = Math.max(d, top - b[axis]);
         }
     return d;
   };
@@ -176,16 +184,25 @@
 
     var f = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0), s = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
     if (!k.KeyW) this.sprintTap = false;
-    if (f <= 0 || this.sneak || this.collidedH) this.sprint = false;
+    // 満腹度が 6 以下のとき・食べている間はダッシュできない（Minecraft と同じ）
+    if (f <= 0 || this.sneak || this.collidedH || this.canSprint === false || this.using) this.sprint = false;
     else if (k.ControlLeft || k.ControlRight || this.sprintTap) this.sprint = true;
+    // 泳ぐ：水に潜ったままダッシュすると、体を横にして見ている向きへ速く泳ぐ（Minecraft と同じ）。
+    // 泳ぎ終わっても頭の上が狭いときは、這ったまま（高さ 0.6）
+    var inWater = !this.flying && this.fluid() === 'water';
+    var eyeWet = WG.isWater(this.world.block(Math.floor(this.pos[0]), Math.floor(this.pos[1] + (this.swimming ? EYE_SWIM : EYE)), Math.floor(this.pos[2])));
+    this.swimming = !!(this.sprint && inWater && (this.swimming || eyeWet));
+    this.crawl = !this.swimming && !this.flying && this.hits(this.box(this.pos, this.sneak ? HEIGHT_SNEAK : HEIGHT));
+    if (this.crawl && this.hits(this.box(this.pos, HEIGHT_SWIM))) this.crawl = false;
     var len = Math.hypot(f, s);
     if (len > 1) { f /= len; s /= len; }
     f *= 0.98; s *= 0.98;
     if (this.sneak) { f *= 0.3; s *= 0.3; }
+    if (this.using) { f *= 0.2; s *= 0.2; }   // 食べている間はゆっくり
 
     var fl = this.fluid(), accel, drag;
     if (this.flying) { accel = this.sprint ? 0.1 : 0.05; drag = 0.91; }
-    else if (fl) { accel = 0.02; drag = fl === 'water' ? 0.8 : 0.5; }
+    else if (fl) { accel = this.swimming ? 0.0287 : 0.02; drag = fl === 'water' ? (this.sprint ? 0.9 : 0.8) : 0.5; }
     else if (this.onGround) { accel = 0.1 * (this.sprint ? 1.3 : 1); drag = 0.546; }
     else { accel = this.sprint ? 0.026 : 0.02; drag = 0.91; }
 
@@ -206,11 +223,17 @@
         if (this.collidedH && this.freeAbove(v[0], v[2])) v[1] = 0.3;
       } else if (this.onGround && this.jumpDelay === 0) {
         v[1] = 0.42;
+        this.exhaustion = (this.exhaustion || 0) + (this.sprint ? 0.2 : 0.05);   // ジャンプで疲れる
         if (this.sprint) { v[0] += fx * 0.2; v[2] += fz * 0.2; }
         this.jumpDelay = 10;
       }
     } else this.jumpDelay = 0;
 
+    // 泳いでいる間の上下：見ている向きへ（水面の近くでは、上を向くかスペースで上がる）
+    if (this.swimming) {
+      var ly = Math.sin(this.pitch), above = WG.isWater(this.world.block(Math.floor(this.pos[0]), Math.floor(this.pos[1] + 0.9), Math.floor(this.pos[2])));
+      if (ly <= 0 || k.Space || above) v[1] += (ly - v[1]) * (ly < -0.2 ? 0.085 : 0.06);
+    }
     if (fl && !this.flying) {
       var push = this.flowPush();
       if (push) { var pk = fl === 'water' ? 0.014 : this.world.dimKey === 'nether' ? 0.007 : 0.0023; v[0] += push[0] * pk; v[1] += push[1] * pk; v[2] += push[2] * pk; }
@@ -219,7 +242,7 @@
     var moved = this.move(v[0], v[1], v[2]);
 
     if (this.flying) { v[0] *= drag; v[2] *= drag; v[1] *= 0.6; if (this.onGround) this.flying = false; }
-    else if (fl) { v[0] *= drag; v[2] *= drag; v[1] = v[1] * drag - 0.02; }
+    else if (fl) { v[0] *= drag; v[2] *= drag; v[1] = this.swimming ? v[1] * 0.8 : v[1] * drag - 0.02; }
     else { v[1] = (v[1] - 0.08) * 0.98; v[0] *= drag; v[2] *= drag; }
 
     // 落ちた高さ（着地したときに知らせる。水の中と飛行中は数えない）
@@ -232,6 +255,9 @@
 
     // 視点の揺れ（歩いた距離で進む）
     this.walkDist += moved * 0.6;
+    // 疲れ（空腹のもと）：ダッシュは 1 ブロックごとに 0.1、泳ぐと 0.01（Minecraft と同じ）
+    if (this.sprint && !this.flying) this.exhaustion = (this.exhaustion || 0) + moved * 0.1;
+    else if (fl && !this.flying) this.exhaustion = (this.exhaustion || 0) + moved * 0.01;
     var target = this.onGround && !fl ? Math.min(1, moved / 0.216) : 0;
     this.bob += (target - this.bob) * 0.4;
 
@@ -285,6 +311,7 @@
     var mesh = WG.meshPart(vol, 1, 1, 17, 17);
     this.loaded.set(key, mesh.opaque.idx.length || mesh.water.idx.length ? this.view.upload(mesh, [cx << 4, this.world.minY, cz << 4]) : null);
     this.dirty.delete(key);
+    if (this.hooks.chunkBuilt) this.hooks.chunkBuilt(cx, cz);
   };
 
   // ブロックが変わったチャンクを作り直す。now が false でなければ、そのチャンク（と面が接する隣）をすぐ作り直す。
@@ -396,7 +423,7 @@
   Walker.prototype.draw = function (dt, pending) {
     var a = this.acc / TICK, p = [0, 0, 0], k;
     for (k = 0; k < 3; k++) p[k] = this.prev[k] + (this.pos[k] - this.prev[k]) * a;
-    var eyeTarget = this.sneak ? EYE_SNEAK : EYE;
+    var eyeTarget = this.swimming || this.crawl ? EYE_SWIM : this.sneak ? EYE_SNEAK : EYE;
     this.eyeH += (eyeTarget - this.eyeH) * Math.min(1, dt * 14);
     var wd = this.prevWalkDist + (this.walkDist - this.prevWalkDist) * a;
     var bob = this.prevBob + (this.bob - this.prevBob) * a;

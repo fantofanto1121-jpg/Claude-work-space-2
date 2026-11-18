@@ -35,7 +35,18 @@
     ['COAL_BLOCK', 5, 'COAL_BLOCK'], ['IRON_BLOCK', 5, 'IRON_BLOCK'], ['GOLD_BLOCK', 3, 'GOLD_BLOCK'], ['COPPER_BLOCK', 3, 'COPPER_BLOCK'],
     ['DIAMOND_BLOCK', 5, 'DIAMOND_BLOCK'], ['LAPIS_BLOCK', 3, 'LAPIS_BLOCK'], ['REDSTONE_BLOCK', 5, 'REDSTONE_BLOCK'],
     ['QUARTZ_BLOCK', 0.8, 'QUARTZ_BLOCK'], ['STONE_BRICKS', 1.5, 'STONE_BRICKS'], ['BRICKS', 2, 'BRICKS'], ['NETHER_BRICKS', 2, 'NETHER_BRICKS'],
-    ['GLASS', 0.3, null]
+    ['GLASS', 0.3, null], ['WHITE_WOOL', 0.8, 'WHITE_WOOL'],
+    // ベッドは PDF ではドロップ「なし」だが、Minecraft と同じくベッドが出るようにした
+    ['BED_FOOT_N', 0.2, 'BED'], ['BED_FOOT_E', 0.2, 'BED'], ['BED_FOOT_S', 0.2, 'BED'], ['BED_FOOT_W', 0.2, 'BED'],
+    ['BED_HEAD_N', 0.2, 'BED'], ['BED_HEAD_E', 0.2, 'BED'], ['BED_HEAD_S', 0.2, 'BED'], ['BED_HEAD_W', 0.2, 'BED']
+  ];
+  // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
+  var FOOD_DATA = [
+    ['RAW_PORKCHOP', '生の豚肉', 'meat', '#e59a93', 3, 0.3], ['COOKED_PORKCHOP', '焼き豚', 'meat', '#b8794a', 8, 0.8],
+    ['RAW_BEEF', '生の牛肉', 'meat', '#c4473f', 3, 0.3], ['COOKED_BEEF', 'ステーキ', 'meat', '#7a4a2c', 8, 0.8],
+    ['RAW_MUTTON', '生の羊肉', 'meat', '#d4635b', 2, 0.3], ['COOKED_MUTTON', '焼き羊肉', 'meat', '#9a5a36', 6, 0.8],
+    ['RAW_CHICKEN', '生の鶏肉', 'drumstick', '#efc9b8', 2, 0.3], ['COOKED_CHICKEN', '焼き鳥', 'drumstick', '#c88a4a', 6, 0.6],
+    ['ROTTEN_FLESH', '腐った肉', 'meat', '#8a7a4a', 4, 0.1]
   ];
 
   // 掘るのに向いた道具と、ドロップに必要な道具の段階（Minecraft の値）。
@@ -90,7 +101,9 @@
     pickaxe: ['.d####d.', 'd..S...d', '...S....', '...S....', '...S....', '...S....', '...S....', '........'],
     axe: ['..l#S...', '.##dS...', '.#d.S...', '....S...', '....S...', '....S...', '....S...', '........'],
     shovel: ['...l#...', '..####..', '..#dd#..', '...dd...', '...S....', '...S....', '...S....', '...S....'],
-    ingot: ['........', '........', '...llll.', '..#lll#d', '.######d', '.#####dd', '........', '........']
+    ingot: ['........', '........', '...llll.', '..#lll#d', '.######d', '.#####dd', '........', '........'],
+    meat: ['........', '..###...', '.#l####.', '.#####d.', '.#ll##d.', '..##ddd.', '...ddd..', '........'],
+    drumstick: ['........', '.....##.', '....#l##', '...###d#', '..###dd.', '.S##d...', 'SS......', '........']
   };
 
   var ITEMS = {};
@@ -102,12 +115,17 @@
     };
   });
   ITEM_DATA.forEach(function (d) { ITEMS[d[0]] = { key: d[0], name: d[1], block: -1, max: d[4] || 64, shape: d[2], color: d[3] }; });
-  TOOL_MATS.forEach(function (m) {
+  // 攻撃力（Minecraft の値）：素手 1、ツルハシ・斧・シャベルは素材ごと
+  var ATTACK = { pickaxe: [2, 3, 4, 2, 5], axe: [7, 9, 9, 7, 9], shovel: [2.5, 3.5, 4.5, 2.5, 5.5] };
+  TOOL_MATS.forEach(function (m, mi) {
     TOOL_TYPES.forEach(function (t) {
       var key = m[0] + '_' + t[0];
-      ITEMS[key] = { key: key, name: m[1] + 'の' + t[2], block: -1, max: 1, shape: t[1], color: m[5], tool: t[1], speed: m[2], tier: m[3], dur: m[4], mat: m[6] };
+      ITEMS[key] = { key: key, name: m[1] + 'の' + t[2], block: -1, max: 1, shape: t[1], color: m[5], tool: t[1], speed: m[2], tier: m[3], dur: m[4], mat: m[6], attack: ATTACK[t[1]][mi] };
     });
   });
+  FOOD_DATA.forEach(function (d) { ITEMS[d[0]] = { key: d[0], name: d[1], block: -1, max: 64, shape: d[2], color: d[3], food: d[4], sat: d[5] }; });
+  // ベッド（置くと 2 マスになる）
+  ITEMS.BED = { key: 'BED', name: '白色のベッド', block: -1, max: 1, bed: true };
   Object.keys(ITEMS).forEach(function (k) {
     var it = ITEMS[k];
     if (it.block < 0) return;
@@ -119,11 +137,16 @@
   // 1 刻みに進む割合 = 速さ ÷ 硬度 ÷（ドロップできるなら 30、できないなら 100）。
   function mining(blockKey, held) {
     var b = ITEMS[blockKey], h = b ? b.hardness : 1, tool = held ? ITEMS[held.key] : null;
-    var match = !!(tool && tool.tool && b && b.tool === tool.tool);
+    var match = !!(tool && tool.speed && tool.tool && b && b.tool === tool.tool);   // 道具だけ（ブロックのアイテムは「向いている道具」を持つが、道具ではない）
     var speed = match ? tool.speed : 1;
     var harvest = !(b && b.needTier != null) || (match && tool.tier >= b.needTier);
     if (h < 0) return { perTick: 0, harvest: false, match: match };
     return { perTick: h === 0 ? 1 : speed / h / (harvest ? 30 : 100), harvest: harvest, match: match };
+  }
+  // 持っているもので叩いたときの攻撃力
+  function attackDamage(held) {
+    var it = held ? ITEMS[held.key] : null;
+    return it && it.attack ? it.attack : 1;
   }
 
   function hex(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
@@ -146,7 +169,7 @@
 
   // 置けるブロック（クリエイティブの一覧に出すもの）
   var PLACEABLE = WG.BLOCKS.filter(function (b) {
-    return b.id !== B.AIR && !WG.FLUID[b.id] && b.key !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(b.key);
+    return b.id !== B.AIR && !WG.FLUID[b.id] && b.key !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(b.key) && !/^BED_/.test(b.key);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----
@@ -207,7 +230,7 @@
     c.width = c.height = S;
     var x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
-    var sprite = it.shape ? itemPixels(key) : (WG.blockKind(it.block) === 'deco' && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
+    var sprite = it.shape ? itemPixels(key) : it.bed ? WG.skinCutout(B.BED_FOOT_N) : (WG.blockKind(it.block) === 'deco' && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
     if (sprite) {
       x.drawImage(spriteCanvas(sprite), 4, 4, 40, 40);
     } else {
@@ -226,6 +249,7 @@
 
   WG.ITEMS = ITEMS;
   WG.mining = mining;
+  WG.attackDamage = attackDamage;
   WG.TOOL_MATS = TOOL_MATS;
   WG.TOOL_TYPES = TOOL_TYPES;
   WG.PLACEABLE = PLACEABLE;

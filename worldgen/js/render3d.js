@@ -279,6 +279,25 @@
               }
               op.quad(v0, false);
             }
+          } else if (kind === 'bed') {
+            // ベッド：高さ 9/16 の箱。横の面には図の下の部分（枠・敷布・脚）を貼る。頭側と足側の間の面は描かない。
+            for (d = 0; d < 6; d++) {
+              var bi2 = i + dOff[d], bn = v[bi2];
+              if (OPQ[bn] && d !== 2) continue;
+              if (WG.blockKind(bn) === 'bed' && d !== 2 && d !== 3) continue;
+              D = DIRS[d];
+              var bt2 = TT[id * 3 + FACE_IX[D.face]], bs = D.n[1] === 0, bf = D.shade * 0.5 * jit;
+              if (LT) { var lv5 = LT[d === 2 || d === 3 ? i : bi2]; light(lv5 >> 4, lv5 & 15); } else noLight();
+              v0 = op.nv;
+              for (k = 0; k < 4; k++) {
+                cu = CORNERS[k][0]; cv = CORNERS[k][1];
+                px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
+                py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * 9;
+                pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
+                op.vert(px, py, pz, c8(255 * bf), c8(255 * bf), c8(255 * bf), 0, cu * 16, bs ? 16 - cv * 10 : cv * 16, bt2);
+              }
+              op.quad(v0, false);
+            }
           } else if (ftype) {
             // 水と流れる溶岩：段階に合わせて上の面を下げ、角ごとの高さでなめらかに傾ける
             var buf = ftype === 1 ? wa : op, emf = ftype === 2 ? 255 : 0;

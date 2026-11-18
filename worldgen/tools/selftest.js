@@ -205,7 +205,7 @@ function flatWorld(fn) {
 var nullView = { upload: function () { return {}; }, remove: function () {}, render: function () {} };
 var nullUI = (function () {
   var cl = { add: function () {}, remove: function () {}, toggle: function () {} }, el = { classList: cl };
-  return { locked: function () { return true; }, lock: function () {}, unlock: function () {}, status: function () {}, hurt: function () {}, hud: el, inv: el, dead: el, cursor: el };
+  return { locked: function () { return true; }, lock: function () {}, unlock: function () {}, status: function () {}, hurt: function () {}, toast: function (t) { this.last = t; }, sleep: function () {}, hud: el, inv: el, dead: el, cursor: el };
 })();
 (function () {
   // 水源 1 つから 7 マスまで広がり、水源を取ると引く
@@ -305,6 +305,109 @@ var nullUI = (function () {
   g.setTime(23999); g.tick();
   check(d[0] === 0 && d[1] < 2 && d[2] === 11 && w.time === 0, '昼と夜：正午は空の光そのまま、真夜中は 11 段暗い、1 日 24000 刻み');
   check(WG.blockKind(B.GLASS) === 'solid' && !WG.OPAQUE[B.GLASS] && WG.LIGHT_BLOCK[B.GLASS] === 0 && WG.Craft.SMELT.SAND === 'GLASS', 'ガラス：通れないが光を通し、砂を焼いて作れる');
+})();
+
+// 空腹・ベッド・生き物
+function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh = function () {}; g.walker.pos = [0.5, 11, 0.5]; g.walker.prev = g.walker.pos.slice(); g.walker.lightLevels = function () { return [15, 0]; }; g.mobs.spawnTick = function () {}; return g; }
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.walker.yaw = Math.PI; g.walker.keys = { KeyW: true, ControlLeft: true };
+  for (i = 0; i < 20 * 60; i++) g.walker.tick();
+  var afterRun = g.food;
+  g.walker.keys = {}; g.food = 0; g.sat = 0; g.health = 5;
+  for (i = 0; i < 20 * 30; i++) g.tick();
+  var starved = g.health;
+  g.food = 10; g.sat = 0; g.inv.slots[0] = { key: 'COOKED_BEEF', n: 1 }; g.walker.target = null; g.mouseR = true;
+  for (i = 0; i < 32; i++) g.tick();
+  check(afterRun < 20 && starved === 1 && !g.walker.canSprint === false && g.food === 18 && Math.abs(g.sat - 12.8) < 1e-6, '空腹：ダッシュで減り（1 分で ' + afterRun + '）、0 だと体力 1 まで減り、ステーキで 10 → ' + g.food + '（隠し ' + g.sat.toFixed(1) + '）');
+})();
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.inv.slots[0] = { key: 'BED', n: 1 }; g.walker.yaw = 0;
+  g.walker.target = { x: 0, y: 10, z: -3, id: B.STONE, px: 0, py: 11, pz: -3 }; g.place();
+  var placed = w.block(0, 11, -3) === B.BED_FOOT_N && w.block(0, 11, -4) === B.BED_HEAD_N;
+  w.time = 6000; g.useBed(0, 11, -4); var dayRefused = !g.sleeping;
+  w.time = 18000; g.useBed(0, 11, -4);
+  for (i = 0; i < 101; i++) g.tick();
+  var morning = w.time < 100 && !g.sleeping;
+  g.walker.pos = [30.5, 11, 30.5]; g.die(); g.respawn();
+  var home = Math.abs(g.walker.pos[0]) < 3 && Math.abs(g.walker.pos[2] + 3) < 3;
+  g.breakBlock(0, 11, -3);
+  check(placed && dayRefused && morning && home && w.block(0, 11, -4) === B.AIR, 'ベッド：置ける、昼は眠れない、夜は眠ると朝になる、倒れるとベッドで目覚める、片方を壊すと両方なくなる');
+  var n = flatWorld(function (x, y, z) { return y <= 10 ? B.NETHERRACK : 0; }); n.dimKey = 'nether';
+  var gn = playGame(n); gn.setMode('survival'); n.setBlock(0, 11, -3, B.BED_FOOT_N); n.setBlock(0, 11, -4, B.BED_HEAD_N); gn.useBed(0, 11, -3);
+  check(n.block(0, 11, -3) === B.AIR && gn.health < 20, 'ネザーでベッドを使うと爆発する（体力 20 → ' + gn.health + '）');
+})();
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.GRASS : 0; }), g = playGame(w), i;
+  w.time = 6000;
+  var pig = g.mobs.spawn('PIG', 2.5, 11, 0.5); g.inv.slots[0] = { key: 'DIAMOND_AXE', n: 1 };
+  g.attack(pig); for (i = 0; i < 11; i++) g.tick(); g.attack(pig); for (i = 0; i < 25; i++) g.tick();
+  var meat = g.inv.slots.concat(g.entities).some(function (s) { return s && s.key === 'RAW_PORKCHOP'; });
+  var z1 = g.mobs.spawn('ZOMBIE', 10.5, 11, 0.5); for (i = 0; i < 200; i++) g.tick();
+  check(!g.mobs.list.includes(pig) && meat && z1.hp < 20, '生き物：豚はダイヤの斧 2 回で倒れて生の豚肉を落とす、昼のゾンビは燃える（体力 ' + z1.hp + '）');
+  w.time = 18000; g.mobs.list.length = 0; g.health = 20; g.mobs.spawn('ZOMBIE', 8.5, 11, 0.5);
+  for (i = 0; i < 200; i++) g.tick();
+  var zombieHit = g.health < 20;
+  g.mobs.list.length = 0; g.health = 20; var shots = 0, orig = g.mobs.shoot;
+  g.mobs.shoot = function () { shots++; return orig.apply(this, arguments); };
+  g.mobs.spawn('SKELETON', 10.5, 11, 0.5); for (i = 0; i < 200; i++) g.tick();
+  g.mobs.list.length = 0; g.health = 20; g.walker.pos = [0.5, 11, 0.5];
+  var bm = g.mobs.spawn('BOMBER', 6.5, 11, 0.5);
+  for (i = 0; i < 200 && g.mobs.list.includes(bm); i++) g.tick();
+  check(zombieHit && shots >= 2 && !g.mobs.list.includes(bm) && w.block(6, 10, 0) === B.AIR, '敵：夜のゾンビは殴り、スケルトンは矢を射ち（' + shots + ' 本）、ハゼゴケは近づいて爆発する');
+})();
+
+// 泳ぐ・ブロックを持ったまま掘る
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : y <= 30 ? B.WATER : 0; });
+  var wk = new WG.Walker(nullView, w), i; wk.remesh = function () {}; wk.pos = [0.5, 20, 0.5]; wk.prev = wk.pos.slice(); wk.ready = true; wk.yaw = Math.PI; wk.pitch = 0;
+  wk.keys = { KeyW: true, ControlLeft: true }; for (i = 0; i < 100; i++) wk.tick();
+  var z0 = wk.pos[2]; for (i = 0; i < 100; i++) wk.tick();
+  var speed = (wk.pos[2] - z0) / 5;
+  check(wk.swimming && wk.height() === 0.6 && Math.abs(speed - 5.6) < 0.2, '水に潜ってダッシュすると泳ぐ（高さ 0.6、秒速 ' + speed.toFixed(2) + ' ブロック）');
+  var held = WG.mining('SAND', { key: 'DIRT', n: 5 }), stoneOnOre = WG.mining('COAL_ORE', { key: 'STONE', n: 5 });
+  check(held.perTick > 0 && !held.match && !stoneOnOre.harvest, 'ブロックを持ったままでも素手と同じ速さで掘れる（道具の扱いにならない）');
+})();
+
+// 鉱脈と構造物
+(function () {
+  var wd = new WG.World(SEED, 'overworld'), sizes = [], seen = new Set();
+  for (var cz = 0; cz < 4; cz++) for (var cx = 0; cx < 4; cx++) wd.chunk(cx, cz);
+  // 石炭のつながった塊の大きさ（チャンク 1,1 の中から数える）
+  var c = wd.chunk(1, 1);
+  for (var i = 0; i < c.blocks.length; i++) {
+    if (c.blocks[i] !== B.COAL_ORE || seen.has(i)) continue;
+    var st = [i], n = 0; seen.add(i);
+    while (st.length) {
+      var k = st.pop(); n++;
+      var x = k & 15, z = (k >> 4) & 15, y = k >> 8;
+      [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].forEach(function (d) {
+        var xx = x + d[0], yy = y + d[1], zz = z + d[2];
+        if (xx < 0 || xx > 15 || zz < 0 || zz > 15 || yy < 0 || yy >= 384) return;
+        var j = (yy << 8) | (zz << 4) | xx;
+        if (c.blocks[j] === B.COAL_ORE && !seen.has(j)) { seen.add(j); st.push(j); }
+      });
+    }
+    sizes.push(n);
+  }
+  var big = sizes.filter(function (n) { return n >= 4; }).length;
+  check(sizes.length > 0 && big / sizes.length > 0.5, '鉱石は塊（鉱脈）で出る：石炭の塊 ' + sizes.length + ' 個、4 個以上の塊が ' + big + ' 個');
+  // 構造物：見つかった村の家の真ん中の床と、チャンクの作る順番によらないこと
+  var S = wd.gen.structures, vil = null, tem = null, mine = null;
+  for (var rz = -3; rz < 3; rz++) for (var rx = -3; rx < 3; rx++) {
+    vil = vil || S.village(rx, rz); mine = mine || S.mineshaft(rx, rz);
+  }
+  for (rz = -6; rz < 6 && !tem; rz++) for (rx = -6; rx < 6 && !tem; rx++) tem = S.temple(rx, rz);
+  var house = vil && vil.parts.filter(function (p) { return p.kind === 'house'; })[0];
+  var hx = house.ox + house.ux * (house.W >> 1) + house.vx, hz = house.oz + house.uz * (house.W >> 1) + house.vz;
+  var a = new WG.World(SEED, 'overworld'), b = new WG.World(SEED, 'overworld');
+  a.block(hx + 40, 0, hz + 40); var ida = a.block(hx, house.y + 1, hz), idb = b.block(hx, house.y + 1, hz);
+  var doorAir = ida === B.AIR && a.block(hx, house.y + 2, hz) === B.AIR && a.block(hx, house.y, hz) !== B.AIR;
+  check(!!vil && !!tem && !!mine && doorAir && ida === idb && a.block(tem.x, tem.y + 11, tem.z) === B.GOLD_BLOCK, '構造物：村（家 ' + vil.parts.filter(function (p) { return p.kind === 'house'; }).length + ' 軒）・砂漠のピラミッド・廃坑ができ、作る順番によらず同じ');
+  var shaft = mine.segs[0], mx = shaft.x + shaft.dx * 2, mz = shaft.z + shaft.dz * 2;
+  var mw = new WG.World(SEED, 'overworld'), ground = mw.gen.column(mx, mz).h;
+  check(shaft.y + 3 > ground - 4 || mw.block(mx, shaft.y + 1, mz) === B.AIR, '廃坑の通路が掘られている');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
