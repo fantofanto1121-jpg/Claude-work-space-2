@@ -1,7 +1,8 @@
 // アイテムとインベントリ。
 // ブロックの硬度・最大スタック数・ドロップは、提供された PDF「全ブロック図鑑」の表の値。
 // ドロップの個数（レッドストーン 4〜5 個など）は PDF にないので、Minecraft の値に合わせた。
-// ブロック以外のアイテム（石炭など）は PDF に図がないため、8×8 の簡単な絵を作っている。
+// ブロック以外のアイテム（石炭・道具・食べ物など）と、扉・階段などの新しいブロックのアイテムの絵は、
+// 提供された PDF「アイテム図鑑」の 16×16 のアイコン（js/icons.js）。アイコンがないものだけ 8×8 の簡単な絵を使う。
 (function (G) {
   'use strict';
   var WG = G.WG = G.WG || {};
@@ -40,13 +41,36 @@
     ['BED_FOOT_N', 0.2, 'BED'], ['BED_FOOT_E', 0.2, 'BED'], ['BED_FOOT_S', 0.2, 'BED'], ['BED_FOOT_W', 0.2, 'BED'],
     ['BED_HEAD_N', 0.2, 'BED'], ['BED_HEAD_E', 0.2, 'BED'], ['BED_HEAD_S', 0.2, 'BED'], ['BED_HEAD_W', 0.2, 'BED']
   ];
+  // アイテム図鑑 PDF から加えたブロック（硬度とドロップは Minecraft の値。作物は play.js で実り具合に合わせて落とす）
+  BLOCK_DATA.push(['FARMLAND', 0.6, 'DIRT'], ['FARMLAND_MOIST', 0.6, 'DIRT'], ['BROWN_MUSHROOM', 0, 'BROWN_MUSHROOM'],
+    ['RED_MUSHROOM', 0, 'RED_MUSHROOM'], ['COBWEB', 4, 'STRING'], ['FIRE', 0, null]);
+  for (var cs = 0; cs < 8; cs++) BLOCK_DATA.push(['WHEAT_' + cs, 0, 'WHEAT_SEEDS']);
+  for (cs = 0; cs < 4; cs++) BLOCK_DATA.push(['CARROTS_' + cs, 0, 'CARROT'], ['POTATOES_' + cs, 0, 'POTATO']);
+  var MAT_HARD = { OAK: 2, SPRUCE: 2, ACACIA: 2, COBBLESTONE: 2, STONE_BRICK: 1.5, SANDSTONE: 0.8, BRICK: 2 };
+  WG.WOODS.forEach(function (w) {
+    WG.DIR4.forEach(function (d) {
+      ['C', 'O'].forEach(function (o) { BLOCK_DATA.push([w[0] + '_DOOR_' + d + o + 'L', 3, w[0] + '_DOOR'], [w[0] + '_DOOR_' + d + o + 'U', 3, null]); });
+    });
+    BLOCK_DATA.push([w[0] + '_FENCE', 2, w[0] + '_FENCE']);
+  });
+  WG.SHAPE_MATS.forEach(function (m) {
+    WG.DIR4.forEach(function (d) { BLOCK_DATA.push([m[0] + '_STAIRS_' + d, MAT_HARD[m[0]], m[0] + '_STAIRS']); });
+    BLOCK_DATA.push([m[0] + '_SLAB', MAT_HARD[m[0]], m[0] + '_SLAB'], [m[0] + '_SLAB_TOP', MAT_HARD[m[0]], m[0] + '_SLAB'],
+      [m[0] + '_SLAB_DOUBLE', MAT_HARD[m[0]], m[0] + '_SLAB', 2, 2]);
+  });
+  WG.DIR4.forEach(function (d) { BLOCK_DATA.push(['LADDER_' + d, 0.4, 'LADDER']); });
+
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
     ['RAW_PORKCHOP', '生の豚肉', 'meat', '#e59a93', 3, 0.3], ['COOKED_PORKCHOP', '焼き豚', 'meat', '#b8794a', 8, 0.8],
     ['RAW_BEEF', '生の牛肉', 'meat', '#c4473f', 3, 0.3], ['COOKED_BEEF', 'ステーキ', 'meat', '#7a4a2c', 8, 0.8],
     ['RAW_MUTTON', '生の羊肉', 'meat', '#d4635b', 2, 0.3], ['COOKED_MUTTON', '焼き羊肉', 'meat', '#9a5a36', 6, 0.8],
     ['RAW_CHICKEN', '生の鶏肉', 'drumstick', '#efc9b8', 2, 0.3], ['COOKED_CHICKEN', '焼き鳥', 'drumstick', '#c88a4a', 6, 0.6],
-    ['ROTTEN_FLESH', '腐った肉', 'meat', '#8a7a4a', 4, 0.1]
+    ['ROTTEN_FLESH', '腐った肉', 'meat', '#8a7a4a', 4, 0.1],
+    ['BREAD', 'パン', 'ingot', '#b8823e', 5, 0.6], ['APPLE', 'リンゴ', 'ball', '#c8302a', 4, 0.3],
+    ['CARROT', 'ニンジン', 'stick', '#e88a2a', 3, 0.6], ['POTATO', 'ジャガイモ', 'lump', '#c9a26a', 1, 0.3],
+    ['BAKED_POTATO', 'ベイクドポテト', 'lump', '#b8823e', 5, 0.6], ['GOLDEN_CARROT', '金のニンジン', 'stick', '#e8c540', 6, 1.2],
+    ['GOLDEN_APPLE', '金のリンゴ', 'ball', '#e8c540', 4, 1.2], ['MUSHROOM_STEW', 'キノコシチュー', 'ball', '#a87a52', 6, 0.6]
   ];
 
   // 掘るのに向いた道具と、ドロップに必要な道具の段階（Minecraft の値）。
@@ -60,11 +84,19 @@
   mine('pickaxe', 2, 'GOLD_ORE DEEPSLATE_GOLD_ORE DIAMOND_ORE DEEPSLATE_DIAMOND_ORE REDSTONE_ORE DEEPSLATE_REDSTONE_ORE GOLD_BLOCK DIAMOND_BLOCK');
   mine('pickaxe', 3, 'OBSIDIAN');
   mine('shovel', 0, 'SNOW');
+  mine('sword', 0, 'COBWEB');
+  WG.SHAPE_MATS.forEach(function (m) {
+    if (!/PLANKS/.test(m[2])) mine('pickaxe', 0, m[0] + '_STAIRS_N ' + m[0] + '_STAIRS_E ' + m[0] + '_STAIRS_S ' + m[0] + '_STAIRS_W ' + m[0] + '_SLAB ' + m[0] + '_SLAB_TOP ' + m[0] + '_SLAB_DOUBLE');
+  });
   // 速く掘れるが、素手でもドロップするもの
   var FAST = {};
   'ICE GLASS'.split(' ').forEach(function (k) { FAST[k] = 'pickaxe'; });
   'OAK_LOG BIRCH_LOG SPRUCE_LOG JUNGLE_LOG ACACIA_LOG OAK_PLANKS BIRCH_PLANKS SPRUCE_PLANKS JUNGLE_PLANKS ACACIA_PLANKS CRAFTING_TABLE CHEST'.split(' ').forEach(function (k) { FAST[k] = 'axe'; });
-  'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
+  'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL FARMLAND FARMLAND_MOIST'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
+  WG.BLOCKS.forEach(function (b) {
+    var k = b.key;
+    if (/^(OAK|SPRUCE|ACACIA)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k)) FAST[k] = 'axe';
+  });
 
   // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）
   var TOOL_MATS = [
@@ -72,7 +104,11 @@
     ['IRON', '鉄', 6, 2, 250, '#dcdcda', 'IRON_INGOT'], ['GOLDEN', '金', 12, 0, 32, '#e8c540', 'GOLD_INGOT'],
     ['DIAMOND', 'ダイヤモンド', 8, 3, 1561, '#62c9c0', 'DIAMOND']
   ];
-  var TOOL_TYPES = [['PICKAXE', 'pickaxe', 'ツルハシ'], ['AXE', 'axe', '斧'], ['SHOVEL', 'shovel', 'シャベル']];
+  var TOOL_TYPES = [['PICKAXE', 'pickaxe', 'ツルハシ'], ['AXE', 'axe', '斧'], ['SHOVEL', 'shovel', 'シャベル'], ['SWORD', 'sword', '剣'], ['HOE', 'hoe', 'クワ']];
+  // 防具：素材 [キーの頭, 名前, 耐久の倍率, 防御 [頭, 胴, 脚, 足], 防具の強さ, 修理の材料]、部位 [キーの尻, 名前, 耐久の基準]
+  var ARMOR_MATS = [['LEATHER', '革の', 5, [1, 3, 2, 1], 0, 'LEATHER'], ['GOLDEN', '金の', 7, [2, 5, 3, 1], 0, 'GOLD_INGOT'],
+    ['IRON', '鉄の', 15, [2, 6, 5, 2], 0, 'IRON_INGOT'], ['DIAMOND', 'ダイヤモンドの', 33, [3, 8, 6, 3], 2, 'DIAMOND']];
+  var ARMOR_PARTS = [['HELMET', 'ヘルメット', 11], ['CHESTPLATE', 'チェストプレート', 16], ['LEGGINGS', 'レギンス', 15], ['BOOTS', 'ブーツ', 13]];
 
   // ブロックではないアイテム [キー, 名前, 形, 色, 最大スタック数]
   var ITEM_DATA = [
@@ -85,7 +121,12 @@
     ['STICK', '棒', 'stick', '#8a6a3e'], ['CHARCOAL', '木炭', 'lump', '#3b3029'],
     ['IRON_INGOT', '鉄インゴット', 'ingot', '#d6d6d4'], ['GOLD_INGOT', '金インゴット', 'ingot', '#e6c443'],
     ['COPPER_INGOT', '銅インゴット', 'ingot', '#c4714f'], ['BRICK', 'レンガ（アイテム）', 'ingot', '#a8584a'],
-    ['NETHER_BRICK', 'ネザーレンガ（アイテム）', 'ingot', '#46222a']
+    ['NETHER_BRICK', 'ネザーレンガ（アイテム）', 'ingot', '#46222a'],
+    // 生き物のドロップと、その材料
+    ['BONE', '骨', 'stick', '#e8e4d4'], ['BONE_MEAL', '骨粉', 'dust', '#ecebe4'], ['GUNPOWDER', '火薬', 'dust', '#5a5a5a'],
+    ['FEATHER', '羽根', 'stick', '#f0f0f0'], ['LEATHER', '革', 'lump', '#8a5030'], ['STRING', '糸', 'stick', '#f0f0f0'],
+    ['FLINT', '火打石', 'gem', '#3a3a3c'], ['WHEAT', '小麦', 'seeds', '#c8b04a'], ['BOWL', 'ボウル', 'ball', '#8a6a3e'],
+    ['ARROW', '矢', 'stick', '#c8c8c8']
   ];
 
   // 8×8 の絵。# が基本色、l が明るい色、d が暗い色。
@@ -116,7 +157,7 @@
   });
   ITEM_DATA.forEach(function (d) { ITEMS[d[0]] = { key: d[0], name: d[1], block: -1, max: d[4] || 64, shape: d[2], color: d[3] }; });
   // 攻撃力（Minecraft の値）：素手 1、ツルハシ・斧・シャベルは素材ごと
-  var ATTACK = { pickaxe: [2, 3, 4, 2, 5], axe: [7, 9, 9, 7, 9], shovel: [2.5, 3.5, 4.5, 2.5, 5.5] };
+  var ATTACK = { pickaxe: [2, 3, 4, 2, 5], axe: [7, 9, 9, 7, 9], shovel: [2.5, 3.5, 4.5, 2.5, 5.5], sword: [4, 5, 6, 4, 7], hoe: [1, 1, 1, 1, 1] };
   TOOL_MATS.forEach(function (m, mi) {
     TOOL_TYPES.forEach(function (t) {
       var key = m[0] + '_' + t[0];
@@ -124,6 +165,36 @@
     });
   });
   FOOD_DATA.forEach(function (d) { ITEMS[d[0]] = { key: d[0], name: d[1], block: -1, max: 64, shape: d[2], color: d[3], food: d[4], sat: d[5] }; });
+  ITEMS.MUSHROOM_STEW.max = 1; ITEMS.MUSHROOM_STEW.leaves = 'BOWL';   // 食べるとボウルが残る
+  ITEMS.GOLDEN_APPLE.regen = 100;                                        // 再生（5 秒、体力を 4 回復）
+  // 植えられる作物（耕地の上に置く）
+  ITEMS.WHEAT_SEEDS.plant = 'WHEAT_0'; ITEMS.CARROT.plant = 'CARROTS_0'; ITEMS.POTATO.plant = 'POTATOES_0';
+  // 防具
+  ARMOR_MATS.forEach(function (m) {
+    ARMOR_PARTS.forEach(function (pt, slot) {
+      var key = m[0] + '_' + pt[0];
+      ITEMS[key] = { key: key, name: m[1] + pt[1], block: -1, max: 1, shape: 'lump', color: '#888888', armor: slot, def: m[3][slot], tough: m[4], dur: m[2] * pt[2], mat: m[5] };
+    });
+  });
+  // 使う道具（耐久値は Minecraft の値）
+  ITEMS.BOW = { key: 'BOW', name: '弓', block: -1, max: 1, shape: 'stick', color: '#8a6a3e', bow: true, dur: 384 };
+  ITEMS.SHEARS = { key: 'SHEARS', name: 'ハサミ', block: -1, max: 1, shape: 'stick', color: '#d6d6d4', tool: 'shears', speed: 1, tier: 0, dur: 238 };
+  ITEMS.FLINT_AND_STEEL = { key: 'FLINT_AND_STEEL', name: '火打石と打ち金', block: -1, max: 1, shape: 'stick', color: '#8c8c8a', igniter: true, dur: 64 };
+  ITEMS.BUCKET = { key: 'BUCKET', name: 'バケツ', block: -1, max: 16, shape: 'ball', color: '#c8c8c8', bucket: 0 };
+  ITEMS.WATER_BUCKET = { key: 'WATER_BUCKET', name: '水入りバケツ', block: -1, max: 1, shape: 'ball', color: '#3c66a5', bucket: 1 };
+  ITEMS.LAVA_BUCKET = { key: 'LAVA_BUCKET', name: '溶岩入りバケツ', block: -1, max: 1, shape: 'ball', color: '#d4621c', bucket: 2 };
+  ITEMS.MILK_BUCKET = { key: 'MILK_BUCKET', name: 'ミルク入りバケツ', block: -1, max: 1, shape: 'ball', color: '#f0f0ec', milk: true };
+  // 置くと形や向きが決まるブロックのアイテム（扉・はしご・階段・ハーフブロック）。block は一覧に出す代表の形。
+  WG.WOODS.forEach(function (w) {
+    ITEMS[w[0] + '_DOOR'] = { key: w[0] + '_DOOR', name: w[1] + 'のドア', block: -1, max: 64, door: w[0] };
+    ITEMS[w[0] + '_FENCE'].name = w[1] + 'の柵';
+  });
+  ITEMS.LADDER = { key: 'LADDER', name: 'はしご', block: -1, max: 64, ladder: true };
+  WG.SHAPE_MATS.forEach(function (m) {
+    ITEMS[m[0] + '_STAIRS'] = { key: m[0] + '_STAIRS', name: m[1] + '階段', block: -1, max: 64, stairs: m[0], hardness: MAT_HARD[m[0]] };
+    ITEMS[m[0] + '_SLAB'].name = m[1] + 'ハーフブロック';
+    ITEMS[m[0] + '_SLAB'].slab = m[0];
+  });
   // ベッド（置くと 2 マスになる）
   ITEMS.BED = { key: 'BED', name: '白色のベッド', block: -1, max: 1, bed: true };
   Object.keys(ITEMS).forEach(function (k) {
@@ -139,7 +210,13 @@
     var b = ITEMS[blockKey], h = b ? b.hardness : 1, tool = held ? ITEMS[held.key] : null;
     var match = !!(tool && tool.speed && tool.tool && b && b.tool === tool.tool);   // 道具だけ（ブロックのアイテムは「向いている道具」を持つが、道具ではない）
     var speed = match ? tool.speed : 1;
-    var harvest = !(b && b.needTier != null) || (match && tool.tier >= b.needTier);
+    // 剣はクモの巣を速く切る（15）。ハサミは葉とクモの巣（15）、羊毛（5）を速く切り、葉とクモの巣をそのまま取れる。
+    if (match && tool.tool === 'sword') speed = 15;
+    if (tool && tool.tool === 'shears' && b) {
+      if (/_LEAVES$/.test(blockKey) || blockKey === 'COBWEB') { speed = 15; match = true; }
+      else if (blockKey === 'WHITE_WOOL') { speed = 5; match = true; }
+    }
+    var harvest = !(b && b.needTier != null) || (match && (tool.tier || 0) >= b.needTier);
     if (h < 0) return { perTick: 0, harvest: false, match: match };
     return { perTick: h === 0 ? 1 : speed / h / (harvest ? 30 : 100), harvest: harvest, match: match };
   }
@@ -167,9 +244,23 @@
     return (pixCache[key] = out);
   }
 
+  // PDF のアイテム図鑑のアイコン（RGBA 16×16）。なければ null。
+  var icon16Cache = {};
+  function itemIcon16(key) {
+    var ic = WG.ICONS && WG.ICONS[key];
+    if (!ic) return null;
+    if (icon16Cache[key]) return icon16Cache[key];
+    var bin = typeof atob === 'function' ? atob(ic.px) : Buffer.from(ic.px, 'base64').toString('binary'), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return (icon16Cache[key] = a);
+  }
+
   // 置けるブロック（クリエイティブの一覧に出すもの）
   var PLACEABLE = WG.BLOCKS.filter(function (b) {
-    return b.id !== B.AIR && !WG.FLUID[b.id] && b.key !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(b.key) && !/^BED_/.test(b.key);
+    var k = b.key;
+    return b.id !== B.AIR && !WG.FLUID[b.id] && k !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(k) && !/^BED_/.test(k) &&
+      // 向き・開け閉め・育ち具合の違うもの、置けないもの（扉・はしご・階段は別のアイテムで置く）
+      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$/.test(k);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----
@@ -218,8 +309,8 @@
     return c;
   }
   function spriteCanvas(rgba) {
-    var c = document.createElement('canvas'); c.width = c.height = 8;
-    var x = c.getContext('2d'), img = x.createImageData(8, 8);
+    var n = rgba.length === 1024 ? 16 : 8, c = document.createElement('canvas'); c.width = c.height = n;
+    var x = c.getContext('2d'), img = x.createImageData(n, n);
     img.data.set(rgba);
     x.putImageData(img, 0, 0);
     return c;
@@ -230,9 +321,9 @@
     c.width = c.height = S;
     var x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
-    var sprite = it.shape ? itemPixels(key) : it.bed ? WG.skinCutout(B.BED_FOOT_N) : (WG.blockKind(it.block) === 'deco' && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === 'plant' && WG.plantPixels ? WG.plantPixels(it.block) : null);
+    var sprite = itemIcon16(key) || (it.shape ? itemPixels(key) : null) || (it.bed ? WG.skinCutout(B.BED_FOOT_N) : (WG.blockKind(it.block) === "deco" && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === "plant" && WG.plantPixels ? WG.plantPixels(it.block) : null));
     if (sprite) {
-      x.drawImage(spriteCanvas(sprite), 4, 4, 40, 40);
+      x.drawImage(spriteCanvas(sprite), sprite.length === 1024 ? 0 : 4, sprite.length === 1024 ? 0 : 4, sprite.length === 1024 ? 48 : 40, sprite.length === 1024 ? 48 : 40);
     } else {
       var id = it.block, plains = WG.BI ? WG.BI.PLAINS : -1;
       var tTop = WG.tintOf(id, 'top', plains), tSide = WG.tintOf(id, 'side', plains);
@@ -254,6 +345,7 @@
   WG.TOOL_TYPES = TOOL_TYPES;
   WG.PLACEABLE = PLACEABLE;
   WG.itemPixels = itemPixels;
+  WG.itemIcon16 = itemIcon16;
   WG.Inventory = Inventory;
   WG.iconURL = iconURL;
   WG.itemName = function (key) { return ITEMS[key] ? ITEMS[key].name : key; };

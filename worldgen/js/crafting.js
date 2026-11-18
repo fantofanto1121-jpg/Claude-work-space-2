@@ -44,6 +44,36 @@
     SHAPED.push([['###', ' S ', ' S '], { '#': m[6], S: 'STICK' }, m[0] + '_PICKAXE', 1]);
     SHAPED.push([['##', '#S', ' S'], { '#': m[6], S: 'STICK' }, m[0] + '_AXE', 1]);
     SHAPED.push([['#', 'S', 'S'], { '#': m[6], S: 'STICK' }, m[0] + '_SHOVEL', 1]);
+    SHAPED.push([['#', '#', 'S'], { '#': m[6], S: 'STICK' }, m[0] + '_SWORD', 1]);
+    SHAPED.push([['##', ' S', ' S'], { '#': m[6], S: 'STICK' }, m[0] + '_HOE', 1]);
+  });
+  // 防具（革・金・鉄・ダイヤモンド）
+  [['LEATHER', 'LEATHER'], ['GOLDEN', 'GOLD_INGOT'], ['IRON', 'IRON_INGOT'], ['DIAMOND', 'DIAMOND']].forEach(function (m) {
+    SHAPED.push([['###', '# #'], { '#': m[1] }, m[0] + '_HELMET', 1]);
+    SHAPED.push([['# #', '###', '###'], { '#': m[1] }, m[0] + '_CHESTPLATE', 1]);
+    SHAPED.push([['###', '# #', '# #'], { '#': m[1] }, m[0] + '_LEGGINGS', 1]);
+    SHAPED.push([['# #', '# #'], { '#': m[1] }, m[0] + '_BOOTS', 1]);
+  });
+  SHAPED.push(
+    [[' #S', '# S', ' #S'], { '#': 'STICK', S: 'STRING' }, 'BOW', 1],
+    [['F', 'S', 'E'], { F: 'FLINT', S: 'STICK', E: 'FEATHER' }, 'ARROW', 4],
+    [['WWW'], { W: 'WHEAT' }, 'BREAD', 1],
+    [['NNN', 'NCN', 'NNN'], { N: 'GOLD_NUGGET', C: 'CARROT' }, 'GOLDEN_CARROT', 1],
+    [['GGG', 'GAG', 'GGG'], { G: 'GOLD_INGOT', A: 'APPLE' }, 'GOLDEN_APPLE', 1],
+    [['# #', ' # '], { '#': 'PLANKS' }, 'BOWL', 4],
+    [['# #', ' # '], { '#': 'IRON_INGOT' }, 'BUCKET', 1],
+    [[' #', '# '], { '#': 'IRON_INGOT' }, 'SHEARS', 1],
+    [['S S', 'SSS', 'S S'], { S: 'STICK' }, 'LADDER', 3],
+    [['##', '##'], { '#': 'STRING' }, 'WHITE_WOOL', 1]
+  );
+  // 扉・柵（木の種類ごと）、階段・ハーフブロック（素材ごと）
+  WG.WOODS.forEach(function (w) {
+    SHAPED.push([['##', '##', '##'], { '#': w[0] + '_PLANKS' }, w[0] + '_DOOR', 3]);
+    SHAPED.push([['#S#', '#S#'], { '#': w[0] + '_PLANKS', S: 'STICK' }, w[0] + '_FENCE', 3]);
+  });
+  WG.SHAPE_MATS.forEach(function (m) {
+    SHAPED.push([['#  ', '## ', '###'], { '#': m[2] }, m[0] + '_STAIRS', 4]);
+    SHAPED.push([['###'], { '#': m[2] }, m[0] + '_SLAB', 6]);
   });
   // 形のないレシピ：[材料の配列, できるもの, 個数]
   var SHAPELESS = [
@@ -51,7 +81,9 @@
     [['JUNGLE_LOG'], 'JUNGLE_PLANKS', 4], [['ACACIA_LOG'], 'ACACIA_PLANKS', 4],
     [['COAL_BLOCK'], 'COAL', 9], [['IRON_BLOCK'], 'IRON_INGOT', 9], [['GOLD_BLOCK'], 'GOLD_INGOT', 9],
     [['COPPER_BLOCK'], 'COPPER_INGOT', 9], [['DIAMOND_BLOCK'], 'DIAMOND', 9], [['LAPIS_BLOCK'], 'LAPIS', 9],
-    [['REDSTONE_BLOCK'], 'REDSTONE', 9], [['GOLD_INGOT'], 'GOLD_NUGGET', 9]
+    [['REDSTONE_BLOCK'], 'REDSTONE', 9], [['GOLD_INGOT'], 'GOLD_NUGGET', 9],
+    [['BONE'], 'BONE_MEAL', 3], [['IRON_INGOT', 'FLINT'], 'FLINT_AND_STEEL', 1],
+    [['BROWN_MUSHROOM', 'RED_MUSHROOM', 'BOWL'], 'MUSHROOM_STEW', 1]
   ];
 
   // 枠（n×n のキーの配列、空は null）に合うレシピを探す → { key, n } か null
@@ -95,11 +127,13 @@
   var SMELT = {
     RAW_IRON: 'IRON_INGOT', RAW_GOLD: 'GOLD_INGOT', RAW_COPPER: 'COPPER_INGOT',
     COBBLESTONE: 'STONE', COBBLED_DEEPSLATE: 'DEEPSLATE', CLAY_BALL: 'BRICK', NETHERRACK: 'NETHER_BRICK', SAND: 'GLASS',
-    RAW_PORKCHOP: 'COOKED_PORKCHOP', RAW_BEEF: 'COOKED_BEEF', RAW_MUTTON: 'COOKED_MUTTON', RAW_CHICKEN: 'COOKED_CHICKEN',
+    RAW_PORKCHOP: 'COOKED_PORKCHOP', RAW_BEEF: 'COOKED_BEEF', RAW_MUTTON: 'COOKED_MUTTON', RAW_CHICKEN: 'COOKED_CHICKEN', POTATO: 'BAKED_POTATO',
     OAK_LOG: 'CHARCOAL', BIRCH_LOG: 'CHARCOAL', SPRUCE_LOG: 'CHARCOAL', JUNGLE_LOG: 'CHARCOAL', ACACIA_LOG: 'CHARCOAL'
   };
   var FUEL = { COAL: 1600, CHARCOAL: 1600, COAL_BLOCK: 16000, STICK: 100, CRAFTING_TABLE: 300, CHEST: 300,
-    WOODEN_PICKAXE: 200, WOODEN_AXE: 200, WOODEN_SHOVEL: 200 };
+    WOODEN_PICKAXE: 200, WOODEN_AXE: 200, WOODEN_SHOVEL: 200, WOODEN_SWORD: 200, WOODEN_HOE: 200,
+    BOW: 300, BOWL: 100, LADDER: 300, LAVA_BUCKET: 20000 };
+  ['OAK', 'SPRUCE', 'ACACIA'].forEach(function (w) { FUEL[w + '_FENCE'] = 300; FUEL[w + '_DOOR'] = 200; FUEL[w + '_STAIRS'] = 300; FUEL[w + '_SLAB'] = 150; });
   GROUPS.PLANKS.concat(GROUPS.LOGS).forEach(function (k) { FUEL[k] = 300; });
   var COOK = 200;
 
@@ -117,7 +151,9 @@
     if (this.burn > 0) this.burn--;
     if (this.burn === 0 && this.canSmelt() && this.slots[1] && FUEL[this.slots[1].key]) {
       this.burn = this.burnMax = FUEL[this.slots[1].key];
-      if (--this.slots[1].n <= 0) this.slots[1] = null;
+      // 溶岩入りバケツは燃えたあと空のバケツが残る
+      if (this.slots[1].key === 'LAVA_BUCKET') this.slots[1] = { key: 'BUCKET', n: 1 };
+      else if (--this.slots[1].n <= 0) this.slots[1] = null;
     }
     if (this.burn > 0 && this.canSmelt()) {
       if (++this.cook >= COOK) {

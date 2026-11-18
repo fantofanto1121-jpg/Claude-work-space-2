@@ -383,6 +383,11 @@
         var fp = FLOWER_P[b], gp = GRASS_P[b];
         if (r < fp) blocks[ia] = (hash(seed, wx, 1, wz, S.PLANT) & 1) ? B.DANDELION : B.POPPY;
         else if (r < fp + gp) blocks[ia] = B.SHORT_GRASS;
+        // キノコ（沼地・タイガ・森の草の上に、まれに）
+        if (blocks[ia] === B.AIR) {
+          var mr = rnd(seed, wx, h + 1, wz, S.PLANT), mp = b === BI.SWAMP ? 0.012 : (b === BI.TAIGA || b === BI.FOREST) ? 0.004 : 0;
+          if (mr < mp) blocks[ia] = mr < mp * 0.6 ? B.BROWN_MUSHROOM : B.RED_MUSHROOM;
+        }
       } else if (top === B.SAND && b === BI.DESERT && r < 0.006) {
         var n = 1 + (hash(seed, wx, 2, wz, S.PLANT) % 3);
         for (var j = 0; j < n; j++) if (blocks[ia + j * 256] === B.AIR) blocks[ia + j * 256] = B.CACTUS;

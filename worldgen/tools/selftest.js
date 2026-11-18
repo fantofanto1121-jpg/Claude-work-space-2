@@ -355,7 +355,8 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   g.mobs.list.length = 0; g.health = 20; g.walker.pos = [0.5, 11, 0.5];
   var bm = g.mobs.spawn('BOMBER', 6.5, 11, 0.5);
   for (i = 0; i < 200 && g.mobs.list.includes(bm); i++) g.tick();
-  check(zombieHit && shots >= 2 && !g.mobs.list.includes(bm) && w.block(6, 10, 0) === B.AIR, '敵：夜のゾンビは殴り、スケルトンは矢を射ち（' + shots + ' 本）、ハゼゴケは近づいて爆発する');
+  var holes = 0; for (var hx = -8; hx <= 12; hx++) for (var hz = -8; hz <= 8; hz++) for (var hy = 5; hy <= 10; hy++) if (w.block(hx, hy, hz) === B.AIR) holes++;
+  check(zombieHit && shots >= 2 && !g.mobs.list.includes(bm) && holes > 10, '敵：夜のゾンビは殴り、スケルトンは矢を射ち（' + shots + ' 本）、ハゼゴケは近づいて爆発する');
 })();
 
 // 泳ぐ・ブロックを持ったまま掘る
@@ -408,6 +409,54 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   var shaft = mine.segs[0], mx = shaft.x + shaft.dx * 2, mz = shaft.z + shaft.dz * 2;
   var mw = new WG.World(SEED, 'overworld'), ground = mw.gen.column(mx, mz).h;
   check(shaft.y + 3 > ground - 4 || mw.block(mx, shaft.y + 1, mz) === B.AIR, '廃坑の通路が掘られている');
+})();
+
+// アイテム図鑑から加えたもの
+(function () {
+  check(Object.keys(WG.ICONS).length >= 120 && WG.itemIcon16('DIAMOND_SWORD').length === 1024 && WG.BLOCKS.length <= 256, 'アイテム図鑑のアイコン（' + Object.keys(WG.ICONS).length + ' 個、16×16）、ブロックは ' + WG.BLOCKS.length + ' 種類（256 以下）');
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? (y === 10 ? B.GRASS : B.DIRT) : 0; }), g = playGame(w), i, t;
+  w.setBlock(3, 10, 0, B.WATER);
+  function aim(x, y, z, px, py, pz) { g.walker.target = { x: x, y: y, z: z, id: w.block(x, y, z), px: px, py: py, pz: pz }; }
+  g.inv.slots[0] = { key: 'IRON_HOE', n: 1 }; g.inv.sel = 0; aim(2, 10, 0, 2, 11, 0); g.use();
+  var tilled = w.block(2, 10, 0) === B.FARMLAND_MOIST;
+  g.inv.slots[0] = { key: 'WHEAT_SEEDS', n: 1 }; aim(2, 10, 0, 2, 11, 0); g.use();
+  var planted = w.block(2, 11, 0) === B.WHEAT_0;
+  for (t = 0; t < 2000 && w.block(2, 11, 0) !== B.WHEAT_7; t++) g.growCrop(2, 11, 0, 0);
+  g.breakBlock(2, 11, 0, true);
+  var wheat = g.entities.some(function (e) { return e.key === 'WHEAT'; });
+  check(tilled && planted && t < 2000 && wheat, '農業：クワで耕すと水の近くで湿った耕地、種を植えると育ち（' + t + ' 回のランダムな刻み）、実ると小麦がとれる');
+  var a = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), ga = playGame(a);
+  ga.health = 20; ga.hurtPlayer(10, 3, 0); var plain = 20 - ga.health; ga.invuln = 0;
+  ['HELMET', 'CHESTPLATE', 'LEGGINGS', 'BOOTS'].forEach(function (p, k) { ga.armor[k] = { key: 'DIAMOND_' + p, n: 1 }; });
+  ga.health = 20; ga.hurtPlayer(10, 3, 0);
+  check(plain === 10 && Math.abs(20 - ga.health - 3) < 1e-9 && ga.armor[0].dmg === 2, '防具：ダイヤ一式で 10 ダメージが 3 に減り、耐久値が減る（Minecraft の式）');
+  var zb = ga.mobs.spawn('ZOMBIE', 0.5, 11, -8);
+  ga.inv.clear(); ga.inv.slots[0] = { key: 'BOW', n: 1 }; ga.inv.slots[1] = { key: 'ARROW', n: 3 }; ga.inv.sel = 0;
+  ga.walker.eye = [0.5, 12.62, 0.5]; ga.walker.dir = [0, 0.05, -1];
+  ga.mouseR = true; for (i = 0; i < 25; i++) ga.tickBow(); ga.mouseR = false; ga.tickBow();
+  for (i = 0; i < 20; i++) ga.mobs.tickArrows();
+  check(zb.hp <= 14 && ga.inv.slots[1].n === 2, '弓：引き切って射るとゾンビに 6 以上のダメージ（体力 20 → ' + zb.hp + '）、矢を 1 本使う');
+  // 扉・ハーフブロック・段差・柵・はしご
+  var d = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), gd = playGame(d);
+  gd.walker.yaw = 0; gd.inv.slots[0] = { key: 'OAK_DOOR', n: 1 }; gd.inv.sel = 0;
+  gd.walker.target = { x: 0, y: 10, z: -3, id: B.STONE, px: 0, py: 11, pz: -3 }; gd.use();
+  var placed = d.block(0, 11, -3) === B.OAK_DOOR_NCL && d.block(0, 12, -3) === B.OAK_DOOR_NCU;
+  gd.inv.slots[0] = null; gd.walker.target = { x: 0, y: 11, z: -3, id: d.block(0, 11, -3), px: 0, py: 11, pz: -2 }; gd.use();
+  check(placed && d.block(0, 12, -3) === B.OAK_DOOR_NOU, '扉：2 マスで置け、右クリックで上下とも開く');
+  var st = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : (y === 11 && z <= -2 && z >= -12) ? B.OAK_SLAB : 0; }), gs = playGame(st);
+  gs.walker.yaw = 0; gs.walker.keys = { KeyW: true }; gs.walker.onGround = true;
+  for (i = 0; i < 30; i++) gs.walker.tick();
+  var fe = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : (y === 11 && z === -2) ? B.OAK_FENCE : 0; }), gf = playGame(fe);
+  gf.walker.yaw = 0; gf.walker.keys = { KeyW: true, Space: true }; gf.walker.onGround = true;
+  for (i = 0; i < 60; i++) gf.walker.tick();
+  var la = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : (z === -1 && y < 20) ? B.STONE : (x === 0 && z === 0 && y >= 11 && y < 20) ? B.LADDER_S : 0; }), gl = playGame(la);
+  gl.walker.yaw = 0; gl.walker.keys = { KeyW: true }; gl.walker.onGround = true;
+  for (i = 0; i < 40; i++) gl.walker.tick();
+  check(Math.abs(gs.walker.pos[1] - 11.5) < 1e-6 && gf.walker.pos[2] > -1.4 && gl.walker.pos[1] > 15, '段差 0.5 は歩いて上がり（y ' + gs.walker.pos[1].toFixed(2) + '）、柵は越えられず、はしごは登れる（2 秒で y ' + gl.walker.pos[1].toFixed(1) + '）');
+  check(WG.Craft.match(['WHEAT', 'WHEAT', 'WHEAT', null, null, null, null, null, null], 3).key === 'BREAD' &&
+    WG.Craft.match(['IRON_INGOT', null, 'IRON_INGOT', null, 'IRON_INGOT', null, null, null, null], 3).key === 'BUCKET' &&
+    WG.Craft.match(['COBBLESTONE', null, null, 'COBBLESTONE', 'COBBLESTONE', null, 'COBBLESTONE', 'COBBLESTONE', 'COBBLESTONE'], 3).key === 'COBBLESTONE_STAIRS',
+    'レシピ：パン、バケツ、階段（ほか剣・クワ・弓・矢・防具・扉・柵・はしご・ハーフブロックなど）');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));

@@ -62,13 +62,14 @@
   // ---- 種類ごとの値（Minecraft の値）----
   // w, h: 大きさ（ブロック）、hp: 体力、speed: 歩く速さ（ブロック/刻み）、range: 敵が気づく距離
   var TYPES = {
-    PIG: { name: '豚', w: 0.9, h: 0.9, hp: 10, speed: 0.05, food: 'WHEAT_SEEDS', drops: [['RAW_PORKCHOP', 1, 3]] },
-    COW: { name: '牛', w: 0.9, h: 1.4, hp: 10, speed: 0.05, food: 'WHEAT_SEEDS', drops: [['RAW_BEEF', 1, 3]] },
-    SHEEP: { name: '羊', w: 0.9, h: 1.3, hp: 8, speed: 0.05, food: 'WHEAT_SEEDS', drops: [['WHITE_WOOL', 1, 1], ['RAW_MUTTON', 1, 2]] },
-    CHICKEN: { name: '鶏', w: 0.4, h: 0.7, hp: 4, speed: 0.05, food: 'WHEAT_SEEDS', drops: [['RAW_CHICKEN', 1, 1]] },
-    ZOMBIE: { name: 'ゾンビ', w: 0.6, h: 1.95, hp: 20, speed: 0.09, hostile: true, range: 35, burns: true, drops: [['ROTTEN_FLESH', 0, 2]] },
-    SKELETON: { name: 'スケルトン', w: 0.6, h: 1.99, hp: 20, speed: 0.1, hostile: true, range: 16, burns: true, drops: [] },
-    BOMBER: { name: 'ハゼゴケ', w: 0.8, h: 1.0, hp: 20, speed: 0.09, hostile: true, range: 16, drops: [] }
+    // food は持っていると寄ってくる食べ物、rare は 2.5% で落とすもの
+    PIG: { name: '豚', w: 0.9, h: 0.9, hp: 10, speed: 0.05, food: ['CARROT', 'POTATO'], drops: [['RAW_PORKCHOP', 1, 3]] },
+    COW: { name: '牛', w: 0.9, h: 1.4, hp: 10, speed: 0.05, food: ['WHEAT'], drops: [['LEATHER', 0, 2], ['RAW_BEEF', 1, 3]] },
+    SHEEP: { name: '羊', w: 0.9, h: 1.3, hp: 8, speed: 0.05, food: ['WHEAT'], drops: [['WHITE_WOOL', 1, 1], ['RAW_MUTTON', 1, 2]] },
+    CHICKEN: { name: '鶏', w: 0.4, h: 0.7, hp: 4, speed: 0.05, food: ['WHEAT_SEEDS'], drops: [['FEATHER', 0, 2], ['RAW_CHICKEN', 1, 1]] },
+    ZOMBIE: { name: 'ゾンビ', w: 0.6, h: 1.95, hp: 20, speed: 0.09, hostile: true, range: 35, burns: true, drops: [['ROTTEN_FLESH', 0, 2]], rare: ['IRON_INGOT', 'CARROT', 'POTATO'] },
+    SKELETON: { name: 'スケルトン', w: 0.6, h: 1.99, hp: 20, speed: 0.1, hostile: true, range: 16, burns: true, drops: [['BONE', 0, 2], ['ARROW', 0, 2]] },
+    BOMBER: { name: 'ハゼゴケ', w: 0.8, h: 1.0, hp: 20, speed: 0.09, hostile: true, range: 16, drops: [['GUNPOWDER', 0, 2]] }
   };
   var PASSIVE = ['PIG', 'COW', 'SHEEP', 'CHICKEN'], PASSIVE_W = [10, 8, 12, 10];
   var HOSTILE = ['ZOMBIE', 'SKELETON', 'BOMBER'], HOSTILE_W = [40, 40, 20];
@@ -150,10 +151,15 @@
         ai.panic--;
         if (ai.timer-- <= 0 || ai.tx == null) { var a = Math.random() * Math.PI * 2; ai.tx = m.x + Math.cos(a) * 8; ai.tz = m.z + Math.sin(a) * 8; ai.timer = 20; }
         want = [ai.tx, ai.tz]; speed = T.speed * 2;
-      } else if (held && held.key === T.food && dist < 10 && dist > 1.5) want = [w.pos[0], w.pos[2]];
+      } else if (held && T.food.indexOf(held.key) >= 0 && dist < 10 && dist > 1.5) want = [w.pos[0], w.pos[2]];
       else this.wander(m, ai);
       if (!want && ai.tx != null) want = [ai.tx, ai.tz];
       if (m.type === 'CHICKEN' && !m.ground && m.vy < -0.1) m.vy = -0.1;   // 羽ばたいてゆっくり落ちる
+      // 毛を刈った羊は、草を食べると毛が戻る（草ブロックは土になる）
+      if (m.sheared && m.ground && Math.random() < 0.001) {
+        var gx = Math.floor(m.x), gy = Math.floor(m.y) - 1, gz = Math.floor(m.z);
+        if (this.world.block(gx, gy, gz) === WG.B.GRASS) { this.world.setBlock(gx, gy, gz, WG.B.DIRT); m.sheared = false; w.remesh(gx, gz); }
+      }
     } else if (targetPlayer) {
       ai.tx = null;
       if (m.type === 'ZOMBIE') {
@@ -261,11 +267,19 @@
   Mobs.prototype.die = function (m) {
     var g = this.game, T = TYPES[m.type];
     T.drops.forEach(function (d) {
+      if (m.sheared && d[0] === 'WHITE_WOOL') return;   // 毛を刈った羊は羊毛を落とさない
       var n = d[1] + Math.floor(Math.random() * (d[2] - d[1] + 1));
       var key = m.fire > 0 && WG.Craft.SMELT[d[0]] ? WG.Craft.SMELT[d[0]] : d[0];   // 燃えながら倒れた動物は焼けた肉を落とす
       if (n > 0) g.spawnItem(key, n, m.x, m.y + 0.3, m.z, 0.1, 10);
     });
+    if (T.rare && Math.random() < 0.025) g.spawnItem(T.rare[Math.floor(Math.random() * T.rare.length)], 1, m.x, m.y + 0.3, m.z, 0.1, 10);
     g.puff(m.x, m.y + T.h / 2, m.z, [220, 220, 220], 12);
+  };
+
+  // プレイヤーが弓で射る矢（v は速さ 0〜3、dmg は当たったときの減り方）
+  Mobs.prototype.shootFromPlayer = function (eye, dir, v, dmg, pickup) {
+    this.arrows.push({ x: eye[0] + dir[0] * 0.3, y: eye[1] - 0.1 + dir[1] * 0.3, z: eye[2] + dir[2] * 0.3, px: eye[0], py: eye[1] - 0.1, pz: eye[2],
+      vx: dir[0] * v, vy: dir[1] * v, vz: dir[2] * v, life: 0, stuck: false, player: true, dmg: dmg, pickup: pickup });
   };
 
   // 視線の先の生き物（届く距離 reach 以内、ブロックより手前）
@@ -303,11 +317,26 @@
     for (var i = 0; i < this.arrows.length; i++) {
       var a = this.arrows[i];
       a.px = a.x; a.py = a.y; a.pz = a.z; a.life++;
-      if (a.stuck) { if (a.life < 60) keep.push(a); continue; }
+      if (a.stuck) {
+        // 刺さった自分の矢は、近くを通ると拾える（サバイバル）
+        if (a.player && a.pickup && !g.dead && Math.hypot(a.x - w.pos[0], a.y - w.pos[1] - 0.9, a.z - w.pos[2]) < 1.4 && g.inv.add('ARROW', 1)) continue;
+        if (a.life < (a.player ? 1200 : 60)) keep.push(a);
+        continue;
+      }
       var hit = false;
       for (var s = 0; s < 4 && !hit; s++) {
         a.x += a.vx / 4; a.y += a.vy / 4; a.z += a.vz / 4;
         if (WG.COLLIDE[this.world.block(Math.floor(a.x), Math.floor(a.y), Math.floor(a.z))]) { a.stuck = true; a.life = 0; hit = true; break; }
+        if (a.player) {
+          // プレイヤーの矢は生き物に当たる
+          for (var mi = 0; mi < this.list.length && !hit; mi++) {
+            var mm = this.list[mi], mb = box3(mm);
+            if (mm.dead || a.x < mb[0] || a.x > mb[3] || a.y < mb[1] || a.y > mb[4] || a.z < mb[2] || a.z > mb[5]) continue;
+            this.hurt(mm, a.dmg, [a.x - a.vx, a.z - a.vz, 0.4]);
+            hit = true; a.dead = true;
+          }
+          continue;
+        }
         var pb = w.box();
         if (!g.dead && a.x > pb[0] && a.x < pb[3] && a.y > pb[1] && a.y < pb[4] && a.z > pb[2] && a.z < pb[5]) {
           g.hurtPlayer(Math.ceil(Math.hypot(a.vx, a.vy, a.vz) * 2) + (Math.random() < 0.25 ? 1 : 0) - 1, a.x - a.vx, a.z - a.vz);
@@ -391,8 +420,13 @@
       var red = m.hurt > 0 || m.dead ? 0.55 : 0, burn = m.fire > 0 ? 0.35 : 0;
       bt.L = w.lightLevels(x, y + T.h / 2, z);
       var cy = Math.cos(yaw), sy = Math.sin(yaw), ct = Math.cos(tip), st = Math.sin(tip);
-      parts.forEach(function (pt) {
+      parts.forEach(function (pt, pi) {
         var c = pt.c;
+        // 毛を刈った羊：毛の部分は細く、肌の色
+        if (m.sheared && m.type === 'SHEEP') {
+          if (pi === 6) return;
+          if (pi === 4) { c = [214, 200, 180]; pt = { o: [-4.5, 12, -7], s: [9, 8, 14], c: c, sw: null }; }
+        }
         if (red) c = [c[0] + (220 - c[0]) * red, c[1] * (1 - red), c[2] * (1 - red)];
         if (burn) c = [c[0] + (255 - c[0]) * burn, c[1] + (140 - c[1]) * burn, c[2] * (1 - burn)];
         if (flash) c = [c[0] + (255 - c[0]) * flash, c[1] + (255 - c[1]) * flash, c[2] + (255 - c[2]) * flash];

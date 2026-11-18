@@ -34,12 +34,13 @@
   };
 
   // ---- 見た目のアトラス ----
-  // 8×8 の見た目を 32×32 枚並べた 256×256 の画像。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
-  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 256, PER_ROW = 32, tileTable = null, atlasPixels = null, seen = {};
+  // 上半分は 8×8 の見た目を 32×32 枚並べた 256×256。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
+  // 下半分は 16×16 のアイテムのアイコン（PDF のアイテム図鑑）を 16×16 枚。番号は BIG を足して区別する。
+  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 256, ATLAS_H = 512, PER_ROW = 32, BIG = 32768, tileTable = null, atlasPixels = null, seen = {}, nBig = 0;
   function atlas() {
     if (tileTable) return tileTable;
     tileTable = new Uint16Array(WG.BLOCKS.length * 3);
-    atlasPixels = new Uint8Array(ATLAS * ATLAS * 4);
+    atlasPixels = new Uint8Array(ATLAS * ATLAS_H * 4);
     var n = 0, k;
     function tile(src) {
       var sig = src ? Array.prototype.join.call(src) : 'white';
@@ -74,13 +75,25 @@
       if (WG.cutoutAllFaces(b.id)) tileTable[b.id * 3 + FACE_IX.top] = tileTable[b.id * 3 + FACE_IX.bottom] = t;
     });
     // ブロックではないアイテムの絵と、壊している途中のひび（4 段階）
-    if (WG.ITEMS) Object.keys(WG.ITEMS).forEach(function (k) { var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px); });
+    if (WG.ITEMS) Object.keys(WG.ITEMS).forEach(function (k) {
+      var big = WG.itemIcon16 && WG.itemIcon16(k);
+      if (big) { itemTiles[k] = bigTile(big); return; }
+      var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px);
+    });
     CRACKS.forEach(function (rows) {
       var px = new Uint8Array(256);
       for (var i = 0; i < 64; i++) if (rows[i >> 3][i & 7] === '#') px[i * 4 + 3] = 255;
       crackTiles.push(rgbaTile(px));
     });
     return tileTable;
+    function bigTile(px) {
+      var tx = (nBig % 16) * 16, ty = 256 + ((nBig / 16) | 0) * 16;
+      for (var j = 0; j < 16; j++) for (var i = 0; i < 16; i++) {
+        var o = ((ty + j) * ATLAS + tx + i) * 4, q = (j * 16 + i) * 4;
+        atlasPixels[o] = px[q]; atlasPixels[o + 1] = px[q + 1]; atlasPixels[o + 2] = px[q + 2]; atlasPixels[o + 3] = px[q + 3];
+      }
+      return BIG + nBig++;
+    }
     function rgbaTile(px) {
       var sig = 'a' + Array.prototype.join.call(px);
       if (seen[sig] != null) return seen[sig];
@@ -298,6 +311,43 @@
               }
               op.quad(v0, false);
             }
+          } else if (WG.SHAPED[kind]) {
+            // 階段・ハーフブロック・柵・扉・はしご・耕地：箱を並べて描く（隣が不透明なブロックの境の面は描かない）
+            var boxes = WG.blockBoxes(id, function (dx, dz) { return v[i + dx + dz * sx]; }, false);
+            for (var bq = 0; bq < boxes.length; bq++) {
+              var lo3 = [boxes[bq][0], boxes[bq][1], boxes[bq][2]], hi3 = [boxes[bq][3], boxes[bq][4], boxes[bq][5]];
+              for (d = 0; d < 6; d++) {
+                D = DIRS[d];
+                var ax = d >> 1, plane = (d & 1) === 0 ? hi3[ax] : lo3[ax], edge = (d & 1) === 0 ? plane === 16 : plane === 0, ni3 = i + dOff[d];
+                if (edge && OPQ[v[ni3]]) continue;
+                if (LT) { var lv6 = LT[edge ? ni3 : i]; L = light(lv6 >> 4, lv6 & 15); } else L = noLight();
+                var st3 = TT[id * 3 + FACE_IX[D.face]], sd3 = D.n[1] === 0, sf3 = D.shade * 0.5 * jit, sc3 = faceBase(id, D.face, bio);
+                var uAx = D.u.indexOf(1), vAx = D.v.indexOf(1), q3 = [0, 0, 0];
+                v0 = op.nv;
+                for (k = 0; k < 4; k++) {
+                  cu = CORNERS[k][0]; cv = CORNERS[k][1];
+                  q3[ax] = plane; q3[uAx] = cu ? hi3[uAx] : lo3[uAx]; q3[vAx] = cv ? hi3[vAx] : lo3[vAx];
+                  op.vert(lx + q3[0], ly + q3[1], lz + q3[2], c8(sc3[0] * sf3 * L[0]), c8(sc3[1] * sf3 * L[1]), c8(sc3[2] * sf3 * L[2]), 0,
+                    q3[uAx], sd3 ? 16 - q3[vAx] : q3[vAx], st3);
+                }
+                op.quad(v0, false);
+              }
+            }
+          } else if (kind === 'crop') {
+            // 作物：縦の 4 枚を井の字に（耕地の上なので 1/16 下げる）
+            var ct = TT[id * 3 + FACE_IX.side];
+            if (LT) { var lv7 = LT[i]; L = light(lv7 >> 4, lv7 & 15); } else L = noLight();
+            var cf1 = 0.4 * jit, cf2 = 0.5 * jit, cy0 = ly - 1, cy1 = ly + 15;
+            for (var cq = 0; cq < 4; cq++) {
+              var at = cq & 1 ? 12 : 4, alongX = cq < 2;
+              v0 = op.nv;
+              var A = alongX ? [lx, lz + at] : [lx + at, lz], Bc = alongX ? [lx + 16, lz + at] : [lx + at, lz + 16];
+              op.vert(A[0], cy0, A[1], c8(255 * cf1 * L[0]), c8(255 * cf1 * L[1]), c8(255 * cf1 * L[2]), 0, 0, 16, ct);
+              op.vert(Bc[0], cy0, Bc[1], c8(255 * cf1 * L[0]), c8(255 * cf1 * L[1]), c8(255 * cf1 * L[2]), 0, 16, 16, ct);
+              op.vert(Bc[0], cy1, Bc[1], c8(255 * cf2 * L[0]), c8(255 * cf2 * L[1]), c8(255 * cf2 * L[2]), 0, 16, 0, ct);
+              op.vert(A[0], cy1, A[1], c8(255 * cf2 * L[0]), c8(255 * cf2 * L[1]), c8(255 * cf2 * L[2]), 0, 0, 0, ct);
+              op.quad(v0, false);
+            }
           } else if (ftype) {
             // 水と流れる溶岩：段階に合わせて上の面を下げ、角ごとの高さでなめらかに傾ける
             var buf = ftype === 1 ? wa : op, emf = ftype === 2 ? 255 : 0;
@@ -322,11 +372,11 @@
               }
               buf.quad(v0, false);
             }
-          } else if (kind === 'plant' || kind === 'deco') {
+          } else if (kind === 'plant' || kind === 'deco' || kind === 'web' || kind === 'fire') {
             // 対角に交差する 2 枚。草は色味を頂点の色で、花とトーチは切り抜きの色そのままで描く。
             var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? WG.blockColor(id, 'side', bio) : [255, 255, 255];
-            var torch = kind === 'deco', emit = torch ? 255 : 0;
-            if (LT && !torch) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else L = noLight();
+            var torch = kind === 'deco', emit = torch || kind === 'fire' ? 255 : 0;
+            if (LT && !emit) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else L = noLight();
             // トーチは少し小さく、壁掛けは壁に寄せて傾ける
             var s0 = torch ? 3 : 0, s1b = torch ? 13 : 16, hgt = torch ? 12 : 16, wdx = 0, wdz = 0, lift = 0;
             if (id === B.WALL_TORCH_N) wdz = 1; else if (id === B.WALL_TORCH_S) wdz = -1; else if (id === B.WALL_TORCH_E) wdx = -1; else if (id === B.WALL_TORCH_W) wdx = 1;
@@ -398,7 +448,10 @@
     'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL;',
     // 明るさの曲線（Minecraft の曲線と、明るさ設定「中」の補正）
     'float curve(float l){ float f = clamp(l / 15.0, 0.0, 1.0); float b = f / (4.0 - 3.0 * f); float g = 1.0 - pow(1.0 - b, 4.0); return b + (g - b) * 0.5; }',
-    'void main(){ vec3 p = aPos.xyz / 16.0 * uScale + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0; vTile = aUV.z + aUV.w * 256.0;',
+    'varying float vBig;',
+    'void main(){ vec3 p = aPos.xyz / 16.0 * uScale + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0;',
+    // 128 以上の上位バイトは 16×16 のアイコン（番号は小さくしてから渡す：mediump でも正確なように）
+    '  vBig = step(127.5, aUV.w); vTile = aUV.z + (aUV.w - vBig * 128.0) * 256.0;',
     // 空の光は時刻で弱まる（夜は最大 11 段暗い）。ブロックの光は少し暖かい色。光るブロックはいつも明るい。
     '  float sky = max(aLt.x / 17.0 - uSkyDark, 0.0), blk = aLt.y / 17.0;',
     '  vec3 L = max(vec3(curve(sky)) * uSkyTint, vec3(curve(blk)) * vec3(1.0, 0.9, 0.76));',
@@ -408,11 +461,12 @@
   // 見た目は 8×8 の中だけを読む（隣の見た目がにじまないよう、端の画素の中心で止める）
   var FS = [
     'precision mediump float;',
-    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL;',
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL; varying float vBig;',
     'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
     'void main(){',
-    '  float t = floor(vTile + 0.5); vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 8.0;',
-    '  vec2 uv = (org + clamp(vUV, 0.0625, 0.9375) * 8.0) / 256.0;',
+    '  float t = floor(vTile + 0.5), sz = 8.0; vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 8.0;',
+    '  if (vBig > 0.5) { sz = 16.0; org = vec2(mod(t, 16.0), floor(t / 16.0)) * 16.0 + vec2(0.0, 256.0); }',
+    '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(256.0, 512.0);',
     '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
     '  vec3 c = tx.rgb * vCol.rgb * 2.0 * vL;',
     '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
@@ -469,7 +523,7 @@
     this.atlasTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.atlasTex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ATLAS, ATLAS, 0, gl.RGBA, gl.UNSIGNED_BYTE, atlasPixels);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ATLAS, ATLAS_H, 0, gl.RGBA, gl.UNSIGNED_BYTE, atlasPixels);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

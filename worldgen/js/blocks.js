@@ -109,6 +109,38 @@
     ['BED_HEAD_S', '白色のベッド', '#e9e9e7', 'bed'], ['BED_HEAD_W', '白色のベッド', '#e9e9e7', 'bed']
   ];
 
+  // ---- アイテム図鑑 PDF から加えたブロック ----
+  // 畑と作物、キノコ、クモの巣、火、扉・階段・ハーフブロック・柵・はしご（向きや開け閉めは別のブロックとして持つ）
+  var DIR4 = ['N', 'E', 'S', 'W'];
+  var WOODS = [['OAK', 'オーク', '#a5824f'], ['SPRUCE', 'トウヒ', '#73563a'], ['ACACIA', 'アカシア', '#aa5a32']];
+  // 階段とハーフブロックの素材 [キーの頭, 名前, 見た目を借りるブロック, 色]
+  var SHAPE_MATS = [['OAK', 'オークの', 'OAK_PLANKS', '#a5824f'], ['SPRUCE', 'トウヒの', 'SPRUCE_PLANKS', '#73563a'],
+    ['ACACIA', 'アカシアの', 'ACACIA_PLANKS', '#aa5a32'], ['COBBLESTONE', '丸石の', 'COBBLESTONE', '#6e6e6d'],
+    ['STONE_BRICK', '石レンガの', 'STONE_BRICKS', '#7b7b7b'], ['SANDSTONE', '砂岩の', 'SANDSTONE', '#c8b27e'], ['BRICK', 'レンガの', 'BRICKS', '#a5604d']];
+  var ALIAS = {};   // 見た目を借りるブロック（キー → キー）
+  DEF.push(['FARMLAND', '耕地', '#6b4a2f', 'farm'], ['FARMLAND_MOIST', '耕地（湿っている）', '#4a3220', 'farm']);
+  for (var s8 = 0; s8 < 8; s8++) DEF.push(['WHEAT_' + s8, '小麦', '#8db04a', 'crop']);
+  for (var s4 = 0; s4 < 4; s4++) DEF.push(['CARROTS_' + s4, 'ニンジン', '#5f9a35', 'crop'], ['POTATOES_' + s4, 'ジャガイモ', '#4f8a35', 'crop']);
+  DEF.push(['BROWN_MUSHROOM', '茶色のキノコ', '#9a7457', 'plant'], ['RED_MUSHROOM', '赤色のキノコ', '#c43c32', 'plant'],
+    ['COBWEB', 'クモの巣', '#e4e6e8', 'web'], ['FIRE', '火', '#e8902a', 'fire', 1]);
+  WOODS.forEach(function (w) {
+    DIR4.forEach(function (d) {
+      ['C', 'O'].forEach(function (o) {
+        ['L', 'U'].forEach(function (h) { DEF.push([w[0] + '_DOOR_' + d + o + h, w[1] + 'のドア', w[2], 'door']); });
+      });
+    });
+    DEF.push([w[0] + '_FENCE', w[1] + 'の柵', w[2], 'fence']);
+    ALIAS[w[0] + '_FENCE'] = w[0] + '_PLANKS';
+  });
+  SHAPE_MATS.forEach(function (m) {
+    DIR4.forEach(function (d) { DEF.push([m[0] + '_STAIRS_' + d, m[1] + '階段', m[3], 'stairs']); ALIAS[m[0] + '_STAIRS_' + d] = m[2]; });
+    DEF.push([m[0] + '_SLAB', m[1] + 'ハーフブロック', m[3], 'slab'], [m[0] + '_SLAB_TOP', m[1] + 'ハーフブロック', m[3], 'slab'],
+      [m[0] + '_SLAB_DOUBLE', m[1] + 'ハーフブロック（2 段）', m[3], 'solid']);
+    ALIAS[m[0] + '_SLAB'] = ALIAS[m[0] + '_SLAB_TOP'] = ALIAS[m[0] + '_SLAB_DOUBLE'] = m[2];
+  });
+  DIR4.forEach(function (d) { DEF.push(['LADDER_' + d, 'はしご', '#a5824f', 'ladder']); });
+  WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
+
   // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
   var FACES = ['top', 'side', 'bottom'];
   // バイオームで色味を変えるブロック（草の上面と葉）
@@ -118,6 +150,7 @@
     return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)];
   }
   function decode(b64) {
+    if (typeof b64 !== 'string') return b64;   // js/newtex.js で作った見た目はそのまま
     var bin = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary');
     var a = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
@@ -131,7 +164,14 @@
 
   var B = {}, LIST = [], N = DEF.length, TEX = WG.TEXTURES || {};
   // 流れる水・溶岩は、元の水・溶岩と同じ見た目
-  function texOf(key) { return TEX[key] || (/^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : /^BED_/.test(key) ? TEX.BED : null); }
+  function texOf(key) {
+    if (TEX[key]) return TEX[key];
+    if (ALIAS[key]) return TEX[ALIAS[key]];
+    var m = /^(\w+)_DOOR_[NESW][CO]([LU])$/.exec(key);
+    if (m) return TEX[m[1] + '_DOOR_' + m[2]];
+    if (/^LADDER_/.test(key)) return TEX.LADDER;
+    return /^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : /^BED_/.test(key) ? TEX.BED : null;
+  }
   var CUT = [];
   var RGB = [], RGB_FACE = [], PIX = [], OPAQUE = new Uint8Array(N), KIND = [], EMIT = new Float32Array(N), TINT = new Uint8Array(N);
   DEF.forEach(function (d, id) {
@@ -141,7 +181,8 @@
     EMIT[id] = d[4] || 0;
     OPAQUE[id] = (d[3] === 'solid' || d[0] === 'LAVA') ? 1 : 0;
     var t = texOf(d[0]), base = d[2] ? hex(d[2]) : [0, 0, 0];
-    if (t && t.mask) {
+    if (t && t.rgba) CUT[id] = t.rgba;   // 透明な所のある見た目（js/newtex.js）
+    else if (t && t.mask) {
       // 切り抜きの見た目（RGBA）
       var rgb = decode(t.side), m = decode(t.mask), cut = new Uint8Array(256);
       for (var q = 0; q < 64; q++) { cut[q * 4] = rgb[q * 3]; cut[q * 4 + 1] = rgb[q * 3 + 1]; cut[q * 4 + 2] = rgb[q * 3 + 2]; cut[q * 4 + 3] = m[q]; }
@@ -214,10 +255,59 @@
   EMIT[B.FURNACE_LIT] = 0.25;
   // ガラス：固くて通れないが、向こうが見え、光も通す
   OPAQUE[B.GLASS] = 0; LIGHT_BLOCK[B.GLASS] = 0;
-  // ぶつかる高さ（固いブロックは 1、ベッドは 9/16、ほかは 0）
+  LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
+  // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
   var COLLIDE = new Float32Array(N);
-  LIST.forEach(function (b) { COLLIDE[b.id] = b.kind === 'solid' ? 1 : b.kind === 'bed' ? 9 / 16 : 0; });
+  LIST.forEach(function (b) {
+    var k = b.kind, key = b.key;
+    COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
+      k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) : 0;
+  });
   WG.COLLIDE = COLLIDE;
+
+  // ---- 形（1/16 ブロック単位の箱の並び）----
+  // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1 };
+  var FACE_OF = { N: 0, E: 1, S: 2, W: 3 };
+  var STAIR_TOP = [[0, 8, 0, 16, 16, 8], [8, 8, 0, 16, 16, 16], [0, 8, 8, 16, 16, 16], [0, 8, 0, 8, 16, 16]];
+  var DOOR_CLOSED = [[0, 0, 13, 16, 16, 16], [0, 0, 0, 3, 16, 16], [0, 0, 0, 16, 16, 3], [13, 0, 0, 16, 16, 16]];
+  var DOOR_OPEN = [[0, 0, 0, 3, 16, 16], [0, 0, 0, 16, 16, 3], [13, 0, 0, 16, 16, 16], [0, 0, 13, 16, 16, 16]];
+  var LADDER = [[0, 0, 15, 16, 16, 16], [0, 0, 0, 1, 16, 16], [0, 0, 0, 16, 16, 1], [15, 0, 0, 16, 16, 16]];
+  var LADDER_HIT = [[0, 0, 13, 16, 16, 16], [0, 0, 0, 3, 16, 16], [0, 0, 0, 16, 16, 3], [13, 0, 0, 16, 16, 16]];
+  var FENCE_DIRS = [[0, -1, 'N'], [1, 0, 'E'], [0, 1, 'S'], [-1, 0, 'W']];
+  function fenceLink(id) { return KIND[id] === 'fence' || (KIND[id] === 'solid' && OPAQUE[id]); }
+  function blockBoxes(id, nb, forCollide) {
+    var k = KIND[id], key = LIST[id].key, f;
+    if (k === 'farm') return [[0, 0, 0, 16, 15, 16]];
+    if (k === 'slab') return /_TOP$/.test(key) ? [[0, 8, 0, 16, 16, 16]] : [[0, 0, 0, 16, 8, 16]];
+    if (k === 'stairs') { f = FACE_OF[key.slice(-1)]; return [[0, 0, 0, 16, 8, 16], STAIR_TOP[f]]; }
+    if (k === 'door') {
+      var dm = /_([NESW])([CO])[LU]$/.exec(key);
+      f = FACE_OF[dm[1]];
+      return [(dm[2] === 'O' ? DOOR_OPEN : DOOR_CLOSED)[f]];
+    }
+    if (k === 'ladder') { f = FACE_OF[key.slice(-1)]; return [(forCollide ? LADDER_HIT : LADDER)[f]]; }
+    if (k === 'fence') {
+      var h = forCollide ? 24 : 16, out = [forCollide ? [6, 0, 6, 10, 24, 10] : [6, 0, 6, 10, 16, 10]];
+      FENCE_DIRS.forEach(function (d) {
+        if (!nb || !fenceLink(nb(d[0], d[1]))) return;
+        var a = d[0] ? (d[0] > 0 ? [10, 16] : [0, 6]) : [6, 10], c = d[1] ? (d[1] > 0 ? [10, 16] : [0, 6]) : [6, 10];
+        if (forCollide) out.push([a[0], 0, c[0], a[1], h, c[1]]);
+        else {
+          var ax = d[0] ? a : [7, 9], cz = d[1] ? c : [7, 9];
+          out.push([ax[0], 12, cz[0], ax[1], 15, cz[1]], [ax[0], 6, cz[0], ax[1], 9, cz[1]]);
+        }
+      });
+      return out;
+    }
+    return null;
+  }
+  WG.SHAPED = SHAPED;
+  WG.blockBoxes = blockBoxes;
+  WG.isShaped = function (id) { return !!SHAPED[KIND[id]]; };
+  // はしご・扉の向き、ドアの開け閉め
+  WG.DIR4 = DIR4;
+  WG.DIR_VEC = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
   // ベッド：足から頭への向き [dx, dz]、頭側か
   WG.BED_DIR = {}; WG.BED_HEAD = {};
   ['N', 'E', 'S', 'W'].forEach(function (d) {

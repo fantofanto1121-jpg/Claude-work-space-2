@@ -100,13 +100,30 @@
     return [p[0] - HALF_W, p[1], p[2] - HALF_W, p[0] + HALF_W, p[1] + h, p[2] + HALF_W];
   };
 
-  // 箱が固体と重なっているか
+  // ブロックの当たりの箱（世界の座標）。階段・柵・扉などは WG.blockBoxes の形、ほかは高さ COLLIDE の箱。
+  var EPS = 1e-7;
+  Walker.prototype.cellBoxes = function (x, y, z) {
+    var w = this.world, id = w.block(x, y, z);
+    if (WG.isShaped(id)) {
+      var bs = WG.blockBoxes(id, function (dx, dz) { return w.block(x + dx, y, z + dz); }, true), out = [];
+      for (var i = 0; i < bs.length; i++) out.push([x + bs[i][0] / 16, y + bs[i][1] / 16, z + bs[i][2] / 16, x + bs[i][3] / 16, y + bs[i][4] / 16, z + bs[i][5] / 16]);
+      return out;
+    }
+    var h = WG.COLLIDE[id];
+    return h ? [[x, y, z, x + 1, y + h, z + 1]] : null;
+  };
+
+  // 箱が固体と重なっているか（下のマスも見る：柵は高さ 1.5）
   Walker.prototype.hits = function (b) {
-    for (var y = Math.floor(b[1]); y <= Math.floor(b[4] - 1e-7); y++)
-      for (var z = Math.floor(b[2]); z <= Math.floor(b[5] - 1e-7); z++)
-        for (var x = Math.floor(b[0]); x <= Math.floor(b[3] - 1e-7); x++) {
-          var h = this.solid(x, y, z);
-          if (h && y + h > b[1] + 1e-7) return true;
+    for (var y = Math.floor(b[1]) - 1; y <= Math.floor(b[4] - EPS); y++)
+      for (var z = Math.floor(b[2]); z <= Math.floor(b[5] - EPS); z++)
+        for (var x = Math.floor(b[0]); x <= Math.floor(b[3] - EPS); x++) {
+          var bs = this.cellBoxes(x, y, z);
+          if (!bs) continue;
+          for (var i = 0; i < bs.length; i++) {
+            var c = bs[i];
+            if (c[0] < b[3] - EPS && c[3] > b[0] + EPS && c[1] < b[4] - EPS && c[4] > b[1] + EPS && c[2] < b[5] - EPS && c[5] > b[2] + EPS) return true;
+          }
         }
     return false;
   };
@@ -116,18 +133,30 @@
     if (d === 0) return 0;
     var lo = [b[0], b[1], b[2]], hi = [b[3], b[4], b[5]];
     if (d > 0) hi[axis] += d; else lo[axis] += d;
-    for (var y = Math.floor(lo[1]); y <= Math.floor(hi[1] - 1e-7); y++)
-      for (var z = Math.floor(lo[2]); z <= Math.floor(hi[2] - 1e-7); z++)
-        for (var x = Math.floor(lo[0]); x <= Math.floor(hi[0] - 1e-7); x++) {
-          var h = this.solid(x, y, z);
-          if (!h) continue;
-          // 低いブロック（ベッド）は、上面より上を通る体とはぶつからない
-          if (axis !== 1 && y + h <= b[1] + 1e-7) continue;
-          var c = axis === 0 ? x : axis === 1 ? y : z, top = axis === 1 ? y + h : c + 1;
-          if (d > 0 && c >= b[axis + 3] - 1e-7) d = Math.min(d, c - b[axis + 3]);
-          else if (d < 0 && top <= b[axis] + 1e-7) d = Math.max(d, top - b[axis]);
+    var a1 = (axis + 1) % 3, a2 = (axis + 2) % 3;
+    for (var y = Math.floor(lo[1]) - 1; y <= Math.floor(hi[1] - EPS); y++)
+      for (var z = Math.floor(lo[2]); z <= Math.floor(hi[2] - EPS); z++)
+        for (var x = Math.floor(lo[0]); x <= Math.floor(hi[0] - EPS); x++) {
+          var bs = this.cellBoxes(x, y, z);
+          if (!bs) continue;
+          for (var i = 0; i < bs.length; i++) {
+            var c = bs[i];
+            // ほかの 2 軸で重なっている箱だけ
+            if (!(c[a1] < b[a1 + 3] - EPS && c[a1 + 3] > b[a1] + EPS && c[a2] < b[a2 + 3] - EPS && c[a2 + 3] > b[a2] + EPS)) continue;
+            if (d > 0 && c[axis] >= b[axis + 3] - EPS) d = Math.min(d, c[axis] - b[axis + 3]);
+            else if (d < 0 && c[axis + 3] <= b[axis] + EPS) d = Math.max(d, c[axis + 3] - b[axis]);
+          }
         }
     return d;
+  };
+
+  // 体が触れているブロックに id があるか
+  Walker.prototype.inBlock = function (id) {
+    var b = this.box();
+    for (var y = Math.floor(b[1] + 0.001); y <= Math.floor(b[4] - 0.001); y++)
+      for (var z = Math.floor(b[2] + 0.001); z <= Math.floor(b[5] - 0.001); z++)
+        for (var x = Math.floor(b[0] + 0.001); x <= Math.floor(b[3] - 0.001); x++) if (this.world.block(x, y, z) === id) return true;
+    return false;
   };
 
   // 体が触れている液体（溶岩を優先）
@@ -156,12 +185,24 @@
         dz = Math.abs(dz) < 0.05 ? 0 : dz - Math.sign(dz) * 0.05;
       }
     }
-    var ry = dy, rx = dx, rz = dz;
+    var ry = dy, rx = dx, rz = dz, b0 = b.slice(), was = this.onGround;
     dy = this.clip(b, 1, dy); b[1] += dy; b[4] += dy;
     dx = this.clip(b, 0, dx); b[0] += dx; b[3] += dx;
     dz = this.clip(b, 2, dz); b[2] += dz; b[5] += dz;
     var cy = Math.abs(dy - ry) > 1e-9, cx = Math.abs(dx - rx) > 1e-9, cz = Math.abs(dz - rz) > 1e-9;
     this.onGround = cy && ry < 0;
+    // 0.6 までの段差（ハーフブロック・階段）は、そのまま上がる（Minecraft と同じ）
+    if ((cx || cz) && (was || this.onGround) && !this.flying) {
+      var s2 = b0.slice(), up = this.clip(s2, 1, 0.6);
+      s2[1] += up; s2[4] += up;
+      var sx2 = this.clip(s2, 0, rx); s2[0] += sx2; s2[3] += sx2;
+      var sz2 = this.clip(s2, 2, rz); s2[2] += sz2; s2[5] += sz2;
+      var dn = this.clip(s2, 1, -up); s2[1] += dn; s2[4] += dn;
+      if (sx2 * sx2 + sz2 * sz2 > dx * dx + dz * dz + 1e-9) {
+        b = s2; dx = sx2; dz = sz2; dy = up + dn;
+        cx = Math.abs(dx - rx) > 1e-9; cz = Math.abs(dz - rz) > 1e-9; cy = true; this.onGround = true;
+      }
+    }
     if (cy) this.vel[1] = 0;
     if (cx) this.vel[0] = 0;
     if (cz) this.vel[2] = 0;
@@ -238,8 +279,20 @@
       var push = this.flowPush();
       if (push) { var pk = fl === 'water' ? 0.014 : this.world.dimKey === 'nether' ? 0.007 : 0.0023; v[0] += push[0] * pk; v[1] += push[1] * pk; v[2] += push[2] * pk; }
     }
+    // はしご：横の速さと落ちる速さを抑え、スニークで止まる（Minecraft と同じ）
+    var feet = this.world.block(Math.floor(this.pos[0]), Math.floor(this.pos[1]), Math.floor(this.pos[2]));
+    var onLadder = !this.flying && WG.blockKind(feet) === 'ladder';
+    if (onLadder) {
+      v[0] = Math.max(-0.15, Math.min(0.15, v[0])); v[2] = Math.max(-0.15, Math.min(0.15, v[2]));
+      v[1] = Math.max(v[1], -0.15);
+      if (this.sneak && v[1] < 0) v[1] = 0;
+    }
+    // クモの巣：動きが遅くなる（横 0.25 倍、縦 0.05 倍）
+    var web = !this.flying && this.inBlock(WG.B.COBWEB);
     var y0 = this.pos[1], wasGround = this.onGround;
-    var moved = this.move(v[0], v[1], v[2]);
+    var moved = web ? this.move(v[0] * 0.25, v[1] * 0.05, v[2] * 0.25) : this.move(v[0], v[1], v[2]);
+    if (web) { v[0] = v[1] = v[2] = 0; this.fallDist = 0; }
+    if (onLadder) { this.fallDist = 0; if (this.collidedH || k.Space) v[1] = 0.2; }
 
     if (this.flying) { v[0] *= drag; v[2] *= drag; v[1] *= 0.6; if (this.onGround) this.flying = false; }
     else if (fl) { v[0] *= drag; v[2] *= drag; v[1] = this.swimming ? v[1] * 0.8 : v[1] * drag - 0.02; }

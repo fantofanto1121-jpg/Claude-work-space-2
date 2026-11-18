@@ -64,10 +64,10 @@
 
   // 村の見た目（バイオームの番号 → 材料）。屋根が null なら平らな屋根。
   var STYLES = {
-    plains: { wall: B.OAK_PLANKS, post: B.OAK_LOG, roof: B.SPRUCE_PLANKS, base: B.COBBLESTONE, floor: B.OAK_PLANKS, path: B.GRAVEL },
-    taiga: { wall: B.SPRUCE_PLANKS, post: B.SPRUCE_LOG, roof: B.COBBLESTONE, base: B.COBBLESTONE, floor: B.SPRUCE_PLANKS, path: B.GRAVEL },
-    savanna: { wall: B.ACACIA_PLANKS, post: B.ACACIA_LOG, roof: B.BRICKS, base: B.COBBLESTONE, floor: B.ACACIA_PLANKS, path: B.GRAVEL },
-    desert: { wall: B.SANDSTONE, post: B.SANDSTONE, roof: null, base: B.SANDSTONE, floor: B.SANDSTONE, path: B.SANDSTONE }
+    plains: { wall: B.OAK_PLANKS, post: B.OAK_LOG, roof: B.SPRUCE_PLANKS, stairs: 'SPRUCE', base: B.COBBLESTONE, floor: B.OAK_PLANKS, path: B.GRAVEL, door: 'OAK', fence: B.OAK_FENCE },
+    taiga: { wall: B.SPRUCE_PLANKS, post: B.SPRUCE_LOG, roof: B.COBBLESTONE, stairs: 'COBBLESTONE', base: B.COBBLESTONE, floor: B.SPRUCE_PLANKS, path: B.GRAVEL, door: 'SPRUCE', fence: B.SPRUCE_FENCE },
+    savanna: { wall: B.ACACIA_PLANKS, post: B.ACACIA_LOG, roof: B.BRICKS, stairs: 'BRICK', base: B.COBBLESTONE, floor: B.ACACIA_PLANKS, path: B.GRAVEL, door: 'ACACIA', fence: B.ACACIA_FENCE },
+    desert: { wall: B.SANDSTONE, post: B.SANDSTONE, roof: null, stairs: 'SANDSTONE', base: B.SANDSTONE, floor: B.SANDSTONE, path: B.SANDSTONE, door: 'OAK', fence: null }
   };
   var STYLE_OF = { plains: 'plains', forest: 'plains', taiga: 'taiga', snowy_plains: 'taiga', savanna: 'savanna', desert: 'desert' };
 
@@ -116,6 +116,7 @@
             if ((hh & 15) < 3) continue;
             var ty = HOUSES[(hh >>> 4) % HOUSES.length];
             if (st === 'desert' && ty[2] === 'smithy' && ((hh >>> 8) & 1)) ty = HOUSES[1];
+            if ((hh >>> 12) % 4 === 0) ty = [9, 7, 'farm'];   // 4 軒に 1 つほどは畑
             var W = ty[0], D = ty[1];
             // 家の軸：U は道の向き、V は道から離れる向き（入口は V の手前 v=0 の真ん中）
             var px = -dz * side, pz = dx * side;
@@ -254,6 +255,7 @@
         if (p.kind === 'road') self.drawRoad(c, s, p);
         else if (p.kind === 'well') self.drawWell(c, s, p);
         else if (p.kind === 'lamp') self.drawLamp(c, s, p);
+        else if (p.type === 'farm') self.drawFarm(c, s, p);
         else self.drawHouse(c, s, p);
       });
     });
@@ -297,10 +299,31 @@
     if (!c.inside(p.x, p.z)) return;
     var g = c.ground(p.x, p.z);
     if (g < SEA || WG.isWater(c.get(p.x, g + 1, p.z))) return;
+    // 丸石の台に柵の柱を 2 本、上にトーチ（砂漠は砂岩の柱）
+    var post = v.style.fence || v.style.post;
     c.put(p.x, g + 1, p.z, v.style.base);
-    c.put(p.x, g + 2, p.z, v.style.post);
-    c.put(p.x, g + 3, p.z, v.style.post);
+    c.put(p.x, g + 2, p.z, post);
+    c.put(p.x, g + 3, p.z, post);
     c.put(p.x, g + 4, p.z, B.TORCH);
+  };
+
+  // 畑：原木の枠、真ん中に水路、両側に湿った耕地と作物（種類は畑ごと、育ち具合はマスごと）
+  Structures.prototype.drawFarm = function (c, vil, h) {
+    var st = vil.style, W = h.W, D = h.D, f = h.y, mid = W >> 1;
+    var kind = ['WHEAT', 'WHEAT', 'CARROTS', 'POTATOES'][(h.seed >>> 16) & 3], max = kind === 'WHEAT' ? 7 : 3;
+    var frame = st.post === B.SANDSTONE ? B.SANDSTONE : st.post;
+    for (var v = 0; v < D; v++) for (var u = 0; u < W; u++) {
+      var X = h.ox + u * h.ux + v * h.vx, Z = h.oz + u * h.uz + v * h.vz;
+      if (!c.inside(X, Z)) continue;
+      c.fillDown(X, f - 1, Z, B.DIRT);
+      for (var y = f + 1; y <= f + 4; y++) c.put(X, y, Z, B.AIR);
+      var edge = u === 0 || v === 0 || u === W - 1 || v === D - 1;
+      if (edge) { c.put(X, f, Z, frame); continue; }
+      if (u === mid) { c.put(X, f, Z, B.WATER); c.put(X, f - 1, Z, B.DIRT); continue; }
+      c.put(X, f, Z, B.FARMLAND_MOIST);
+      var r = hash(this.seed, X, f, Z, SALT.VIL2);
+      if ((r & 7) !== 0) c.put(X, f + 1, Z, B[kind + '_' + ((r >>> 3) % (max + 1))]);
+    }
   };
 
   // 家。局所座標 (u, v) → 世界：o + u*U + v*V。入口は v=0 の真ん中、道の側。
@@ -331,7 +354,7 @@
           if (side && D >= 5 && (v === 2 || (D >= 7 && v === D - 3))) id = B.GLASS;
           if (fb && u !== mid && (u === mid - 2 || u === mid + 2)) id = B.GLASS;
         }
-        if (v === 0 && u === mid && y <= f + 2) id = B.AIR;   // 入口
+        if (v === 0 && u === mid && y <= f + 2) id = B[st.door + '_DOOR_' + dirName(h.vx, h.vz) + 'C' + (y === f + 1 ? 'L' : 'U')];   // 入口の扉
         P(u, y, v, id);
       }
     }
@@ -357,8 +380,14 @@
         var lo = k - 1, hi = D - k;
         if (lo > hi) break;
         y = f + 4 + k;
-        var rows = [lo, lo + 1, hi - 1, hi].filter(function (r) { return r >= lo && r <= hi; });
-        for (u = -1; u <= W; u++) rows.forEach(function (r) { P(u, y, r, st.roof); });
+        // 外側の列は階段（棟の方が高い向き）、内側は屋根の材料、棟が 1 列ならハーフブロック
+        var sLo = B[st.stairs + '_STAIRS_' + dirName(h.vx, h.vz)], sHi = B[st.stairs + '_STAIRS_' + dirName(-h.vx, -h.vz)];
+        for (u = -1; u <= W; u++) {
+          if (lo === hi) { P(u, y, lo, B[st.stairs + '_SLAB']); continue; }
+          P(u, y, lo, sLo); P(u, y, hi, sHi);
+          if (lo + 1 < hi - 1) { P(u, y, lo + 1, st.roof); P(u, y, hi - 1, st.roof); }
+          else if (lo + 1 === hi - 1) P(u, y, lo + 1, st.roof);
+        }
         // 妻壁（屋根の下の三角）
         for (v = lo + 2; v <= hi - 2; v++) { P(0, y, v, wall); P(W - 1, y, v, wall); }
       }
@@ -455,8 +484,9 @@
           floor(x, y0, z);
           for (var y = y0 + 1; y <= y0 + 3; y++) {
             var id = B.AIR;
-            if (support && w !== 0 && y <= y0 + 2) id = B.OAK_LOG;   // 柱
+            if (support && w !== 0 && y <= y0 + 2) id = B.OAK_FENCE;   // 柱（柵）
             if (support && y === y0 + 3) id = B.OAK_PLANKS;          // 梁
+            else if (!support && w !== 0 && y >= y0 + 2 && (hash(seed, x, y, z, SALT.MINE) & 31) === 0) id = B.COBWEB;   // クモの巣
             dig(x, y, z, id);
           }
         }
