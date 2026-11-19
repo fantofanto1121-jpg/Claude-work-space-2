@@ -62,7 +62,11 @@
   // レッドストーン・エンチャント・醸造のブロック
   WG.BLOCKS.forEach(function (b) {
     var k = b.key, m;
-    if (b.kind === 'wire') BLOCK_DATA.push([k, 0, 'REDSTONE']);
+    if (/^HOPPER_/.test(k)) BLOCK_DATA.push([k, 3, 'HOPPER']);
+    else if ((m = /^(DISPENSER|DROPPER|OBSERVER)_/.exec(k))) BLOCK_DATA.push([k, 3.5, m[1]]);
+    else if (b.kind === 'comparator') BLOCK_DATA.push([k, 0, 'COMPARATOR']);
+    else if (b.kind === 'daylight') BLOCK_DATA.push([k, 0.2, 'DAYLIGHT_DETECTOR']);
+    else if (b.kind === 'wire') BLOCK_DATA.push([k, 0, 'REDSTONE']);
     else if (b.kind === 'rtorch') BLOCK_DATA.push([k, 0, 'REDSTONE_TORCH']);
     else if (b.kind === 'lever') BLOCK_DATA.push([k, 0.5, 'LEVER']);
     else if (b.kind === 'button') BLOCK_DATA.push([k, 0.5, /^OAK/.test(k) ? 'OAK_BUTTON' : 'STONE_BUTTON']);
@@ -75,7 +79,7 @@
   });
   BLOCK_DATA.push(['REDSTONE_LAMP', 0.3, 'REDSTONE_LAMP'], ['REDSTONE_LAMP_ON', 0.3, 'REDSTONE_LAMP'], ['TNT', 0, 'TNT'],
     ['ENCHANTING_TABLE', 5, 'ENCHANTING_TABLE'], ['BOOKSHELF', 1.5, 'BOOK', 3, 3], ['BREWING_STAND', 0.5, 'BREWING_STAND'],
-    ['ANVIL', 5, 'ANVIL'], ['SUGAR_CANE', 0, 'SUGAR_CANE']);
+    ['ANVIL', 5, 'ANVIL'], ['SUGAR_CANE', 0, 'SUGAR_CANE'], ['NOTE_BLOCK', 0.8, 'NOTE_BLOCK']);
 
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
@@ -102,6 +106,7 @@
   mine('pickaxe', 3, 'OBSIDIAN');
   mine('shovel', 0, 'SNOW');
   mine('sword', 0, 'COBWEB');
+  mine('pickaxe', 0, WG.BLOCKS.filter(function (b) { return /^(HOPPER|DISPENSER|DROPPER|OBSERVER)_/.test(b.key); }).map(function (b) { return b.key; }).join(' '));
   mine('pickaxe', 0, 'ENCHANTING_TABLE BREWING_STAND ANVIL ' + WG.BLOCKS.filter(function (b) { return /^IRON_DOOR_/.test(b.key); }).map(function (b) { return b.key; }).join(' '));
   WG.SHAPE_MATS.forEach(function (m) {
     if (!/PLANKS/.test(m[2])) mine('pickaxe', 0, ['N', 'E', 'S', 'W', 'N_T', 'E_T', 'S_T', 'W_T'].map(function (d) { return m[0] + '_STAIRS_' + d; }).join(' ') + ' ' + m[0] + '_SLAB ' + m[0] + '_SLAB_TOP ' + m[0] + '_SLAB_DOUBLE');
@@ -113,7 +118,7 @@
   'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL FARMLAND FARMLAND_MOIST'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
   WG.BLOCKS.forEach(function (b) {
     var k = b.key;
-    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k)) FAST[k] = 'axe';
+    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k)) FAST[k] = 'axe';
   });
 
   // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）
@@ -221,6 +226,12 @@
   ITEMS.SUGAR_CANE.name = 'サトウキビ';
   // 図鑑にアイコンのないもの（リピーター・ピストン）は、ブロックの形で描く
   ITEMS.REPEATER.icon = B.REPEATER_N1; ITEMS.PISTON.icon = B.PISTON_U; ITEMS.STICKY_PISTON.icon = B.STICKY_PISTON_U;
+  // ホッパー・ディスペンサー・ドロッパー・オブザーバー・コンパレーター（置くと向きが決まる）
+  ITEMS.HOPPER = { key: 'HOPPER', name: 'ホッパー', block: -1, max: 64, oriented: 'HOPPER' };
+  ITEMS.DISPENSER = { key: 'DISPENSER', name: 'ディスペンサー', block: -1, max: 64, oriented: 'DISPENSER', icon: B.DISPENSER_S };
+  ITEMS.DROPPER = { key: 'DROPPER', name: 'ドロッパー', block: -1, max: 64, oriented: 'DROPPER', icon: B.DROPPER_S };
+  ITEMS.OBSERVER = { key: 'OBSERVER', name: 'オブザーバー', block: -1, max: 64, oriented: 'OBSERVER', icon: B.OBSERVER_S };
+  ITEMS.COMPARATOR = { key: 'COMPARATOR', name: 'コンパレーター', block: -1, max: 64, comparator: true, icon: B.COMPARATOR_NC };
   WG.SHAPE_MATS.forEach(function (m) {
     ITEMS[m[0] + '_STAIRS'] = { key: m[0] + '_STAIRS', name: m[1] + '階段', block: -1, max: 64, stairs: m[0], hardness: MAT_HARD[m[0]] };
     ITEMS[m[0] + '_SLAB'].name = m[1] + 'ハーフブロック';
@@ -291,7 +302,7 @@
     var k = b.key;
     return b.id !== B.AIR && !WG.FLUID[b.id] && k !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(k) && !/^BED_/.test(k) &&
       // 向き・開け閉め・育ち具合の違うもの、置けないもの（扉・はしご・階段は別のアイテムで置く）
-      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$/.test(k);
+      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$/.test(k);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----

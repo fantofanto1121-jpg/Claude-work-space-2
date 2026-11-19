@@ -30,7 +30,10 @@
       wd.setBlock = function (x, y, z, id) { var r = set.call(wd, x, y, z, id); if (wd.onSet) wd.onSet(x, y, z, id); return r; };
       wd.rsWrapped = true;
     }
-    wd.onSet = function (x, y, z) { self.rs.mark(x, y, z); };
+    wd.onSet = function (x, y, z, id) { self.rs.mark(x, y, z); self.rs.observe(x, y, z); self.trackPart(x, y, z, id); };
+    ['hoppers', 'comparators', 'daylights'].forEach(function (k) { if (!wd[k]) wd[k] = new Set(); });
+    if (!wd.containers) wd.containers = new Map();
+    if (!wd.notes) wd.notes = new Map();
   };
 
   // ---------------- 毎刻 ----------------
@@ -43,6 +46,7 @@
     this.tickBobber();
     this.tickThrown();
     this.world.brewing.forEach(function (b) { b.tick(); });
+    this.tickParts();
     // 盾：右クリックを押し続けると 0.25 秒後に構える
     var held = this.inv.held(), it = held ? ITEMS[held.key] : null;
     if (it && it.shield && this.mouseR && !this.invOpen) { this.blocking++; w.using = true; }
@@ -197,7 +201,7 @@
       if (k === 'POISON' && e.t % Math.max(1, 25 >> e.amp) === 0 && self.health > 1) self.damage(1, true);
       if (--e.t <= 0) { delete ef[k]; changed = true; }
     });
-    if (changed || this.tickCount % 20 === 0) this.inv.changed();
+    if (changed) this.inv.changed();   // 残り時間の表示は毎フレーム updateHudExtra で書く（インベントリ画面は描き直さない）
   };
   // 飲む・食べた後の効果（クモの目・フグの毒、ポーション）
   Game.prototype.consumeExtra = function (it) {
@@ -286,6 +290,15 @@
       if (k === 'lever') { this.rs.toggleLever(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
       if (k === 'button') { this.rs.pressButton(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
       if (k === 'repeater') { this.rs.cycleRepeater(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
+      if (k === 'comparator') { this.rs.toggleComparator(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
+      if (k === 'daylight') { wd.setBlock(t.x, t.y, t.z, t.id === B.DAYLIGHT_DETECTOR ? B.DAYLIGHT_DETECTOR_INV : B.DAYLIGHT_DETECTOR); this.walker.remesh(t.x, t.z); this.updateDaylight(t.x + ',' + t.y + ',' + t.z); this.mouseR = this.clickR = false; return true; }
+      if (t.id === B.NOTE_BLOCK) { var nk = t.x + ',' + t.y + ',' + t.z; wd.notes.set(nk, ((wd.notes.get(nk) || 0) + 1) % 25); this.playNote(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
+      if (/^(HOPPER|DISPENSER|DROPPER)_/.test(keyOf(t.id))) {
+        this.mouseR = this.clickR = false;
+        this.contKey = t.x + ',' + t.y + ',' + t.z; this.container(t.x, t.y, t.z);
+        this.openInventory(/^HOPPER/.test(keyOf(t.id)) ? 'hopper' : 'disp');
+        return true;
+      }
       if (/^IRON_DOOR_/.test(keyOf(t.id))) { this.mouseR = this.clickR = false; return true; }   // 鉄の扉は手では開かない
       if (t.id === B.ENCHANTING_TABLE) { this.mouseR = this.clickR = false; this.tableKey = [t.x, t.y, t.z]; this.openInventory('etable'); return true; }
       if (t.id === B.ANVIL) { this.mouseR = this.clickR = false; this.openInventory('anvil'); return true; }
@@ -330,6 +343,18 @@
       return done();
     }
     if (it.repeater) { if (free() && solidTop()) { id = B['REPEATER_' + this.facing() + '1']; done(); } return true; }
+    if (it.comparator) { if (free() && solidTop()) { id = B['COMPARATOR_' + this.facing() + 'C']; done(); } return true; }
+    if (it.oriented) {
+      if (!free() || !this.bodyFree(x, y, z, 1)) return true;
+      var pt = this.walker.pitch, toward = pt > 0.8 ? 'D' : pt < -0.8 ? 'U' : { N: 'S', S: 'N', E: 'W', W: 'E' }[this.facing()];
+      if (it.oriented === 'HOPPER') {
+        // ホッパーはクリックしたブロックの方へ出す（上・下の面なら下へ）
+        var hx = t.x - x, hz = t.z - z;
+        id = B['HOPPER_' + (t.y !== y || (!hx && !hz) ? 'D' : hx > 0 ? 'E' : hx < 0 ? 'W' : hz > 0 ? 'S' : 'N')];
+      } else if (it.oriented === 'OBSERVER') id = B['OBSERVER_' + toward];   // 顔はプレイヤーの方
+      else id = B[it.oriented + '_' + toward];                               // 口はプレイヤーの方
+      return done();
+    }
     if (it.piston) {
       if (!free() || !this.bodyFree(x, y, z, 1)) return true;
       // ピストンはプレイヤーの方を向く（真上・真下から置けば上下）
@@ -368,6 +393,9 @@
       var ox = x + v[0] * sgn, oy = y + v[1] * sgn, oz = z + v[2] * sgn, oid = wd.block(ox, oy, oz);
       if (kind(oid) === 'piston' || kind(oid) === 'phead') { wd.setBlock(ox, oy, oz, B.AIR); if (kind(oid) === 'piston' && this.mode === 'survival') this.dropFor(oid, ox, oy, oz); this.walker.remesh(ox, oz); }
     }
+    // ホッパー・ディスペンサー・ドロッパーの中身は落ちる
+    var ck = x + ',' + y + ',' + z, cs = wd.containers.get(ck);
+    if (cs) { cs.forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10, s.dmg, s.ench); }); wd.containers.delete(ck); if (this.contKey === ck) this.closeInventory(); }
     if (id === B.BREWING_STAND) {
       var bk = x + ',' + y + ',' + z, st = wd.brewing.get(bk);
       if (st) { st.slots.forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10); }); wd.brewing.delete(bk); }
@@ -450,6 +478,11 @@
       html += '<div class="craft brew"><div class="fcol">' + slotHtml('br', 3, st.slots[3]) + '<div class="arrow prog down"><i id="brewBar"></i></div><div class="brow">' +
         slotHtml('br', 0, st.slots[0]) + slotHtml('br', 1, st.slots[1]) + slotHtml('br', 2, st.slots[2]) + '</div></div><div class="fcol">' + slotHtml('br', 4, st.slots[4]) +
         '<div class="note">燃料 ' + st.fuel + '</div></div></div>';
+    } else if (sc === 'hopper' || sc === 'disp') {
+      var cs = this.world.containers.get(this.contKey) || [];
+      html += '<div class="craft"><div class="cgrid" style="grid-template-columns:repeat(' + (sc === 'hopper' ? 5 : 3) + ',44px)">';
+      for (i = 0; i < cs.length; i++) html += slotHtml('ct', i, cs[i]);
+      html += '</div></div>';
     } else if (sc === 'anvil') {
       var res = WG.anvilCombine(this.anvilSlots[0], this.anvilSlots[1]);
       this.anvilRes = res;
@@ -463,12 +496,14 @@
     if (c === 'en') return this.enchSlots[i];
     if (c === 'an') return this.anvilSlots[i];
     if (c === 'br') return this.world.brewing.get(this.brewKey).slots[i];
+    if (c === 'ct') return (this.world.containers.get(this.contKey) || [])[i];
     return undefined;
   };
   Game.prototype.setExtraSlot = function (c, i, v) {
     if (c === 'en') { this.enchSlots[i] = v; if (i === 0) this.offers = null; return true; }
     if (c === 'an') { this.anvilSlots[i] = v; return true; }
     if (c === 'br') { this.world.brewing.get(this.brewKey).slots[i] = v; return true; }
+    if (c === 'ct') { var cs = this.world.containers.get(this.contKey); if (cs) cs[i] = v; return true; }
     return false;
   };
   // 枠の制限（ラピスの枠はラピスだけ、瓶の枠はポーションだけ、燃料はブレイズパウダーだけ）
@@ -505,6 +540,196 @@
       return true;
     }
     return false;
+  };
+
+  // ---------------- 入れ物（チェスト・かまど・醸造台・ホッパー・ディスペンサー・ドロッパー） ----------------
+  var CSIZE = { HOPPER: 5, DISPENSER: 9, DROPPER: 9 };
+  Game.prototype.container = function (x, y, z) {
+    var wd = this.world, id = wd.block(x, y, z), key = x + ',' + y + ',' + z, m;
+    if (id === B.CHEST) return { slots: this.chestAt(x, y, z), type: 'chest' };
+    if (id === B.FURNACE || id === B.FURNACE_LIT) { if (!wd.furnaces.has(key)) wd.furnaces.set(key, new WG.Craft.Furnace()); return { slots: wd.furnaces.get(key).slots, type: 'furnace' }; }
+    if (id === B.BREWING_STAND) { if (!wd.brewing.has(key)) wd.brewing.set(key, new WG.BrewingStand()); return { slots: wd.brewing.get(key).slots, type: 'brew' }; }
+    if ((m = /^(HOPPER|DISPENSER|DROPPER)_/.exec(keyOf(id)))) {
+      if (!wd.containers.has(key)) wd.containers.set(key, new Array(CSIZE[m[1]]).fill(null));
+      return { slots: wd.containers.get(key), type: m[1].toLowerCase() };
+    }
+    return null;
+  };
+  // 入れられる枠（Minecraft と同じ：かまどは上から材料・横から燃料、醸造台は上から材料・横から瓶と燃料）
+  function insertSlots(c, key, fromAbove) {
+    var all = c.slots.map(function (s, i) { return i; });
+    if (c.type === 'furnace') return fromAbove ? [0] : (WG.Craft.FUEL[key] ? [1] : []);
+    if (c.type === 'brew') return fromAbove ? (WG.BREW_INGREDIENTS.indexOf(key) >= 0 ? [3] : []) : key === 'BLAZE_POWDER' ? [4] : ITEMS[key].potion ? [0, 1, 2] : [];
+    return all;
+  }
+  // 1 個入れる（入れられたら true）
+  Game.prototype.insertInto = function (c, s, fromAbove) {
+    var list = insertSlots(c, s.key, fromAbove), max = ITEMS[s.key].max, i;
+    for (i = 0; i < list.length; i++) { var t = c.slots[list[i]]; if (t && t.key === s.key && t.n < max && !t.ench && !s.ench) { t.n++; return true; } }
+    for (i = 0; i < list.length; i++) if (!c.slots[list[i]]) { c.slots[list[i]] = { key: s.key, n: 1, dmg: s.dmg, ench: s.ench }; return true; }
+    return false;
+  };
+  // 取り出す枠（かまどはできたもの、醸造台は瓶）
+  function extractSlots(c) { return c.type === 'furnace' ? [2] : c.type === 'brew' ? [0, 1, 2] : c.slots.map(function (s, i) { return i; }); }
+  // 比べる強さ：中身の量（Minecraft の式：1 + 満たされた割合 × 14、空なら 0）。入れ物でなければ −1
+  Game.prototype.containerSignal = function (x, y, z) {
+    var id = this.world.block(x, y, z);
+    if (id !== B.CHEST && id !== B.FURNACE && id !== B.FURNACE_LIT && id !== B.BREWING_STAND && !/^(HOPPER|DISPENSER|DROPPER)_/.test(keyOf(id))) return -1;
+    var c = this.container(x, y, z), f = 0, any = false;
+    c.slots.forEach(function (s) { if (s) { f += s.n / ITEMS[s.key].max; any = true; } });
+    return any ? Math.floor(1 + f / c.slots.length * 14) : 0;
+  };
+
+  // ---------------- 毎刻動くもの（ホッパー・コンパレーター・日照センサー） ----------------
+  Game.prototype.trackPart = function (x, y, z, id) {
+    var wd = this.world, key = x + ',' + y + ',' + z, k = kind(id);
+    if (!wd.hoppers) return;
+    if (k === 'hopper') wd.hoppers.add(key); else wd.hoppers.delete(key);
+    if (k === 'comparator') wd.comparators.add(key); else wd.comparators.delete(key);
+    if (k === 'daylight') { wd.daylights.add(key); this.updateDaylight(key); } else if (wd.daylights.delete(key)) wd.daylight.delete(key);
+  };
+  Game.prototype.tickParts = function () {
+    var wd = this.world, self = this, t = this.tickCount;
+    wd.hoppers.forEach(function (key) { self.tickHopper(key); });
+    if (t % 4 === 0) wd.comparators.forEach(function (key) { var p = key.split(',').map(Number), id = wd.block(p[0], p[1], p[2]); if (kind(id) === 'comparator') self.rs.updateComparator(p[0], p[1], p[2], id); });
+    if (t % 20 === 0) wd.daylights.forEach(function (key) { self.updateDaylight(key); });
+  };
+  // 日照センサー：空の光（昼と夜で変わる）の強さ。反転なら 15 から引く
+  Game.prototype.updateDaylight = function (key) {
+    var wd = this.world, p = key.split(',').map(Number), id = wd.block(p[0], p[1], p[2]);
+    if (kind(id) !== 'daylight') return;
+    var sk = this.sky(), lt = this.walker.lightLevels(p[0], p[1], p[2]), pw = Math.max(0, Math.min(15, Math.round(lt[0] - (sk ? sk.dark : 0) * 1.4)));
+    if (id === B.DAYLIGHT_DETECTOR_INV) pw = 15 - pw;
+    if ((wd.daylight.get(key) || 0) !== pw) { wd.daylight.set(key, pw); this.rs.dirty.push(p); }
+  };
+  // ホッパー：8 刻みに 1 個、向いている入れ物へ渡し、上の入れ物か、上に落ちているアイテムから 1 個取る。動力を受けると止まる。
+  var HV = { D: [0, -1, 0], N: [0, 0, -1], E: [1, 0, 0], S: [0, 0, 1], W: [-1, 0, 0] };
+  Game.prototype.tickHopper = function (key) {
+    var wd = this.world, p = key.split(',').map(Number), x = p[0], y = p[1], z = p[2], id = wd.block(x, y, z);
+    if (kind(id) !== 'hopper') { wd.hoppers.delete(key); return; }
+    var c = this.container(x, y, z);
+    if (!this.hopperCd) this.hopperCd = {};
+    if (this.hopperCd[key] > 0) { this.hopperCd[key]--; return; }
+    if (wd.hopperLock.get(key)) return;
+    var moved = false, f = keyOf(id).slice(-1), v = HV[f];
+    // 渡す
+    var out = this.container(x + v[0], y + v[1], z + v[2]);
+    if (out) for (var i = 0; i < c.slots.length && !moved; i++) {
+      var s = c.slots[i];
+      if (s && this.insertInto(out, s, f === 'D')) { s.n--; if (s.n <= 0) c.slots[i] = null; moved = true; }
+    }
+    // 取る（上の入れ物 → 上のアイテム）
+    var above = this.container(x, y + 1, z), pulled = false;
+    if (above) {
+      var ex = extractSlots(above);
+      for (var j = 0; j < ex.length && !pulled; j++) {
+        var a = above.slots[ex[j]];
+        if (a && (above.type !== 'brew' || !wd.brewing.get(x + ',' + (y + 1) + ',' + z).time) && this.insertInto(c, a, true)) { a.n--; if (a.n <= 0) above.slots[ex[j]] = null; pulled = true; }
+      }
+    } else if (!WG.OPAQUE[wd.block(x, y + 1, z)]) {
+      for (var e = 0; e < this.entities.length && !pulled; e++) {
+        var it = this.entities[e];
+        if (Math.floor(it.x) !== x || Math.floor(it.z) !== z || it.y < y + 0.6 || it.y > y + 2) continue;
+        if (this.insertInto(c, it, true)) { it.n--; pulled = true; if (it.n <= 0) this.entities.splice(e, 1); }
+      }
+    }
+    if (moved || pulled) { this.hopperCd[key] = 8; this.inv.changed(); }
+  };
+
+  // ---------------- ディスペンサー・ドロッパー ----------------
+  var D6 = { N: [0, 0, -1], S: [0, 0, 1], E: [1, 0, 0], W: [-1, 0, 0], U: [0, 1, 0], D: [0, -1, 0] };
+  Game.prototype.dispense = function (x, y, z) {
+    var wd = this.world, id = wd.block(x, y, z), m = /^(DISPENSER|DROPPER)_([NESWUD])$/.exec(keyOf(id));
+    if (!m) return;
+    var c = this.container(x, y, z), full = [];
+    c.slots.forEach(function (s, i) { if (s) full.push(i); });
+    var v = D6[m[2]], fx = x + v[0], fy = y + v[1], fz = z + v[2], self = this;
+    if (!full.length) { this.puff(fx + 0.5, fy + 0.5, fz + 0.5, [150, 150, 150], 3, 0.2); return; }   // 空：カチッと鳴るだけ
+    var si = full[rint(full.length)], s = c.slots[si], key = s.key, it = ITEMS[key], fid = wd.block(fx, fy, fz);
+    function use1() { s.n--; if (s.n <= 0) c.slots[si] = null; }
+    function drop() {
+      var front = self.container(fx, fy, fz);
+      if (front && m[1] === 'DROPPER') { if (self.insertInto(front, s, v[1] < 0)) use1(); return; }
+      var e = self.spawnItem(key, 1, fx + 0.5 - v[0] * 0.3, fy + 0.3 + (v[1] < 0 ? 0 : 0.2), fz + 0.5 - v[2] * 0.3, 0, 8, s.dmg, s.ench);
+      e.vx = v[0] * 0.25 + (Math.random() - 0.5) * 0.05; e.vy = v[1] * 0.25 + 0.1; e.vz = v[2] * 0.25 + (Math.random() - 0.5) * 0.05;
+      use1();
+    }
+    this.puff(fx + 0.5, fy + 0.5, fz + 0.5, [170, 170, 170], 5, 0.3);
+    if (m[1] === 'DROPPER') { drop(); this.inv.changed(); return; }
+    var free = fid === B.AIR || FLUID[fid] || kind(fid) === 'plant';
+    if (key === 'ARROW') {
+      var ar = this.mobs.shootFromPlayer([fx + 0.5 - v[0] * 0.4, fy + 0.6, fz + 0.5 - v[2] * 0.4], [v[0], v[1] + 0.1, v[2]], 1.1, 3, false);
+      ar.any = true; use1();
+    } else if (it.splash) {
+      this.throwns.push({ key: key, x: fx + 0.5, y: fy + 0.5, z: fz + 0.5, px: fx + 0.5, py: fy + 0.5, pz: fz + 0.5, vx: v[0] * 0.5, vy: v[1] * 0.5 + 0.1, vz: v[2] * 0.5, age: 0 }); use1();
+    } else if ((key === 'WATER_BUCKET' || key === 'LAVA_BUCKET') && free) {
+      wd.setBlock(fx, fy, fz, key === 'WATER_BUCKET' ? B.WATER : B.LAVA); wd.fluids.notify(fx, fy, fz); this.walker.remesh(fx, fz); c.slots[si] = { key: 'BUCKET', n: 1 };
+    } else if (key === 'BUCKET' && FLUID[fid] && WG.FLUID_LEVEL[fid] === 0) {
+      wd.setBlock(fx, fy, fz, B.AIR); wd.fluids.notify(fx, fy, fz); this.walker.remesh(fx, fz); use1();
+      var filled = FLUID[fid] === 1 ? 'WATER_BUCKET' : 'LAVA_BUCKET';
+      if (!this.insertInto(c, { key: filled }, false)) this.spawnItem(filled, 1, fx + 0.5, fy + 0.5, fz + 0.5, 0.05, 8);
+    } else if (key === 'FLINT_AND_STEEL') {
+      if (fid === B.TNT) this.primeTnt(fx, fy, fz, 80); else if (fid === B.AIR) this.setFire(fx, fy, fz, true, 0);
+      s.dmg = (s.dmg || 0) + 1; if (s.dmg >= it.dur) c.slots[si] = null;
+    } else if (key === 'TNT') {
+      this.tnts.push({ x: fx + 0.5, y: fy, z: fz + 0.5, py: fy, vy: 0.2, fuse: 80 }); use1();
+    } else if (key === 'BONE_MEAL' && WG.blockKind(fid) === 'crop') {
+      if (this.growCrop(fx, fy, fz, 2 + rint(4))) use1();
+    } else if (key === 'SHEARS') {
+      var sheep = this.mobs.list.filter(function (mm) { return mm.type === 'SHEEP' && !mm.sheared && Math.floor(mm.x) === fx && Math.floor(mm.z) === fz; })[0];
+      if (sheep) { sheep.sheared = true; this.spawnItem('WHITE_WOOL', 1 + rint(3), sheep.x, sheep.y + 1, sheep.z, 0.15, 10); s.dmg = (s.dmg || 0) + 1; }
+    } else drop();
+    this.inv.changed();
+  };
+
+  // ---------------- 音符ブロック ----------------
+  // 右クリックで音の高さ（25 段、F♯3〜F♯5）、動力を受けると鳴る。下のブロックで楽器が変わる（Minecraft と同じ組み合わせ）。
+  function instrument(id) {
+    var k = keyOf(id);
+    if (/_PLANKS$|_LOG$|_FENCE$|^CRAFTING_TABLE$|^CHEST$|^NOTE_BLOCK$|^BOOKSHELF$/.test(k)) return 'bass';
+    if (/^SAND$|^GRAVEL$|^SOUL_SAND$/.test(k)) return 'snare';
+    if (/^GLASS$|^GLOWSTONE$/.test(k)) return 'hat';
+    if (/^STONE$|^COBBLESTONE$|_ORE$|^NETHERRACK$|^OBSIDIAN$|^STONE_BRICKS$|^BRICKS$|^SANDSTONE$|^QUARTZ_BLOCK$|^BASALT$|^DEEPSLATE$/.test(k)) return 'bd';
+    if (k === 'GOLD_BLOCK') return 'bell';
+    if (k === 'CLAY') return 'flute';
+    if (k === 'WHITE_WOOL') return 'guitar';
+    if (k === 'ICE') return 'chime';
+    if (k === 'IRON_BLOCK') return 'iron';
+    return 'harp';
+  }
+  Game.prototype.playNote = function (x, y, z) {
+    var wd = this.world;
+    if (wd.block(x, y + 1, z) !== B.AIR) return;   // 上がふさがっていると鳴らない
+    var pitch = wd.notes.get(x + ',' + y + ',' + z) || 0, ins = instrument(wd.block(x, y - 1, z));
+    // 音符の粒（高さで色が変わる）
+    var h = pitch / 24, col = [Math.round(255 * Math.max(0, Math.sin(h * 6.28) * 0.5 + 0.5)), Math.round(255 * Math.max(0, Math.sin(h * 6.28 + 2.1) * 0.5 + 0.5)), Math.round(255 * Math.max(0, Math.sin(h * 6.28 + 4.2) * 0.5 + 0.5))];
+    this.puff(x + 0.5, y + 1.2, z + 0.5, col, 3, 0.15);
+    if (WG.noteSound) WG.noteSound(pitch, ins, Math.hypot(x + 0.5 - this.walker.pos[0], y - this.walker.pos[1], z + 0.5 - this.walker.pos[2]));
+  };
+  // 音（ブラウザだけ。Web Audio で作る）
+  var actx = null;
+  WG.noteSound = function (pitch, ins, dist) {
+    if (typeof window === 'undefined' || !(window.AudioContext || window.webkitAudioContext) || dist > 48) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var t = actx.currentTime, f = 185 * Math.pow(2, pitch / 12), vol = 0.25 * Math.max(0, 1 - dist / 48), g = actx.createGain();
+      g.connect(actx.destination);
+      if (ins === 'snare' || ins === 'hat' || ins === 'bd') {
+        // 打楽器：雑音の短い音
+        var len = ins === 'bd' ? 0.18 : ins === 'snare' ? 0.12 : 0.05, buf = actx.createBuffer(1, Math.floor(actx.sampleRate * len), actx.sampleRate), d = buf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, ins === 'bd' ? 3 : 2);
+        var src = actx.createBufferSource(), flt = actx.createBiquadFilter();
+        src.buffer = buf; flt.type = ins === 'bd' ? 'lowpass' : ins === 'hat' ? 'highpass' : 'bandpass'; flt.frequency.value = ins === 'bd' ? 160 + pitch * 6 : ins === 'hat' ? 7000 : 1800 + pitch * 40;
+        src.connect(flt); flt.connect(g); g.gain.value = vol * 1.6; src.start(t);
+        return;
+      }
+      var o = actx.createOscillator(), mul = ins === 'bass' ? 0.25 : ins === 'bell' || ins === 'chime' ? 2 : ins === 'flute' ? 1 : ins === 'guitar' ? 0.5 : 1;
+      o.type = ins === 'bass' || ins === 'guitar' ? 'triangle' : ins === 'flute' ? 'sine' : ins === 'iron' ? 'square' : 'sine';
+      o.frequency.value = f * mul;
+      var dur = ins === 'bell' || ins === 'chime' ? 1.6 : ins === 'flute' ? 0.7 : 0.9;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * (ins === 'iron' ? 0.4 : 1), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); o.start(t); o.stop(t + dur + 0.05);
+    } catch (e) { /* 音が出せない環境では鳴らさない */ }
   };
 
   // ---------------- 画面の表示（経験値・効果・盾） ----------------

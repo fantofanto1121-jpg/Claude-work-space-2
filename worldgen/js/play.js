@@ -1365,7 +1365,7 @@
       var left = s.n - self.inv.add(s.key, s.n, s.dmg, s.ench);
       if (left > 0) self.spawnItem(s.key, left, w.pos[0], w.pos[1] + 1, w.pos[2], 0.1, 40, s.dmg, s.ench);
     });
-    this.craft = []; this.craftResult = null; this.cursor = null; this.screen = null; this.furnaceKey = null; this.chestKey = null;
+    this.craft = []; this.craftResult = null; this.cursor = null; this.screen = null; this.furnaceKey = null; this.chestKey = null; this.lastScreen = null; this.contKey = null;
     this.ui.inv.classList.add('hide');
     this.ui.cursor.classList.add('hide');
   };
@@ -1380,8 +1380,8 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床' }[sc];
-    if (sc === 'etable' || sc === 'brew' || sc === 'anvil') html += this.renderExtraScreen(sc);
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
+    if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp') html += this.renderExtraScreen(sc);
     if (sc === 'creative') {
       html += '<div class="grid pal">';
       WG.PLACEABLE.concat(Object.keys(ITEMS).filter(function (k) { return ITEMS[k].block < 0; })).forEach(function (k) {
@@ -1418,7 +1418,13 @@
     html += '<div class="grid bar">';
     for (i = 0; i < 9; i++) html += slot('inv', i, s[i], i === this.inv.sel ? ' sel' : '');
     html += '</div>';
+    // 描き直してもスクロールの位置を保つ（クリエイティブの一覧など）
+    var pal = ui.invBody.querySelector && ui.invBody.querySelector('.pal'), keepTop = pal ? pal.scrollTop : 0, bodyTop = ui.invBody.scrollTop || 0;
     ui.invBody.innerHTML = html;
+    var pal2 = ui.invBody.querySelector && ui.invBody.querySelector('.pal');
+    if (pal2 && sc === this.lastScreen) pal2.scrollTop = keepTop;
+    if (sc === this.lastScreen) ui.invBody.scrollTop = bodyTop;
+    this.lastScreen = sc;
     ui.cursor.innerHTML = slotHTML(this.cursor);
     ui.cursor.classList.toggle('hide', !this.cursor);
     if (sc === 'furnace') this.updateFurnaceBars();

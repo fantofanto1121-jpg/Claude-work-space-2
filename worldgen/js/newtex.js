@@ -176,4 +176,35 @@
     ['........', '.aa..aa.', 'acab.aca', '.ab.aab.', '..b.ab..', '.bb.bb..', '..b.b...', '.b..b...']
   ];
   WART.forEach(function (rows, i) { TEX['NETHER_WART_' + i] = cutout(art(rows, { a: '#a8242c', b: '#6a1a1e', c: '#d04048' })); });
+  // ---- レッドストーンの部品（追加）：PDF の絵に、前の面（口・顔）を描き足す ----
+  function overlay(base, rows, pal) {
+    var out = new Uint8Array(base), i;
+    for (i = 0; i < 64; i++) {
+      var ch = rows[i >> 3][i & 7];
+      if (ch === '.' || !pal[ch]) continue;
+      var c = hex(pal[ch]); out[i * 3] = c[0]; out[i * 3 + 1] = c[1]; out[i * 3 + 2] = c[2];
+    }
+    return out;
+  }
+  function front(src, rows, pal) {
+    if (!TEX[src]) return null;
+    var side = decode(TEX[src].side), bot = decode(TEX[src].bottom);
+    return { side: side, top: overlay(side, rows, pal), bottom: bot };
+  }
+  TEX.DISPENSER = front('DISPENSER_PDF', ['........', '..aaaa..', '.abbbba.', '.abccba.', '.abccba.', '.abbbba.', '..aaaa..', '........'], { a: '#3a3a3c', b: '#2a2a2c', c: '#141416' });
+  TEX.DROPPER = front('DROPPER_PDF', ['........', '........', '..aaaa..', '..abba..', '..abba..', '..aaaa..', '........', '........'], { a: '#3a3a3c', b: '#141416' });
+  TEX.OBSERVER = front('OBSERVER_PDF', ['........', '.aaaaaa.', '.abbbba.', '........', '.cccccc.', '.cdccdc.', '.cccccc.', '........'], { a: '#2c2c2e', b: '#4a4a4c', c: '#3a3a3c', d: '#1c1c1e' });
+  if (TEX.OBSERVER) {
+    var ob = decode(TEX.OBSERVER_PDF.bottom);
+    TEX.OBSERVER.bottom = overlay(ob, ['........', '........', '........', '...aa...', '...aa...', '........', '........', '........'], { a: '#3a2a28' });
+    TEX.OBSERVER_ON = { side: TEX.OBSERVER.side, top: TEX.OBSERVER.top, bottom: overlay(ob, ['........', '........', '...bb...', '..baab..', '..baab..', '...bb...', '........', '........'], { a: '#ff5a40', b: '#c02a1c' }) };
+  }
+  // 日照センサー：上はガラスの板 4 枚と木の枠、横は板材
+  if (TEX.OAK_PLANKS) {
+    var pl = decode(TEX.OAK_PLANKS.side);
+    var dayTop = overlay(shade(pl, 0.8), ['........', '.gg..gg.', '.gh..gh.', '........', '........', '.gg..gg.', '.hg..hg.', '........'], { g: '#b8d4e0', h: '#e4f0f4' });
+    var invTop = overlay(shade(pl, 0.7), ['........', '.gg..gg.', '.gh..gh.', '........', '........', '.gg..gg.', '.hg..hg.', '........'], { g: '#5a7aa8', h: '#8aa8d0' });
+    TEX.DAYLIGHT_DETECTOR = { side: shade(pl, 0.85), top: dayTop, bottom: shade(pl, 0.7) };
+    TEX.DAYLIGHT_DETECTOR_INV = { side: shade(pl, 0.75), top: invTop, bottom: shade(pl, 0.7) };
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

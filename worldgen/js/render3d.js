@@ -250,7 +250,10 @@
               var ni = i + dOff[d];
               if (OPQ[v[ni]]) continue;
               D = DIRS[d];
-              var c = faceBase(id, D.face, bio), tile = TT[id * 3 + FACE_IX[D.face]], side = D.n[1] === 0;
+              var fo = D.face, oo = WG.ORIENT[id];
+              // 向きのあるブロック（ディスペンサーなど）は、前の面に「上」、後ろに「下」の見た目
+              if (oo) { var oq = ORV[oo]; fo = D.n[0] === oq[0] && D.n[1] === oq[1] && D.n[2] === oq[2] ? 'top' : D.n[0] === -oq[0] && D.n[1] === -oq[1] && D.n[2] === -oq[2] ? 'bottom' : 'side'; }
+              var c = faceBase(id, fo, bio), tile = TT[id * 3 + FACE_IX[fo]], side = D.n[1] === 0;
               var uo = uOff[d], vo = vOff[d];
               for (k = 0; k < 4; k++) {
                 var su = CORNERS[k][0] ? uo : -uo, sv = CORNERS[k][1] ? vo : -vo;

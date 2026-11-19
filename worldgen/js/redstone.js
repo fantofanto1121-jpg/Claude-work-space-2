@@ -22,14 +22,16 @@
   // リピーターの向き（出す向き）
   function repFacing(id) { var m = /^REPEATER_([NESW])(\d)/.exec(keyOf(id)); return m ? m[1] : null; }
   function repDelay(id) { return +/^REPEATER_[NESW](\d)/.exec(keyOf(id))[1]; }
-  function solidOpaque(id) { return WG.OPAQUE[id] && WG.blockKind(id) === 'solid'; }
+  function solidOpaque(id) { return WG.OPAQUE[id] && WG.blockKind(id) === 'solid' && !WG.ORIENT[id]; }
+  function compFacing(id) { var m = /^COMPARATOR_([NESW])/.exec(keyOf(id)); return m ? m[1] : null; }
 
   // 粉が隣とつながるか（見た目と、動力を向ける向き）。get(dx, dy, dz) は隣のブロック。
   // 戻り値 { n, e, s, w }：0 つながらない、1 同じ高さか 1 段下、2 1 段上（壁を登る）
   function connectsTo(id, dx, dz) {
     var k = KIND(id);
     if (k === 'rtorch' || k === 'lever' || k === 'button' || k === 'plate' || id === B.REDSTONE_BLOCK) return true;
-    if (k === 'repeater') { var f = repFacing(id), v = DVEC[f]; return v[0] !== 0 ? dx !== 0 : dz !== 0; }
+    if (k === 'repeater' || k === 'comparator') { var f = repFacing(id) || compFacing(id), v = DVEC[f]; return v[0] !== 0 ? dx !== 0 : dz !== 0; }
+    if (k === 'daylight') return true;
     return false;
   }
   function wireConnections(get) {
@@ -49,6 +51,10 @@
     this.dirty = []; this.sched = []; this.time = 0; this.busy = false;
     if (!this.w.rsDoors) this.w.rsDoors = new Map();   // 扉が前に動力を受けていたか
     if (!this.w.plates) this.w.plates = new Map();     // 押されている感圧板（キー → 残りの刻み）
+    if (!this.w.compOut) this.w.compOut = new Map();   // コンパレーターの出す強さ
+    if (!this.w.daylight) this.w.daylight = new Map(); // 日照センサーの強さ
+    if (!this.w.rsPrev) this.w.rsPrev = new Map();     // ディスペンサー・音符ブロックが前に動力を受けていたか
+    if (!this.w.hopperLock) this.w.hopperLock = new Map();
   }
   Redstone.prototype.get = function (x, y, z) { return this.w.block(x, y, z); };
   Redstone.prototype.mark = function (x, y, z) { if (!this.busy) this.dirty.push([x, y, z]); };
@@ -70,6 +76,12 @@
       return 15;
     }
     if (k === 'repeater' && isOn(id)) { var v = DVEC[repFacing(id)]; return x + v[0] === tx && y === ty && z + v[2] === tz ? 15 : 0; }
+    // コンパレーター：前へ、計算した強さ
+    if (k === 'comparator' && isOn(id)) { var cv = DVEC[compFacing(id)]; return x + cv[0] === tx && y === ty && z + cv[2] === tz ? (this.w.compOut.get(x + ',' + y + ',' + z) || 0) : 0; }
+    // オブザーバー：顔の反対側（後ろ）へ 15
+    if (k === 'solid' && WG.ORIENT[id] && /^OBSERVER_.*_ON$/.test(keyOf(id))) { var ov = DVEC[WG.ORIENT[id]]; return x - ov[0] === tx && y - ov[1] === ty && z - ov[2] === tz ? 15 : 0; }
+    // 日照センサー：まわりへ明るさに合わせた強さ
+    if (k === 'daylight') return this.w.daylight.get(x + ',' + y + ',' + z) || 0;
     return 0;
   };
   // ブロック (bx, by, bz) が強い動力を受けているか
@@ -79,7 +91,8 @@
       if ((k === 'lever' || k === 'button') && isOn(id)) { var sp = WG.SUPPORT[id]; if (x + sp[0] === bx && y + sp[1] === by && z + sp[2] === bz) return 15; }
       if (k === 'plate' && isOn(id) && d[1] === 1) return 15;
       if (k === 'rtorch' && WG.LIGHT_EMIT[id] && d[1] === -1) return 15;   // トーチは真上のブロックを強く動かす
-      if (k === 'repeater' && isOn(id) && this.emit(x, y, z, bx, by, bz)) return 15;
+      if ((k === 'repeater' || k === 'comparator') && isOn(id)) { var e = this.emit(x, y, z, bx, by, bz); if (e) return e; }
+      if (k === 'solid' && WG.ORIENT[id] && isOn(id) && this.emit(x, y, z, bx, by, bz)) return 15;
     }
     return 0;
   };
@@ -152,13 +165,33 @@
     var due = [], keep = [], self = this;
     this.sched.forEach(function (e) { (e.t <= self.time ? due : keep).push(e); });
     this.sched = keep;
-    due.forEach(function (e) { if (self.get(e.x, e.y, e.z) === e.from) self.set(e.x, e.y, e.z, e.to); });
+    due.forEach(function (e) {
+      if (e.fn) { e.fn(); return; }
+      if (self.get(e.x, e.y, e.z) !== e.from) return;
+      self.set(e.x, e.y, e.z, e.to);
+      // オブザーバーは 2 刻みで元に戻る
+      if (/^OBSERVER_.*_ON$/.test(keyOf(e.to))) self.schedule(e.x, e.y, e.z, e.to, e.from, 2);
+    });
     this.tickPlates();
     var guard = 0;
     while (this.dirty.length && guard++ < 8) { var d = this.dirty; this.dirty = []; this.update(d); }
   };
+  Redstone.prototype.later = function (delay, fn, tag) {
+    for (var i = 0; i < this.sched.length; i++) if (tag && this.sched[i].tag === tag) return;
+    this.sched.push({ t: this.time + delay, fn: fn, tag: tag });
+  };
+  // オブザーバー：見ている前のマスが変わったら、2 刻み後に後ろへ 2 刻みの動力を出す
+  Redstone.prototype.observe = function (x, y, z) {
+    for (var i = 0; i < 6; i++) {
+      var d = N6[i], ox = x + d[0], oy = y + d[1], oz = z + d[2], id = this.get(ox, oy, oz), o = WG.ORIENT[id];
+      if (!o || !/^OBSERVER_[NESWUD]$/.test(keyOf(id))) continue;
+      var v = DVEC[o];
+      if (ox + v[0] !== x || oy + v[1] !== y || oz + v[2] !== z) continue;
+      this.schedule(ox, oy, oz, id, B[keyOf(id) + '_ON'], 2);
+    }
+  };
   Redstone.prototype.schedule = function (x, y, z, from, to, delay) {
-    for (var i = 0; i < this.sched.length; i++) { var e = this.sched[i]; if (e.x === x && e.y === y && e.z === z) return; }
+    for (var i = 0; i < this.sched.length; i++) { var e = this.sched[i]; if (!e.fn && e.x === x && e.y === y && e.z === z) return; }
     this.sched.push({ x: x, y: y, z: z, from: from, to: to, t: this.time + delay });
   };
 
@@ -236,6 +269,18 @@
         (solidOpaque(bid) && (this.strong(bx, y, bz) > 0 || this.weak(bx, y, bz) > 0));
       var ison = isOn(id);
       if (inp !== ison) this.schedule(x, y, z, id, ison ? B[key.replace(/_ON$/, '')] : B[key + '_ON'], repDelay(id) * 2);
+    } else if (k === 'hopper') {
+      this.w.hopperLock.set(x + ',' + y + ',' + z, this.powered(x, y, z));   // 動力を受けたホッパーは止まる
+    } else if (/^(DISPENSER|DROPPER)_/.test(key) || id === B.NOTE_BLOCK) {
+      // 動力を受けた瞬間に 1 回動く（ディスペンサー・ドロッパーは 4 刻み後）
+      var kk2 = x + ',' + y + ',' + z, now = this.powered(x, y, z), before = !!this.w.rsPrev.get(kk2);
+      this.w.rsPrev.set(kk2, now);
+      if (now && !before) {
+        if (id === B.NOTE_BLOCK) g.playNote(x, y, z);
+        else this.later(4, function () { g.dispense(x, y, z); });
+      }
+    } else if (k === 'comparator') {
+      this.updateComparator(x, y, z, id);
     } else if (k === 'piston') {
       var pm = /^(STICKY_)?PISTON_([NESWUD])(_X)?$/.exec(key);
       if (!pm) return;
@@ -243,6 +288,54 @@
       if (pon && !pm[3]) this.extend(x, y, z, !!pm[1], pm[2]);
       else if (!pon && pm[3]) this.retract(x, y, z, !!pm[1], pm[2]);
     }
+  };
+
+  // ---- コンパレーター ----
+  // 後ろの強さ（入れ物ならその中身の量、粉・動力源・動力を受けたブロック）と、横の強さ（粉・リピーター・コンパレーター・動力ブロック）
+  Redstone.prototype.rearPower = function (x, y, z, f) {
+    var v = DVEC[f], rx = x - v[0], rz = z - v[2], rid = this.get(rx, y, rz), g = this.g;
+    var fill = g.containerSignal ? g.containerSignal(rx, y, rz) : -1;
+    if (fill >= 0) return fill;
+    if (isWire(rid)) return wirePower(rid);
+    var e = this.emit(rx, y, rz, x, y, z);
+    if (e) return e;
+    if (solidOpaque(rid)) {
+      var p = this.strong(rx, y, rz) || this.weak(rx, y, rz);
+      if (p) return p;
+      var f2 = g.containerSignal ? g.containerSignal(rx - v[0], y, rz - v[2]) : -1;   // ブロック越しの入れ物も読む
+      return f2 > 0 ? f2 : 0;
+    }
+    return 0;
+  };
+  Redstone.prototype.sidePower = function (x, y, z, f) {
+    var v = DVEC[f], best = 0, self = this;
+    [[v[2], -v[0]], [-v[2], v[0]]].forEach(function (d) {
+      var sx = x + d[0], sz = z + d[1], sid = self.get(sx, y, sz), k = KIND(sid), p = 0;
+      if (isWire(sid)) p = wirePower(sid);
+      else if (sid === B.REDSTONE_BLOCK) p = 15;
+      else if (k === 'repeater' || k === 'comparator') p = self.emit(sx, y, sz, x, y, z);
+      if (p > best) best = p;
+    });
+    return best;
+  };
+  Redstone.prototype.updateComparator = function (x, y, z, id) {
+    var key = keyOf(id), f = compFacing(id), sub = /^COMPARATOR_[NESW]S/.test(key), self = this;
+    var rear = this.rearPower(x, y, z, f), side = this.sidePower(x, y, z, f);
+    var out = sub ? Math.max(0, rear - side) : (rear >= side ? rear : 0), kk = x + ',' + y + ',' + z;
+    if (out === (this.w.compOut.get(kk) || 0) && (out > 0) === isOn(id)) return;
+    this.later(2, function () {
+      var cur = self.get(x, y, z);
+      if (KIND(cur) !== 'comparator') return;
+      self.w.compOut.set(kk, out);
+      var base = keyOf(cur).replace(/_ON$/, ''), want = B[base + (out > 0 ? '_ON' : '')];
+      if (want !== cur) self.set(x, y, z, want); else self.dirty.push([x, y, z]);
+      var v = DVEC[f]; self.dirty.push([x + v[0], y, z + v[2]]);
+    }, 'cmp' + kk);
+  };
+  // 右クリック：比較 ⇔ 減算
+  Redstone.prototype.toggleComparator = function (x, y, z) {
+    var id = this.get(x, y, z), key = keyOf(id);
+    this.set(x, y, z, B[key.replace(/^(COMPARATOR_[NESW])([CS])/, function (m, a, b) { return a + (b === 'C' ? 'S' : 'C'); })]);
   };
 
   // ---- ピストン ----

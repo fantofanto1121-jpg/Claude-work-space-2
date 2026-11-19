@@ -178,6 +178,18 @@
     ALIAS['PISTON_' + f] = ALIAS['PISTON_' + f + '_X'] = ALIAS['PISTON_HEAD_' + f] = 'PISTON';
     ALIAS['STICKY_PISTON_' + f] = ALIAS['STICKY_PISTON_' + f + '_X'] = ALIAS['STICKY_PISTON_HEAD_' + f] = 'STICKY_PISTON';
   });
+  // ---- レッドストーンの部品（追加）----
+  // ホッパー：下（D）か横へ出す。ディスペンサー・ドロッパー・オブザーバーは 6 方向（オブザーバーの向きは「顔」の向き）。
+  // コンパレーター：向き × 比較（C）・減算（S）× オン。日照センサー（反転あり）、音符ブロック。
+  ['D', 'N', 'E', 'S', 'W'].forEach(function (f) { DEF.push(['HOPPER_' + f, 'ホッパー', '#4a4a4c', 'hopper']); ALIAS['HOPPER_' + f] = 'HOPPER'; });
+  ['N', 'E', 'S', 'W', 'U', 'D'].forEach(function (f) {
+    DEF.push(['DISPENSER_' + f, 'ディスペンサー', '#7a7a7a', 'solid'], ['DROPPER_' + f, 'ドロッパー', '#7a7a7a', 'solid'],
+      ['OBSERVER_' + f, 'オブザーバー', '#646464', 'solid'], ['OBSERVER_' + f + '_ON', 'オブザーバー', '#646464', 'solid']);
+  });
+  DIR4.forEach(function (d) { ['C', 'S'].forEach(function (m) { ['', '_ON'].forEach(function (o) { DEF.push(['COMPARATOR_' + d + m + o, 'コンパレーター', '#9a9286', 'comparator']); ALIAS['COMPARATOR_' + d + m + o] = 'COMPARATOR_BASE'; }); }); });
+  DEF.push(['DAYLIGHT_DETECTOR', '日照センサー', '#c8b98a', 'daylight'], ['DAYLIGHT_DETECTOR_INV', '日照センサー（反転）', '#7a8aa8', 'daylight'],
+    ['NOTE_BLOCK', '音符ブロック', '#7a4e30', 'solid']);
+
   // ---- エンチャント・醸造 ----
   DEF.push(['ENCHANTING_TABLE', 'エンチャントテーブル', '#5a2a6a', 'etable', 0.4], ['BOOKSHELF', '本棚', '#8a6a3e', 'solid'],
     ['BREWING_STAND', '醸造台', '#8a8a86', 'stand', 0.1], ['ANVIL', '金床', '#4a4a4c', 'anvil'],
@@ -215,6 +227,8 @@
     if (m) return TEX[m[1] + '_DOOR_' + m[2]];
     if (/^LADDER_/.test(key)) return TEX.LADDER;
     if (/^REPEATER_/.test(key)) return TEX.REPEATER_BASE;
+    var om = /^(DISPENSER|DROPPER|OBSERVER)_[NESWUD](_ON)?$/.exec(key);
+    if (om) return TEX[om[1] + (om[2] || '')];
     if (/^REDSTONE_WALL_TORCH_/.test(key)) return /_OFF$/.test(key) ? TEX.REDSTONE_TORCH_OFF : TEX.REDSTONE_TORCH;
     return /^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : /^BED_/.test(key) ? TEX.BED : null;
   }
@@ -316,7 +330,8 @@
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1 };
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
+    hopper: 1, comparator: 1, daylight: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -378,13 +393,32 @@
       return [rotU([0, 12, 0, 16, 16, 16], f), rotU([6, 0, 6, 10, 12, 10, B.OAK_PLANKS], f)];
     }
     if (k === 'etable') return [[0, 0, 0, 16, 12, 16]];
+    if (k === 'hopper') {
+      f = key.slice(-1);
+      var hb = [[0, 10, 0, 16, 16, 2], [0, 10, 14, 16, 16, 16], [0, 10, 2, 2, 16, 14], [14, 10, 2, 16, 16, 14], [2, 10, 2, 14, 11, 14], [4, 4, 4, 12, 10, 12]];
+      hb.push(f === 'D' ? [6, 0, 6, 10, 4, 10] : rotN([6, 4, 0, 10, 8, 4], f));
+      return hb;
+    }
+    if (k === 'comparator') {
+      var cm = /COMPARATOR_([NESW])([CS])(_ON)?$/.exec(key), con = !!cm[3], sub = cm[2] === 'S';
+      var tipOn = B.REDSTONE_BLOCK, tipOff = B.NETHER_BRICKS, cb = [[0, 0, 0, 16, 2, 16]];
+      [[3, 11], [11, 11]].forEach(function (p) { cb.push([p[0], 2, p[1], p[0] + 2, 5, p[1] + 2, B.OAK_PLANKS], [p[0], 5, p[1], p[0] + 2, 7, p[1] + 2, con ? tipOn : tipOff, con ? 1 : 0]); });
+      cb.push([7, 2, 2, 9, 4, 4, sub ? tipOn : tipOff, sub ? 1 : 0]);
+      return cb.map(function (b) { return rotN(b, cm[1]); });
+    }
+    if (k === 'daylight') return [[0, 0, 0, 16, 6, 16]];
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
     return null;
   }
   // ピストンの向き（見た目の「上」の面をどちらへ向けるか）
   var ORIENT = [];
-  LIST.forEach(function (b) { var m = /PISTON_(?:HEAD_)?([NESWUD])(_X)?$/.exec(b.key); if (m && (b.kind === 'piston' || b.kind === 'phead')) ORIENT[b.id] = m[1]; });
+  LIST.forEach(function (b) {
+    var m = /PISTON_(?:HEAD_)?([NESWUD])(_X)?$/.exec(b.key);
+    if (m && (b.kind === 'piston' || b.kind === 'phead')) ORIENT[b.id] = m[1];
+    m = /^(?:DISPENSER|DROPPER|OBSERVER)_([NESWUD])(_ON)?$/.exec(b.key);
+    if (m) ORIENT[b.id] = m[1];   // 「上」の見た目を前（口・顔）に向ける
+  });
   WG.ORIENT = ORIENT;
   var FACE_OF = { N: 0, E: 1, S: 2, W: 3 };
   // 階段の形（Minecraft と同じ決め方）：高い側の隣が直角の階段なら外角、低い側の隣が直角の階段なら内角

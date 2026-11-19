@@ -490,5 +490,25 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(gf.trample(0, 10, 0, 3) && f.block(0, 10, 0) === B.DIRT && !gf.trample(1, 10, 0, 0.4), '耕地は高い所から落ちると土に戻り、0.5 未満では戻らない');
 })();
 
+// ホッパー・コンパレーター・オブザーバー・ディスペンサー
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.walker.pos = [30.5, 11, 30.5];
+  w.setBlock(0, 13, 0, B.CHEST); w.chests.set('0,13,0', new Array(27).fill(null)); w.chests.get('0,13,0')[0] = { key: 'RAW_IRON', n: 2 };
+  w.setBlock(0, 12, 0, B.HOPPER_D); w.setBlock(0, 11, 0, B.FURNACE);
+  for (i = 0; i < 40; i++) g.tick();
+  var fur = w.furnaces.get('0,11,0'), moved = fur && fur.slots[0] && fur.slots[0].n === 2;
+  w.setBlock(4, 11, 0, B.CHEST); w.chests.set('4,11,0', new Array(27).fill(null));
+  for (var k = 0; k < 9; k++) w.chests.get('4,11,0')[k] = { key: 'COBBLESTONE', n: 64 };
+  w.setBlock(5, 11, 0, B.COMPARATOR_EC); w.setBlock(6, 11, 0, B.REDSTONE_WIRE_0);
+  for (i = 0; i < 12; i++) g.tick();
+  w.setBlock(10, 11, 0, B.OBSERVER_W); w.setBlock(11, 11, 0, B.REDSTONE_LAMP); for (i = 0; i < 3; i++) g.tick();
+  w.setBlock(9, 11, 0, B.STONE); var lit = 0; for (i = 0; i < 6; i++) { g.tick(); if (w.block(11, 11, 0) === B.REDSTONE_LAMP_ON) lit++; }
+  w.setBlock(0, 11, 6, B.LEVER_F); w.setBlock(1, 11, 6, B.DISPENSER_E); g.container(1, 11, 6).slots[0] = { key: 'WATER_BUCKET', n: 1 };
+  for (i = 0; i < 3; i++) g.tick(); g.rs.toggleLever(0, 11, 6); for (i = 0; i < 8; i++) g.tick();
+  check(moved && w.compOut.get('5,11,0') === 5 && lit === 2 && w.block(2, 11, 6) === B.WATER,
+    'ホッパー（チェスト → かまど）、コンパレーター（チェストの 1/3 で強さ 5）、オブザーバー（2 刻みの信号）、ディスペンサー（水をまく）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

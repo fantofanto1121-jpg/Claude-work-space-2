@@ -365,7 +365,7 @@
   });
   document.addEventListener('contextmenu', function (e) { if (game && (locked() || game.invOpen)) e.preventDefault(); });
   document.addEventListener('wheel', function (e) {
-    if (game && locked()) { e.preventDefault(); game.wheel(e.deltaY); }
+    if (game && locked() && !game.invOpen) { e.preventDefault(); game.wheel(e.deltaY); }   // インベントリを開いている間は、一覧のスクロールに使う
   }, { passive: false });
   $('invBody').addEventListener('mousedown', function (e) {
     var el = e.target.closest('.slot');

@@ -361,6 +361,11 @@
             if (a.flame) mm.fire = Math.max(mm.fire || 0, 100);
             hit = true; a.dead = true;
           }
+          // ディスペンサーの矢はプレイヤーにも当たる
+          if (!hit && a.any) {
+            var pb2 = w.box();
+            if (!g.dead && a.x > pb2[0] && a.x < pb2[3] && a.y > pb2[1] && a.y < pb2[4] && a.z > pb2[2] && a.z < pb2[5]) { g.hurtPlayer(a.dmg, a.x - a.vx, a.z - a.vz, 'projectile'); hit = true; a.dead = true; }
+          }
           continue;
         }
         var pb = w.box();

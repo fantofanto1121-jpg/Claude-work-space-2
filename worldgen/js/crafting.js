@@ -9,7 +9,8 @@
     PLANKS: ['OAK_PLANKS', 'BIRCH_PLANKS', 'SPRUCE_PLANKS', 'JUNGLE_PLANKS', 'ACACIA_PLANKS'],
     COALS: ['COAL', 'CHARCOAL'],
     COBBLES: ['COBBLESTONE', 'COBBLED_DEEPSLATE'],
-    LOGS: ['OAK_LOG', 'BIRCH_LOG', 'SPRUCE_LOG', 'JUNGLE_LOG', 'ACACIA_LOG']
+    LOGS: ['OAK_LOG', 'BIRCH_LOG', 'SPRUCE_LOG', 'JUNGLE_LOG', 'ACACIA_LOG'],
+    WOOD_SLABS: ['OAK_SLAB', 'SPRUCE_SLAB', 'ACACIA_SLAB', 'BIRCH_SLAB', 'JUNGLE_SLAB']
   };
   function accepts(want, key) {
     if (!want) return !key;
@@ -75,7 +76,14 @@
     [['PPP', 'CIC', 'CRC'], { P: 'PLANKS', C: 'COBBLES', I: 'IRON_INGOT', R: 'REDSTONE' }, 'PISTON', 1],
     [['S', 'P'], { S: 'SLIME_BALL', P: 'PISTON' }, 'STICKY_PISTON', 1],
     [['GSG', 'SGS', 'GSG'], { G: 'GUNPOWDER', S: 'SAND' }, 'TNT', 1],
-    [['##', '##', '##'], { '#': 'IRON_INGOT' }, 'IRON_DOOR', 3]
+    [['##', '##', '##'], { '#': 'IRON_INGOT' }, 'IRON_DOOR', 3],
+    [['I I', 'ICI', ' I '], { I: 'IRON_INGOT', C: 'CHEST' }, 'HOPPER', 1],
+    [['CCC', 'CBC', 'CRC'], { C: 'COBBLES', B: 'BOW', R: 'REDSTONE' }, 'DISPENSER', 1],
+    [['CCC', 'C C', 'CRC'], { C: 'COBBLES', R: 'REDSTONE' }, 'DROPPER', 1],
+    [[' T ', 'TQT', 'SSS'], { T: 'REDSTONE_TORCH', Q: 'QUARTZ', S: 'STONE' }, 'COMPARATOR', 1],
+    [['CCC', 'RRQ', 'CCC'], { C: 'COBBLES', R: 'REDSTONE', Q: 'QUARTZ' }, 'OBSERVER', 1],
+    [['GGG', 'QQQ', 'SSS'], { G: 'GLASS', Q: 'QUARTZ', S: 'WOOD_SLABS' }, 'DAYLIGHT_DETECTOR', 1],
+    [['PPP', 'PRP', 'PPP'], { P: 'PLANKS', R: 'REDSTONE' }, 'NOTE_BLOCK', 1]
   );
   // 扉・柵（木の種類ごと）、階段・ハーフブロック（素材ごと）
   WG.WOODS.forEach(function (w) {
