@@ -314,7 +314,8 @@
     var k = Math.min(20, Math.max(def / 5, def - 4 * n / (tough + 8))) / 25, wear = Math.max(1, Math.floor(n / 4));
     this.armor.forEach(function (s, i) {
       if (!s) return;
-      s.dmg = (s.dmg || 0) + wear;
+      var ub = WG.enchLevel ? WG.enchLevel(s, 'UNBREAKING') : 0;   // 防具の耐久力：60% + 40%/(レベル+1) の確率で減る（Minecraft と同じ）
+      if (!ub || Math.random() < 0.6 + 0.4 / (ub + 1)) s.dmg = (s.dmg || 0) + wear;
       if (s.dmg >= ITEMS[s.key].dur) { self.armor[i] = null; if (self.ui.toast) self.ui.toast(WG.itemName(s.key) + 'が壊れました'); }
     });
     this.inv.changed();

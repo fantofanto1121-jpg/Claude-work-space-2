@@ -391,7 +391,8 @@
       return;
     }
     if (!w.eye || !w.dir) return;
-    this.bobber = { x: w.eye[0], y: w.eye[1], z: w.eye[2], px: w.eye[0], py: w.eye[1], pz: w.eye[2], vx: w.dir[0] * 0.9, vy: w.dir[1] * 0.9 + 0.2, vz: w.dir[2] * 0.9,
+    var sx = w.eye[0] + w.dir[0] * 0.8, sy = w.eye[1] + w.dir[1] * 0.8 - 0.1, sz = w.eye[2] + w.dir[2] * 0.8;
+    this.bobber = { x: sx, y: sy, z: sz, px: sx, py: sy, pz: sz, vx: w.dir[0] * 0.9, vy: w.dir[1] * 0.9 + 0.2, vz: w.dir[2] * 0.9,
       inWater: false, wait: 0, bite: 0, slot: this.inv.sel };
   };
   Game.prototype.tickBobber = function () {
@@ -547,7 +548,8 @@
       cube(solid, x, y, z, 0.18, (p.age + a) / 4, function () { return 0; }, function () { return [parseInt(col.substr(1, 2), 16), parseInt(col.substr(3, 2), 16), parseInt(col.substr(5, 2), 16)]; }, w.lightLevels(x, y, z));
     });
     var b = this.bobber;
-    if (b && w.eye) {
+    var bnear = b && w.eye && Math.hypot(b.x - w.eye[0], b.y - w.eye[1], b.z - w.eye[2]) < 1.2;   // 投げた直後（目の前）は描かない
+    if (b && w.eye && !bnear) {
       var bx = b.px + (b.x - b.px) * a, by = b.py + (b.y - b.py) * a, bz = b.pz + (b.z - b.pz) * a, lt = w.lightLevels(bx, by, bz);
       cube(solid, bx, by - 0.06, bz, 0.12, 0, function () { return 0; }, function (fc) { return fc === 'top' ? [220, 40, 40] : [235, 235, 235]; }, lt);
       // 糸：竿の先（目の右下）から浮きまで

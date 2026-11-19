@@ -94,10 +94,10 @@
   #effects i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
   #effects span { color: var(--muted); font-variant-numeric: tabular-nums; }
   /* 盾（左下に構える）と、体に火がついているとき */
-  #shieldView { position: absolute; left: 28%; bottom: -40px; width: 170px; height: 170px; image-rendering: pixelated; pointer-events: none;
-    transform: rotate(-8deg); transition: bottom 0.12s, left 0.12s; opacity: 0; }
+  #shieldView { position: absolute; left: 7%; bottom: -10px; width: 210px; height: 210px; image-rendering: pixelated; pointer-events: none;
+    transform: rotate(-10deg); transition: bottom 0.12s, left 0.12s, transform 0.12s; opacity: 0; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35)); }
   #shieldView.on { opacity: 1; }
-  #shieldView.up { bottom: 70px; left: 36%; }
+  #shieldView.up { bottom: 110px; left: 17%; transform: rotate(-3deg) scale(1.08); }
   #burnView { position: absolute; inset: 0 0 28px 0; pointer-events: none; opacity: 0; transition: opacity 0.3s;
     background: linear-gradient(to top, rgba(240, 120, 30, 0.55), rgba(250, 170, 60, 0.18) 28%, rgba(250, 170, 60, 0) 45%); }
   #burnView.on { opacity: 1; animation: burn 0.5s steps(3) infinite; }
