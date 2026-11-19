@@ -413,7 +413,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
 
 // アイテム図鑑から加えたもの
 (function () {
-  check(Object.keys(WG.ICONS).length >= 120 && WG.itemIcon16('DIAMOND_SWORD').length === 1024 && WG.BLOCKS.length <= 256, 'アイテム図鑑のアイコン（' + Object.keys(WG.ICONS).length + ' 個、16×16）、ブロックは ' + WG.BLOCKS.length + ' 種類（256 以下）');
+  check(Object.keys(WG.ICONS).length >= 120 && WG.itemIcon16('DIAMOND_SWORD').length === 1024 && WG.BLOCKS.length <= 65535, 'アイテム図鑑のアイコン（' + Object.keys(WG.ICONS).length + ' 個、16×16）、ブロックは ' + WG.BLOCKS.length + ' 種類（2 バイトで持つ）');
   var w = flatWorld(function (x, y, z) { return y <= 10 ? (y === 10 ? B.GRASS : B.DIRT) : 0; }), g = playGame(w), i, t;
   w.setBlock(3, 10, 0, B.WATER);
   function aim(x, y, z, px, py, pz) { g.walker.target = { x: x, y: y, z: z, id: w.block(x, y, z), px: px, py: py, pz: pz }; }
@@ -457,6 +457,37 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     WG.Craft.match(['IRON_INGOT', null, 'IRON_INGOT', null, 'IRON_INGOT', null, null, null, null], 3).key === 'BUCKET' &&
     WG.Craft.match(['COBBLESTONE', null, null, 'COBBLESTONE', 'COBBLESTONE', null, 'COBBLESTONE', 'COBBLESTONE', 'COBBLESTONE'], 3).key === 'COBBLESTONE_STAIRS',
     'レシピ：パン、バケツ、階段（ほか剣・クワ・弓・矢・防具・扉・柵・はしご・ハーフブロックなど）');
+})();
+
+// レッドストーン・エンチャント・ポーション・釣り・盾・階段・踏み荒らし
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.walker.pos = [20.5, 11, 20.5];
+  w.setBlock(0, 11, 0, B.LEVER_F); for (var x = 1; x <= 3; x++) w.setBlock(x, 11, 0, B.REDSTONE_WIRE_0); w.setBlock(4, 11, 0, B.REDSTONE_LAMP);
+  for (i = 0; i < 3; i++) g.tick();
+  g.rs.toggleLever(0, 11, 0); for (i = 0; i < 3; i++) g.tick();
+  var pw = [1, 2, 3].map(function (x) { return WG.wirePower(w.block(x, 11, 0)); }).join(',');
+  w.setBlock(0, 11, 4, B.REDSTONE_BLOCK); w.setBlock(1, 11, 4, B.STONE); w.setBlock(2, 11, 4, B.REDSTONE_WALL_TORCH_E);
+  w.setBlock(0, 11, 8, B.LEVER_F); w.setBlock(1, 11, 8, B.PISTON_E); w.setBlock(2, 11, 8, B.COBBLESTONE);
+  for (i = 0; i < 4; i++) g.tick(); g.rs.toggleLever(0, 11, 8); for (i = 0; i < 4; i++) g.tick();
+  check(pw === '15,14,13' && w.block(4, 11, 0) === B.REDSTONE_LAMP_ON && w.block(2, 11, 4) === B.REDSTONE_WALL_TORCH_E && w.block(3, 11, 8) === B.COBBLESTONE && w.block(2, 11, 8) === B.PISTON_HEAD_E,
+    'レッドストーン：レバーの動力が粉で 1 ずつ弱まり（' + pw + '）ランプが点く、動力ブロックの隣のトーチ、ピストンが押す');
+  var offers = WG.enchantOffers('DIAMOND_SWORD', 15, Math.random), r = WG.anvilCombine({ key: 'IRON_PICKAXE', n: 1, ench: { EFFICIENCY: 3 } }, { key: 'ENCHANTED_BOOK', n: 1, ench: { EFFICIENCY: 3 } });
+  check(offers[2].cost === 30 && Object.keys(offers[2].ench).length >= 1 && r.item.ench.EFFICIENCY === 4, 'エンチャント：本棚 15 台で最大レベル 30 の候補、金床で同じレベルを重ねると 1 つ上がる');
+  var st = new WG.BrewingStand(); st.slots = [{ key: 'POTION_WATER', n: 1 }, null, null, { key: 'NETHER_WART', n: 1 }, { key: 'BLAZE_POWDER', n: 1 }];
+  for (i = 0; i < 405; i++) st.tick(); st.slots[3] = { key: 'BLAZE_POWDER', n: 1 }; for (i = 0; i < 405; i++) st.tick();
+  check(st.slots[0].key === 'POTION_STRENGTH' && WG.brew('POTION_STRENGTH', 'GUNPOWDER') === 'SPLASH_POTION_STRENGTH' && WG.brew('POTION_SWIFTNESS', 'FERMENTED_SPIDER_EYE') === 'POTION_SLOWNESS',
+    'ポーション：水 → 奇妙 → 力（醸造台 20 秒ずつ）、火薬で投げるポーション、発酵したクモの目で逆の効果');
+  var c = {}; for (i = 0; i < 2000; i++) { var l = WG.fishLoot(0, Math.random); c[l.key] = (c[l.key] || 0) + 1; }
+  var fish = (c.COD || 0) + (c.SALMON || 0) + (c.PUFFERFISH || 0) + (c.TROPICAL_FISH || 0);
+  check(fish > 1600 && fish < 1800, '釣り：魚が約 85%（2000 回で ' + fish + '）');
+  g.inv.slots[0] = { key: 'SHIELD', n: 1 }; g.inv.sel = 0; g.mouseR = true; for (i = 0; i < 6; i++) g.tickExtra(); g.walker.yaw = 0; g.walker.pos = [0.5, 11, 0.5];
+  g.health = 20; g.invuln = 0; g.hurtPlayer(5, 0.5, -3); var front = g.health; g.invuln = 0; g.hurtPlayer(5, 0.5, 4); g.mouseR = false;
+  check(front === 20 && g.health === 15, '盾：構えると前からの攻撃を防ぎ、後ろからは防げない');
+  check(WG.stairShape(B.OAK_STAIRS_N, function (dx, dz) { return dx === 0 && dz === -1 ? B.OAK_STAIRS_W : 0; }) === 'OL' && WG.blockBoxes(B.OAK_STAIRS_N_T)[0][1] === 8,
+    '階段：隣の階段で角の形（外角・内角）になり、逆さまにも置ける');
+  var f = flatWorld(function (x, y, z) { return y <= 9 ? B.DIRT : y === 10 ? B.FARMLAND : 0; }), gf = playGame(f);
+  check(gf.trample(0, 10, 0, 3) && f.block(0, 10, 0) === B.DIRT && !gf.trample(1, 10, 0, 0.4), '耕地は高い所から落ちると土に戻り、0.5 未満では戻らない');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));

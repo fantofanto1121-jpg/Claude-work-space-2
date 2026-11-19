@@ -49,6 +49,13 @@
       box(-6, 12, -1, 2, 12, 2, '#d4d4cc', 'A'), box(4, 12, -1, 2, 12, 2, '#d4d4cc', 'A'), box(5.5, 14, 6, 1, 8, 1, '#7a5a35'),
       box(-4, 24, -4, 8, 8, 8, '#dddcd5'), box(-3, 27, 4, 2, 2, 0.3, '#2c2c2c'), box(1, 27, 4, 2, 2, 0.3, '#2c2c2c')
     ],
+    // クモ：低く横に広い体と 8 本の脚、赤い目
+    SPIDER: (function () {
+      var c = '#2f2823', d = '#3b322b', out = [box(-5, 4, -12, 10, 8, 11, c), box(-3, 5, -1, 6, 6, 6, d), box(-4, 4, 5, 8, 8, 7, c),
+        box(-3, 9, 11.9, 2, 1, 0.3, '#d23224'), box(1, 9, 11.9, 2, 1, 0.3, '#d23224'), box(-2, 7, 11.9, 1, 1, 0.3, '#b02a20'), box(1, 7, 11.9, 1, 1, 0.3, '#b02a20')];
+      [-1, 1].forEach(function (s) { [-0.5, 1.2, 2.9, 4.6].forEach(function (z, i) { out.push(box(s > 0 ? 3 : -15, 7, z, 12, 1, 1, c, (i + (s > 0 ? 1 : 0)) % 2 ? 'L1' : 'L2')); }); });
+      return out;
+    })(),
     // ハゼゴケ：苔むした丸い体に、短い脚と琥珀色の目
     BOMBER: [
       box(-6, 0, 2, 3, 4, 3, '#3d4836', 'L1'), box(3, 0, 2, 3, 4, 3, '#3d4836', 'L2'),
@@ -69,10 +76,11 @@
     CHICKEN: { name: '鶏', w: 0.4, h: 0.7, hp: 4, speed: 0.05, food: ['WHEAT_SEEDS'], drops: [['FEATHER', 0, 2], ['RAW_CHICKEN', 1, 1]] },
     ZOMBIE: { name: 'ゾンビ', w: 0.6, h: 1.95, hp: 20, speed: 0.09, hostile: true, range: 35, burns: true, drops: [['ROTTEN_FLESH', 0, 2]], rare: ['IRON_INGOT', 'CARROT', 'POTATO'] },
     SKELETON: { name: 'スケルトン', w: 0.6, h: 1.99, hp: 20, speed: 0.1, hostile: true, range: 16, burns: true, drops: [['BONE', 0, 2], ['ARROW', 0, 2]] },
-    BOMBER: { name: 'ハゼゴケ', w: 0.8, h: 1.0, hp: 20, speed: 0.09, hostile: true, range: 16, drops: [['GUNPOWDER', 0, 2]] }
+    BOMBER: { name: 'ハゼゴケ', w: 0.8, h: 1.0, hp: 20, speed: 0.09, hostile: true, range: 16, drops: [['GUNPOWDER', 0, 2]] },
+    SPIDER: { name: 'クモ', w: 1.4, h: 0.9, hp: 16, speed: 0.11, hostile: true, range: 16, climbs: true, drops: [['STRING', 0, 2], ['SPIDER_EYE', 0, 1]] }
   };
   var PASSIVE = ['PIG', 'COW', 'SHEEP', 'CHICKEN'], PASSIVE_W = [10, 8, 12, 10];
-  var HOSTILE = ['ZOMBIE', 'SKELETON', 'BOMBER'], HOSTILE_W = [40, 40, 20];
+  var HOSTILE = ['ZOMBIE', 'SKELETON', 'BOMBER', 'SPIDER'], HOSTILE_W = [40, 40, 20, 30];
   function pick(list, weights) {
     var t = 0, r, i;
     for (i = 0; i < weights.length; i++) t += weights[i];
@@ -94,7 +102,7 @@
   Mobs.prototype.spawn = function (type, x, y, z) {
     var T = TYPES[type];
     var m = { type: type, x: x, y: y, z: z, px: x, py: y, pz: z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * Math.PI * 2, pyaw: 0,
-      hp: T.hp, hurt: 0, invul: 0, dead: 0, ground: false, walk: 0, pwalk: 0, ai: { timer: 0, tx: null, tz: null, panic: 0, cd: 0, fuse: 0, pfuse: 0 }, fire: 0, age: 0 };
+      hp: T.hp, maxHp: T.hp, hurt: 0, invul: 0, dead: 0, ground: false, walk: 0, pwalk: 0, ai: { timer: 0, tx: null, tz: null, panic: 0, cd: 0, fuse: 0, pfuse: 0 }, fire: 0, age: 0 };
     m.pyaw = m.yaw;
     this.list.push(m);
     return m;
@@ -127,6 +135,7 @@
       // 燃えている間は 1 秒ごとに 1 減る（燃える時間とは別に数える）
       if (m.fire > 0) { m.fire--; m.burnT = (m.burnT || 0) + 1; if (m.burnT % 20 === 0) this.hurt(m, 1, null); if (WG.isWater(wd.block(Math.floor(m.x), Math.floor(m.y + 0.5), Math.floor(m.z)))) m.fire = 0; }
       if (WG.isLava(wd.block(Math.floor(m.x), Math.floor(m.y + 0.3), Math.floor(m.z)))) { this.hurt(m, 4, null); m.fire = 100; }
+      if (m.poison > 0) { if (--m.poison % 25 === 0 && m.hp > 1) this.hurt(m, 1, null); }
       if (m.y < wd.minY - 64) continue;
       if (m.removed) continue;
       keep.push(m);
@@ -144,7 +153,11 @@
   // 考える：どこへ向かうか、攻撃するか
   Mobs.prototype.think = function (m, T, dist, dx, dy, dz) {
     var g = this.game, ai = m.ai, w = g.walker, want = null, speed = T.speed;
-    var targetPlayer = T.hostile && g.mode === 'survival' && !g.dead && dist < T.range && Math.abs(dy) < 12 && this.sees(m, T);
+    // 透明化していると、敵はほとんど気づかない（Minecraft と同じく 7% の距離）
+    var range = T.range * (g.effects && g.effects.INVISIBILITY ? 0.07 : 1);
+    var targetPlayer = T.hostile && g.mode === 'survival' && !g.dead && dist < Math.max(2, range) && Math.abs(dy) < 12 && this.sees(m, T);
+    // クモは明るい所では、叩かれない限り襲ってこない
+    if (targetPlayer && m.type === 'SPIDER' && !m.angry && g.sky && g.sky() && w.lightLevels(m.x, m.y + 0.5, m.z)[0] - (g.sky().dark || 0) >= 12) targetPlayer = false;
     if (!T.hostile) {
       var held = g.inv.held();
       if (ai.panic > 0) {
@@ -162,10 +175,12 @@
       }
     } else if (targetPlayer) {
       ai.tx = null;
-      if (m.type === 'ZOMBIE') {
+      if (m.type === 'ZOMBIE' || m.type === 'SPIDER') {
         want = [w.pos[0], w.pos[2]];
         if (ai.cd > 0) ai.cd--;
-        if (dist < 0.3 + T.w / 2 + 0.7 && Math.abs(dy) < 1.5 && ai.cd === 0) { g.hurtPlayer(3, m.x, m.z); ai.cd = 20; }
+        if (dist < 0.3 + T.w / 2 + 0.7 && Math.abs(dy) < 1.5 && ai.cd === 0) { g.hurtPlayer(m.type === 'SPIDER' ? 2 : 3, m.x, m.z); ai.cd = 20; }
+        // クモは近づくと跳びかかる
+        if (m.type === 'SPIDER' && m.ground && dist > 2 && dist < 4 && Math.random() < 0.1) { m.vy = 0.4; m.vx += dx / dist * 0.25; m.vz += dz / dist * 0.25; }
       } else if (m.type === 'SKELETON') {
         // 間合いを取って射る
         if (dist > 12) want = [w.pos[0], w.pos[2]];
@@ -242,19 +257,25 @@
     if (Math.abs(dx - rx) > 1e-9) m.vx = 0;
     if (Math.abs(dz - rz) > 1e-9) m.vz = 0;
     m.x = (b[0] + b[3]) / 2; m.y = b[1]; m.z = (b[2] + b[5]) / 2;
+    if (T.climbs && m.collided) m.vy = 0.2;   // クモは壁を登る
     var f = m.ground ? 0.546 : inWater ? 0.8 : 0.91;
     m.vx *= f; m.vz *= f;
     if (!inWater) m.vy *= 0.98;
     m.walk += Math.hypot(dx, dz) * 0.9;
     // 落下のダメージ（3 ブロックより高い所から）
     if (dy < 0 && !inWater) m.fall = (m.fall || 0) - dy;
-    if (m.ground || inWater) { if (m.fall > 3 && m.type !== 'CHICKEN') this.hurt(m, Math.ceil(m.fall - 3), null); m.fall = 0; }
+    if (m.ground || inWater) {
+      if (m.fall > 3 && m.type !== 'CHICKEN') this.hurt(m, Math.ceil(m.fall - 3), null);
+      // 大きな生き物（幅²×高さ > 0.512）は耕地を踏み荒らす
+      if (m.ground && m.fall > 0.5 && T.w * T.w * T.h > 0.512) this.game.trample(Math.floor(m.x), Math.floor(m.y - 0.05), Math.floor(m.z), m.fall);
+      m.fall = 0;
+    }
   };
 
   // ---- 傷つく・倒れる ----
   Mobs.prototype.hurt = function (m, amount, from) {
     if (m.dead || m.invul > 0) return false;
-    m.hp -= amount; m.invul = 10; m.hurt = 10;
+    m.hp -= amount; m.invul = 10; m.hurt = 10; if (from) m.angry = true;
     if (from) {
       var dx = m.x - from[0], dz = m.z - from[1], d = Math.hypot(dx, dz) || 1, k = from[2] || 0.4;
       m.vx += dx / d * k; m.vz += dz / d * k; m.vy = 0.36;
@@ -268,18 +289,22 @@
     var g = this.game, T = TYPES[m.type];
     T.drops.forEach(function (d) {
       if (m.sheared && d[0] === 'WHITE_WOOL') return;   // 毛を刈った羊は羊毛を落とさない
-      var n = d[1] + Math.floor(Math.random() * (d[2] - d[1] + 1));
+      var n = d[1] + Math.floor(Math.random() * (d[2] - d[1] + 1 + (m.looting || 0)));   // ドロップ増加で最大が増える
       var key = m.fire > 0 && WG.Craft.SMELT[d[0]] ? WG.Craft.SMELT[d[0]] : d[0];   // 燃えながら倒れた動物は焼けた肉を落とす
       if (n > 0) g.spawnItem(key, n, m.x, m.y + 0.3, m.z, 0.1, 10);
     });
+    // 経験値（敵は 5、動物は 1〜3）
+    if (g.spawnOrbs) g.spawnOrbs(m.x, m.y + 0.5, m.z, T.hostile ? 5 : 1 + Math.floor(Math.random() * 3));
     if (T.rare && Math.random() < 0.025) g.spawnItem(T.rare[Math.floor(Math.random() * T.rare.length)], 1, m.x, m.y + 0.3, m.z, 0.1, 10);
     g.puff(m.x, m.y + T.h / 2, m.z, [220, 220, 220], 12);
   };
 
   // プレイヤーが弓で射る矢（v は速さ 0〜3、dmg は当たったときの減り方）
   Mobs.prototype.shootFromPlayer = function (eye, dir, v, dmg, pickup) {
-    this.arrows.push({ x: eye[0] + dir[0] * 0.3, y: eye[1] - 0.1 + dir[1] * 0.3, z: eye[2] + dir[2] * 0.3, px: eye[0], py: eye[1] - 0.1, pz: eye[2],
-      vx: dir[0] * v, vy: dir[1] * v, vz: dir[2] * v, life: 0, stuck: false, player: true, dmg: dmg, pickup: pickup });
+    var a = { x: eye[0] + dir[0] * 0.3, y: eye[1] - 0.1 + dir[1] * 0.3, z: eye[2] + dir[2] * 0.3, px: eye[0], py: eye[1] - 0.1, pz: eye[2],
+      vx: dir[0] * v, vy: dir[1] * v, vz: dir[2] * v, life: 0, stuck: false, player: true, dmg: dmg, pickup: pickup };
+    this.arrows.push(a);
+    return a;
   };
 
   // 視線の先の生き物（届く距離 reach 以内、ブロックより手前）
@@ -332,14 +357,15 @@
           for (var mi = 0; mi < this.list.length && !hit; mi++) {
             var mm = this.list[mi], mb = box3(mm);
             if (mm.dead || a.x < mb[0] || a.x > mb[3] || a.y < mb[1] || a.y > mb[4] || a.z < mb[2] || a.z > mb[5]) continue;
-            this.hurt(mm, a.dmg, [a.x - a.vx, a.z - a.vz, 0.4]);
+            this.hurt(mm, a.dmg, [a.x - a.vx, a.z - a.vz, 0.4 + (a.punch || 0) * 0.6]);
+            if (a.flame) mm.fire = Math.max(mm.fire || 0, 100);
             hit = true; a.dead = true;
           }
           continue;
         }
         var pb = w.box();
         if (!g.dead && a.x > pb[0] && a.x < pb[3] && a.y > pb[1] && a.y < pb[4] && a.z > pb[2] && a.z < pb[5]) {
-          g.hurtPlayer(Math.ceil(Math.hypot(a.vx, a.vy, a.vz) * 2) + (Math.random() < 0.25 ? 1 : 0) - 1, a.x - a.vx, a.z - a.vz);
+          g.hurtPlayer(Math.ceil(Math.hypot(a.vx, a.vy, a.vz) * 2) + (Math.random() < 0.25 ? 1 : 0) - 1, a.x - a.vx, a.z - a.vz, 'projectile');
           hit = true; a.dead = true;
         }
       }

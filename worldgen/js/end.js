@@ -62,7 +62,7 @@
 
   End.prototype.generate = function (cx, cz) {
     var seed = this.seed, x0 = cx << 4, z0 = cz << 4;
-    var blocks = new Uint8Array(H << 8);
+    var blocks = new Uint16Array(H << 8);
     var isl = this.islandAt(Math.floor(x0 / 128), Math.floor(z0 / 128));
     var i, y;
     for (i = 0; i < 256; i++) {

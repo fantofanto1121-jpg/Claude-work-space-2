@@ -46,7 +46,7 @@
     ['RED_MUSHROOM', 0, 'RED_MUSHROOM'], ['COBWEB', 4, 'STRING'], ['FIRE', 0, null]);
   for (var cs = 0; cs < 8; cs++) BLOCK_DATA.push(['WHEAT_' + cs, 0, 'WHEAT_SEEDS']);
   for (cs = 0; cs < 4; cs++) BLOCK_DATA.push(['CARROTS_' + cs, 0, 'CARROT'], ['POTATOES_' + cs, 0, 'POTATO']);
-  var MAT_HARD = { OAK: 2, SPRUCE: 2, ACACIA: 2, COBBLESTONE: 2, STONE_BRICK: 1.5, SANDSTONE: 0.8, BRICK: 2 };
+  var MAT_HARD = { OAK: 2, SPRUCE: 2, ACACIA: 2, BIRCH: 2, JUNGLE: 2, COBBLESTONE: 2, STONE_BRICK: 1.5, SANDSTONE: 0.8, BRICK: 2 };
   WG.WOODS.forEach(function (w) {
     WG.DIR4.forEach(function (d) {
       ['C', 'O'].forEach(function (o) { BLOCK_DATA.push([w[0] + '_DOOR_' + d + o + 'L', 3, w[0] + '_DOOR'], [w[0] + '_DOOR_' + d + o + 'U', 3, null]); });
@@ -54,11 +54,28 @@
     BLOCK_DATA.push([w[0] + '_FENCE', 2, w[0] + '_FENCE']);
   });
   WG.SHAPE_MATS.forEach(function (m) {
-    WG.DIR4.forEach(function (d) { BLOCK_DATA.push([m[0] + '_STAIRS_' + d, MAT_HARD[m[0]], m[0] + '_STAIRS']); });
+    WG.DIR4.forEach(function (d) { BLOCK_DATA.push([m[0] + '_STAIRS_' + d, MAT_HARD[m[0]], m[0] + '_STAIRS'], [m[0] + '_STAIRS_' + d + '_T', MAT_HARD[m[0]], m[0] + '_STAIRS']); });
     BLOCK_DATA.push([m[0] + '_SLAB', MAT_HARD[m[0]], m[0] + '_SLAB'], [m[0] + '_SLAB_TOP', MAT_HARD[m[0]], m[0] + '_SLAB'],
       [m[0] + '_SLAB_DOUBLE', MAT_HARD[m[0]], m[0] + '_SLAB', 2, 2]);
   });
   WG.DIR4.forEach(function (d) { BLOCK_DATA.push(['LADDER_' + d, 0.4, 'LADDER']); });
+  // レッドストーン・エンチャント・醸造のブロック
+  WG.BLOCKS.forEach(function (b) {
+    var k = b.key, m;
+    if (b.kind === 'wire') BLOCK_DATA.push([k, 0, 'REDSTONE']);
+    else if (b.kind === 'rtorch') BLOCK_DATA.push([k, 0, 'REDSTONE_TORCH']);
+    else if (b.kind === 'lever') BLOCK_DATA.push([k, 0.5, 'LEVER']);
+    else if (b.kind === 'button') BLOCK_DATA.push([k, 0.5, /^OAK/.test(k) ? 'OAK_BUTTON' : 'STONE_BUTTON']);
+    else if (b.kind === 'plate') BLOCK_DATA.push([k, 0.5, k.replace(/_ON$/, '')]);
+    else if (b.kind === 'repeater') BLOCK_DATA.push([k, 0, 'REPEATER']);
+    else if (b.kind === 'piston') BLOCK_DATA.push([k, 1.5, /^STICKY/.test(k) ? 'STICKY_PISTON' : 'PISTON']);
+    else if (b.kind === 'phead') BLOCK_DATA.push([k, 1.5, null]);
+    else if ((m = /^IRON_DOOR_[NESW][CO]([LU])$/.exec(k))) BLOCK_DATA.push([k, 5, m[1] === 'L' ? 'IRON_DOOR' : null]);
+    else if (/^NETHER_WART_/.test(k)) BLOCK_DATA.push([k, 0, 'NETHER_WART']);
+  });
+  BLOCK_DATA.push(['REDSTONE_LAMP', 0.3, 'REDSTONE_LAMP'], ['REDSTONE_LAMP_ON', 0.3, 'REDSTONE_LAMP'], ['TNT', 0, 'TNT'],
+    ['ENCHANTING_TABLE', 5, 'ENCHANTING_TABLE'], ['BOOKSHELF', 1.5, 'BOOK', 3, 3], ['BREWING_STAND', 0.5, 'BREWING_STAND'],
+    ['ANVIL', 5, 'ANVIL'], ['SUGAR_CANE', 0, 'SUGAR_CANE']);
 
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
@@ -85,8 +102,9 @@
   mine('pickaxe', 3, 'OBSIDIAN');
   mine('shovel', 0, 'SNOW');
   mine('sword', 0, 'COBWEB');
+  mine('pickaxe', 0, 'ENCHANTING_TABLE BREWING_STAND ANVIL ' + WG.BLOCKS.filter(function (b) { return /^IRON_DOOR_/.test(b.key); }).map(function (b) { return b.key; }).join(' '));
   WG.SHAPE_MATS.forEach(function (m) {
-    if (!/PLANKS/.test(m[2])) mine('pickaxe', 0, m[0] + '_STAIRS_N ' + m[0] + '_STAIRS_E ' + m[0] + '_STAIRS_S ' + m[0] + '_STAIRS_W ' + m[0] + '_SLAB ' + m[0] + '_SLAB_TOP ' + m[0] + '_SLAB_DOUBLE');
+    if (!/PLANKS/.test(m[2])) mine('pickaxe', 0, ['N', 'E', 'S', 'W', 'N_T', 'E_T', 'S_T', 'W_T'].map(function (d) { return m[0] + '_STAIRS_' + d; }).join(' ') + ' ' + m[0] + '_SLAB ' + m[0] + '_SLAB_TOP ' + m[0] + '_SLAB_DOUBLE');
   });
   // 速く掘れるが、素手でもドロップするもの
   var FAST = {};
@@ -95,7 +113,7 @@
   'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL FARMLAND FARMLAND_MOIST'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
   WG.BLOCKS.forEach(function (b) {
     var k = b.key;
-    if (/^(OAK|SPRUCE|ACACIA)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k)) FAST[k] = 'axe';
+    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k)) FAST[k] = 'axe';
   });
 
   // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）
@@ -190,6 +208,19 @@
     ITEMS[w[0] + '_FENCE'].name = w[1] + 'の柵';
   });
   ITEMS.LADDER = { key: 'LADDER', name: 'はしご', block: -1, max: 64, ladder: true };
+  ITEMS.IRON_DOOR = { key: 'IRON_DOOR', name: '鉄のドア', block: -1, max: 64, door: 'IRON' };
+  // レッドストーンの部品（置くと向きや付く面が決まるもの）
+  ITEMS.REDSTONE.wire = true;
+  ITEMS.REDSTONE_TORCH = { key: 'REDSTONE_TORCH', name: 'レッドストーントーチ', block: -1, max: 64, rtorch: true };
+  ITEMS.LEVER = { key: 'LEVER', name: 'レバー', block: -1, max: 64, attach: 'LEVER' };
+  ITEMS.STONE_BUTTON = { key: 'STONE_BUTTON', name: '石のボタン', block: -1, max: 64, attach: 'STONE_BUTTON' };
+  ITEMS.OAK_BUTTON = { key: 'OAK_BUTTON', name: 'オークのボタン', block: -1, max: 64, attach: 'OAK_BUTTON' };
+  ITEMS.REPEATER = { key: 'REPEATER', name: 'リピーター', block: -1, max: 64, repeater: true };
+  ITEMS.PISTON = { key: 'PISTON', name: 'ピストン', block: -1, max: 64, piston: 'PISTON' };
+  ITEMS.STICKY_PISTON = { key: 'STICKY_PISTON', name: '粘着ピストン', block: -1, max: 64, piston: 'STICKY_PISTON' };
+  ITEMS.SUGAR_CANE.name = 'サトウキビ';
+  // 図鑑にアイコンのないもの（リピーター・ピストン）は、ブロックの形で描く
+  ITEMS.REPEATER.icon = B.REPEATER_N1; ITEMS.PISTON.icon = B.PISTON_U; ITEMS.STICKY_PISTON.icon = B.STICKY_PISTON_U;
   WG.SHAPE_MATS.forEach(function (m) {
     ITEMS[m[0] + '_STAIRS'] = { key: m[0] + '_STAIRS', name: m[1] + '階段', block: -1, max: 64, stairs: m[0], hardness: MAT_HARD[m[0]] };
     ITEMS[m[0] + '_SLAB'].name = m[1] + 'ハーフブロック';
@@ -260,7 +291,7 @@
     var k = b.key;
     return b.id !== B.AIR && !WG.FLUID[b.id] && k !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(k) && !/^BED_/.test(k) &&
       // 向き・開け閉め・育ち具合の違うもの、置けないもの（扉・はしご・階段は別のアイテムで置く）
-      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$/.test(k);
+      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$/.test(k);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----
@@ -272,13 +303,13 @@
   Inventory.prototype.changed = function () { this.version++; };
   // 入れられた個数を返す（ホットバーから先に、同じアイテムの束を優先）
   // dmg は道具の使った回数（道具だけ。束にならないので 1 つずつ持たせる）
-  Inventory.prototype.add = function (key, n, dmg) {
+  Inventory.prototype.add = function (key, n, dmg, ench) {
     var max = ITEMS[key].max, s = this.slots, left = n, i;
     for (i = 0; i < 36 && left > 0; i++) {
-      if (s[i] && s[i].key === key && s[i].n < max) { var a = Math.min(left, max - s[i].n); s[i].n += a; left -= a; }
+      if (s[i] && s[i].key === key && s[i].n < max && !ench && !s[i].ench) { var a = Math.min(left, max - s[i].n); s[i].n += a; left -= a; }
     }
     for (i = 0; i < 36 && left > 0; i++) {
-      if (!s[i]) { var b = Math.min(left, max); s[i] = { key: key, n: b }; if (dmg) s[i].dmg = dmg; left -= b; }
+      if (!s[i]) { var b = Math.min(left, max); s[i] = { key: key, n: b }; if (dmg) s[i].dmg = dmg; if (ench) s[i].ench = ench; left -= b; }
     }
     if (left !== n) this.changed();
     return n - left;
@@ -325,7 +356,7 @@
     if (sprite) {
       x.drawImage(spriteCanvas(sprite), sprite.length === 1024 ? 0 : 4, sprite.length === 1024 ? 0 : 4, sprite.length === 1024 ? 48 : 40, sprite.length === 1024 ? 48 : 40);
     } else {
-      var id = it.block, plains = WG.BI ? WG.BI.PLAINS : -1;
+      var id = it.block >= 0 ? it.block : it.icon, plains = WG.BI ? WG.BI.PLAINS : -1;
       var tTop = WG.tintOf(id, 'top', plains), tSide = WG.tintOf(id, 'side', plains);
       var top = faceCanvas(id, 'top', tTop), side = faceCanvas(id, 'side', tSide);
       x.setTransform(20 / 8, 10 / 8, -20 / 8, 10 / 8, 24, 3); x.drawImage(top, 0, 0);

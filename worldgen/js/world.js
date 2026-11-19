@@ -22,7 +22,7 @@
     }
   };
 
-  var LIMIT_FULL = 800, LIMIT_SURF = 400, LIMIT_SUM = 12000;
+  var LIMIT_FULL = 480, LIMIT_SURF = 300, LIMIT_SUM = 12000;
 
   function lruGet(map, key) {
     var v = map.get(key);
@@ -120,7 +120,7 @@
     if (s) return s;
     // 上端が世界の最上段なら、洞窟は地表に届かないので地表だけの生成で足りる
     var c = this.chunk(cx, cz, yMax >= this.maxY);
-    var topId = new Uint8Array(256), topY = new Int16Array(256), floorId = new Uint8Array(256), floorY = new Int16Array(256);
+    var topId = new Uint16Array(256), topY = new Int16Array(256), floorId = new Uint16Array(256), floorY = new Int16Array(256);
     var bl = c.blocks, minY = this.minY, start = Math.min(yMax, c.topY);
     for (var i = 0; i < 256; i++) {
       var y = start, id = 0;

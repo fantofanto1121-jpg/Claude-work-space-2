@@ -44,7 +44,7 @@
 
   Nether.prototype.generate = function (cx, cz) {
     var seed = this.seed, x0 = cx << 4, z0 = cz << 4;
-    var blocks = new Uint8Array(H << 8);
+    var blocks = new Uint16Array(H << 8);
     var gyN = (H >> 3) + 1, D = new Float32Array(25 * gyN), gx, gy, gz;
     for (gy = 0; gy < gyN; gy++) for (gz = 0; gz < 5; gz++) for (gx = 0; gx < 5; gx++) {
       D[(gy * 5 + gz) * 5 + gx] = this.density(x0 + gx * 4, gy * 8, z0 + gz * 4);
@@ -110,6 +110,10 @@
           var inside = across >= -2 && across <= 2 && y > fo.yf && y < fo.yf + 5;
           blocks[(y << 8) | (lz << 4) | lx] = inside ? B.AIR : B.BASALT;
         }
+        // 廊下の脇の、ソウルサンドに生えたネザーウォートと、ところどころのチェスト
+        var rel = along - fo.a0;
+        if (across === -2 && rel % 10 >= 3 && rel % 10 <= 5) { blocks[(fo.yf << 8) | (lz << 4) | lx] = B.SOUL_SAND; blocks[((fo.yf + 1) << 8) | (lz << 4) | lx] = B.NETHER_WART_3; }
+        if (across === 2 && (rel === 12 || rel === 31)) blocks[((fo.yf + 1) << 8) | (lz << 4) | lx] = B.CHEST;
       }
     }
     return { blocks: blocks, biome: null, hmap: null };

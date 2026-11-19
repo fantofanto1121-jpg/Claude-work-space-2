@@ -102,7 +102,7 @@
 
   // ---- 扉とはしご（板材の見た目から作る）----
   function planks(key) { var t = TEX[key]; return t ? decode(t.side) : null; }
-  [['OAK', 'OAK_PLANKS'], ['SPRUCE', 'SPRUCE_PLANKS'], ['ACACIA', 'ACACIA_PLANKS']].forEach(function (w) {
+  [['OAK', 'OAK_PLANKS'], ['SPRUCE', 'SPRUCE_PLANKS'], ['ACACIA', 'ACACIA_PLANKS'], ['BIRCH', 'BIRCH_PLANKS'], ['JUNGLE', 'JUNGLE_PLANKS']].forEach(function (w) {
     var p = planks(w[1]);
     if (!p) return;
     function door(upper) {
@@ -138,4 +138,42 @@
     }
     TEX.LADDER = cutout(lad);
   }
+  // ---- レッドストーン ----
+  // レッドストーントーチ（点いている・消えている）
+  var RT = ['........', '...ab...', '...bb...', '...cc...', '...dd...', '...dd...', '...dd...', '...dd...'];
+  TEX.REDSTONE_TORCH = cutout(art(RT, { a: '#ff6a50', b: '#e0281c', c: '#8a3a24', d: '#7a5a35' }));
+  TEX.REDSTONE_TORCH_OFF = cutout(art(RT, { a: '#6a2a24', b: '#4a1c18', c: '#4a2a1a', d: '#6a4e2e' }));
+  // 粉の見た目（白い粒。色は強さに合わせて頂点の色で付ける）：真ん中の点と、まっすぐの線
+  WG.EXTRA_TILES = WG.EXTRA_TILES || {};
+  WG.EXTRA_TILES.WIRE_DOT = art(['........', '........', '..w.ww..', '..wwww..', '..wwwv..', '..wvww..', '........', '........'], { w: '#ffffff', v: '#d8d8d8' });
+  WG.EXTRA_TILES.WIRE_LINE = art(['...ww...', '..wvw...', '...www..', '..wwv...', '...ww...', '..www...', '...wvw..', '...ww...'], { w: '#ffffff', v: '#d8d8d8' });
+  var dustTex = rgbOf(WG.EXTRA_TILES.WIRE_DOT);
+  for (var rp = 0; rp < 16; rp++) TEX['REDSTONE_WIRE_' + rp] = { rgba: WG.EXTRA_TILES.WIRE_DOT, side: dustTex, top: dustTex, bottom: dustTex };
+  // 点いたランプ：PDF のランプの絵を明るく暖かい色に
+  if (TEX.REDSTONE_LAMP) {
+    var lamp = decode(TEX.REDSTONE_LAMP.side), on = new Uint8Array(192);
+    for (var li = 0; li < 64; li++) {
+      var l = (lamp[li * 3] + lamp[li * 3 + 1] + lamp[li * 3 + 2]) / 3 / 255;
+      on[li * 3] = Math.min(255, 200 + l * 90); on[li * 3 + 1] = Math.min(255, 140 + l * 160); on[li * 3 + 2] = Math.min(255, 60 + l * 120);
+    }
+    TEX.REDSTONE_LAMP_ON = { side: on, top: on, bottom: on };
+  }
+  // 鉄の扉（明るい灰色、鋲と窓）
+  function ironDoor(upper) {
+    var rows = upper ? ['dddddddd', 'dlllllld', 'dl.ll.ld', 'dl.ll.ld', 'dlllllld', 'dl.ll.ld', 'dlllllld', 'dmlmmlmd'] :
+      ['dmlmmlmd', 'dlllllld', 'dlrllrld', 'dllllkld', 'dllllkld', 'dlrllrld', 'dlllllld', 'dddddddd'];
+    var rgba = art(rows, { d: '#8c8c8c', l: '#d6d6d6', m: '#c0c0c0', r: '#a8a8a8', k: '#5c5c5c' });
+    var edge = rgbOf(art(['dddddddd', 'dddddddd', 'dddddddd', 'dddddddd', 'dddddddd', 'dddddddd', 'dddddddd', 'dddddddd'], { d: '#a8a8a8' }));
+    return { rgba: rgba, side: rgbOf(rgba), top: edge, bottom: edge };
+  }
+  TEX.IRON_DOOR_L = ironDoor(false); TEX.IRON_DOOR_U = ironDoor(true);
+  // サトウキビ、ネザーウォート（4 段階）
+  TEX.SUGAR_CANE = cutout(art(['.a...b..', '.a..bb..', '.ac.b...', '.a..bc..', 'ca..b...', '.a..b..c', '.ac.bc..', '.a..b...'], { a: '#8ac25a', b: '#74ae48', c: '#a8d878' }));
+  var WART = [
+    ['........', '........', '........', '........', '........', '...a....', '...b..a.', '..bb.bb.'],
+    ['........', '........', '........', '........', '..a..a..', '..b.ab..', '.bb.bb..', '.b..b...'],
+    ['........', '........', '..a..a..', '.aab.aa.', '..b.ab..', '.bb.bb..', '..b.b...', '.b..b...'],
+    ['........', '.aa..aa.', 'acab.aca', '.ab.aab.', '..b.ab..', '.bb.bb..', '..b.b...', '.b..b...']
+  ];
+  WART.forEach(function (rows, i) { TEX['NETHER_WART_' + i] = cutout(art(rows, { a: '#a8242c', b: '#6a1a1e', c: '#d04048' })); });
 })(typeof window !== 'undefined' ? window : globalThis);

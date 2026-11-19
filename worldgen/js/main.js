@@ -261,6 +261,8 @@
     hud: $('hud'), hotbar: $('hotbar'), hearts: $('hearts'), armor: $('armor'), air: $('air'), food: $('food'), itemName: $('itemName'),
     toast: function (t) { var el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('on'); }, 2600); },
     sleep: function (k) { $('sleepFade').style.opacity = k * 0.92; },
+    xpbar: $('xpbar'), xplv: $('xplv'), effects: $('effects'), shield: $('shieldView'),
+    burning: function (on) { $('burnView').classList.toggle('on', !!on); },
     inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead')
   };
 

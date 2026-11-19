@@ -81,6 +81,44 @@
     background: rgba(22, 23, 25, 0.82); color: #e8e5de; font-size: 13px; pointer-events: none; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
   #toast.on { opacity: 1; }
   #sleepFade { position: absolute; inset: 0 0 28px 0; background: #07080c; pointer-events: none; opacity: 0; }
+  /* 経験値の棒とレベル */
+  #xpbar { position: relative; height: 6px; background: #1e2a14; border: 1px solid #0d1209; border-radius: 1px; margin: 0 1px; }
+  #xpbar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#a6e05a, #6fb23a); }
+  #xplv { position: absolute; left: 50%; top: -15px; transform: translateX(-50%); color: #a6e05a; font-size: 13px; font-weight: 700;
+    text-shadow: 1px 0 0 #10140c, -1px 0 0 #10140c, 0 1px 0 #10140c, 0 -1px 0 #10140c; font-variant-numeric: tabular-nums; }
+  #xpbar.empty #xplv { display: none; }
+  /* 効果の一覧（右上） */
+  #effects { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+  #effects div { display: flex; align-items: center; gap: 8px; padding: 4px 9px 4px 6px; background: rgba(22, 23, 25, 0.78); border: 1px solid #3c3e42;
+    border-radius: 3px; color: #e8e5de; font-size: 12px; }
+  #effects i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+  #effects span { color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* 盾（左下に構える）と、体に火がついているとき */
+  #shieldView { position: absolute; left: 28%; bottom: -40px; width: 170px; height: 170px; image-rendering: pixelated; pointer-events: none;
+    transform: rotate(-8deg); transition: bottom 0.12s, left 0.12s; opacity: 0; }
+  #shieldView.on { opacity: 1; }
+  #shieldView.up { bottom: 70px; left: 36%; }
+  #burnView { position: absolute; inset: 0 0 28px 0; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+    background: linear-gradient(to top, rgba(240, 120, 30, 0.55), rgba(250, 170, 60, 0.18) 28%, rgba(250, 170, 60, 0) 45%); }
+  #burnView.on { opacity: 1; animation: burn 0.5s steps(3) infinite; }
+  @keyframes burn { 0% { filter: brightness(1); } 50% { filter: brightness(1.25); } 100% { filter: brightness(0.9); } }
+  /* エンチャントの光（紫のきらめき） */
+  .slot img.ench { filter: drop-shadow(0 0 2px rgba(170, 110, 255, 0.85)); animation: glint 2.4s linear infinite; }
+  @keyframes glint { 0% { filter: drop-shadow(0 0 1px rgba(170, 110, 255, 0.6)) brightness(1); } 50% { filter: drop-shadow(0 0 3px rgba(190, 140, 255, 1)) brightness(1.18); } 100% { filter: drop-shadow(0 0 1px rgba(170, 110, 255, 0.6)) brightness(1); } }
+  /* エンチャントテーブル・醸造台・金床 */
+  .eopts { display: flex; flex-direction: column; gap: 4px; min-width: 250px; }
+  .eopt { padding: 6px 10px; background: #3a2f48; border: 1px solid #5a4870; border-radius: 3px; cursor: pointer; }
+  .eopt b { display: block; font-size: 12.5px; font-weight: 600; color: #e8dcf6; }
+  .eopt span { font-size: 11px; color: #b9a8cf; }
+  .eopt.off { background: #2a2a2e; border-color: #3c3e42; cursor: default; }
+  .eopt.off b, .eopt.off span { color: #6c6e72; }
+  .eopt:not(.off):hover { background: #4a3c5c; }
+  .brow { display: flex; gap: 6px; }
+  .arrow.down { width: 10px; height: 26px; }
+  .arrow.down::after { right: -5px; top: auto; bottom: -10px; border: 10px solid transparent; border-top: 10px solid #3a3c40; border-bottom: 0; }
+  .arrow.down i { width: auto; right: 0; height: 0; background: #c9c4b8; }
+  .plus { color: var(--muted); font-size: 18px; }
+  #inv .note { color: var(--muted); font-size: 11.5px; margin: -6px 0 10px; }
   #hotbar, #inv .grid { display: grid; grid-template-columns: repeat(9, 44px); gap: 2px; }
   .slot { position: relative; width: 44px; height: 44px; background: rgba(22, 23, 25, 0.72); border: 1px solid #3c3e42; border-radius: 2px; }
   .slot img { position: absolute; inset: 4px; width: 34px; height: 34px; image-rendering: pixelated; pointer-events: none; }
@@ -223,10 +261,14 @@
     </div>
     <div id="hurt"></div>
     <div id="sleepFade"></div>
+    <div id="burnView"></div>
+    <img id="shieldView" alt="">
+    <div id="effects"></div>
     <div id="toast"></div>
     <div id="hud" class="hide">
       <div id="itemName"></div>
       <div class="bars"><div class="lcol"><div id="armor"></div><div id="hearts"></div></div><div class="rcol"><div id="air"></div><div id="food"></div></div></div>
+      <div id="xpbar" class="empty"><i></i><b id="xplv"></b></div>
       <div id="hotbar"></div>
     </div>
     <div id="inv" class="hide">
@@ -261,8 +303,11 @@
 <script src="js/icons.js"></script>
 <script src="js/items.js"></script>
 <script src="js/crafting.js"></script>
+<script src="js/magic.js"></script>
+<script src="js/redstone.js"></script>
 <script src="js/mobs.js"></script>
 <script src="js/play.js"></script>
+<script src="js/play2.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

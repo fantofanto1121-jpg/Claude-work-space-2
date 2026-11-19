@@ -64,7 +64,18 @@
     [['# #', ' # '], { '#': 'IRON_INGOT' }, 'BUCKET', 1],
     [[' #', '# '], { '#': 'IRON_INGOT' }, 'SHEARS', 1],
     [['S S', 'SSS', 'S S'], { S: 'STICK' }, 'LADDER', 3],
-    [['##', '##'], { '#': 'STRING' }, 'WHITE_WOOL', 1]
+    [['##', '##'], { '#': 'STRING' }, 'WHITE_WOOL', 1],
+    // レッドストーン
+    [['R', 'S'], { R: 'REDSTONE', S: 'STICK' }, 'REDSTONE_TORCH', 1],
+    [['S', 'C'], { S: 'STICK', C: 'COBBLES' }, 'LEVER', 1],
+    [['##'], { '#': 'STONE' }, 'STONE_PRESSURE_PLATE', 1],
+    [['##'], { '#': 'OAK_PLANKS' }, 'OAK_PRESSURE_PLATE', 1],
+    [[' R ', 'RGR', ' R '], { R: 'REDSTONE', G: 'GLOWSTONE' }, 'REDSTONE_LAMP', 1],
+    [['TRT', 'SSS'], { T: 'REDSTONE_TORCH', R: 'REDSTONE', S: 'STONE' }, 'REPEATER', 1],
+    [['PPP', 'CIC', 'CRC'], { P: 'PLANKS', C: 'COBBLES', I: 'IRON_INGOT', R: 'REDSTONE' }, 'PISTON', 1],
+    [['S', 'P'], { S: 'SLIME_BALL', P: 'PISTON' }, 'STICKY_PISTON', 1],
+    [['GSG', 'SGS', 'GSG'], { G: 'GUNPOWDER', S: 'SAND' }, 'TNT', 1],
+    [['##', '##', '##'], { '#': 'IRON_INGOT' }, 'IRON_DOOR', 3]
   );
   // 扉・柵（木の種類ごと）、階段・ハーフブロック（素材ごと）
   WG.WOODS.forEach(function (w) {
@@ -83,7 +94,8 @@
     [['COPPER_BLOCK'], 'COPPER_INGOT', 9], [['DIAMOND_BLOCK'], 'DIAMOND', 9], [['LAPIS_BLOCK'], 'LAPIS', 9],
     [['REDSTONE_BLOCK'], 'REDSTONE', 9], [['GOLD_INGOT'], 'GOLD_NUGGET', 9],
     [['BONE'], 'BONE_MEAL', 3], [['IRON_INGOT', 'FLINT'], 'FLINT_AND_STEEL', 1],
-    [['BROWN_MUSHROOM', 'RED_MUSHROOM', 'BOWL'], 'MUSHROOM_STEW', 1]
+    [['BROWN_MUSHROOM', 'RED_MUSHROOM', 'BOWL'], 'MUSHROOM_STEW', 1],
+    [['STONE'], 'STONE_BUTTON', 1], [['OAK_PLANKS'], 'OAK_BUTTON', 1]
   ];
 
   // 枠（n×n のキーの配列、空は null）に合うレシピを探す → { key, n } か null
@@ -133,7 +145,7 @@
   var FUEL = { COAL: 1600, CHARCOAL: 1600, COAL_BLOCK: 16000, STICK: 100, CRAFTING_TABLE: 300, CHEST: 300,
     WOODEN_PICKAXE: 200, WOODEN_AXE: 200, WOODEN_SHOVEL: 200, WOODEN_SWORD: 200, WOODEN_HOE: 200,
     BOW: 300, BOWL: 100, LADDER: 300, LAVA_BUCKET: 20000 };
-  ['OAK', 'SPRUCE', 'ACACIA'].forEach(function (w) { FUEL[w + '_FENCE'] = 300; FUEL[w + '_DOOR'] = 200; FUEL[w + '_STAIRS'] = 300; FUEL[w + '_SLAB'] = 150; });
+  ['OAK', 'SPRUCE', 'ACACIA', 'BIRCH', 'JUNGLE'].forEach(function (w) { FUEL[w + '_FENCE'] = 300; FUEL[w + '_DOOR'] = 200; FUEL[w + '_STAIRS'] = 300; FUEL[w + '_SLAB'] = 150; });
   GROUPS.PLANKS.concat(GROUPS.LOGS).forEach(function (k) { FUEL[k] = 300; });
   var COOK = 200;
 

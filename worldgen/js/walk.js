@@ -244,7 +244,7 @@
     var fl = this.fluid(), accel, drag;
     if (this.flying) { accel = this.sprint ? 0.1 : 0.05; drag = 0.91; }
     else if (fl) { accel = this.swimming ? 0.0287 : 0.02; drag = fl === 'water' ? (this.sprint ? 0.9 : 0.8) : 0.5; }
-    else if (this.onGround) { accel = 0.1 * (this.sprint ? 1.3 : 1); drag = 0.546; }
+    else if (this.onGround) { accel = 0.1 * (this.sprint ? 1.3 : 1) * (this.speedMul || 1); drag = 0.546; }
     else { accel = this.sprint ? 0.026 : 0.02; drag = 0.91; }
 
     var sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
@@ -263,7 +263,7 @@
         // 水から岸へ上がる：Minecraft と同じく、0.6 上が空いていて水もない（水面の近く）ときだけ
         if (this.collidedH && this.freeAbove(v[0], v[2])) v[1] = 0.3;
       } else if (this.onGround && this.jumpDelay === 0) {
-        v[1] = 0.42;
+        v[1] = 0.42 + (this.jumpBoost || 0);   // 跳躍力上昇で高く
         this.exhaustion = (this.exhaustion || 0) + (this.sprint ? 0.2 : 0.05);   // ジャンプで疲れる
         if (this.sprint) { v[0] += fx * 0.2; v[2] += fz * 0.2; }
         this.jumpDelay = 10;
@@ -397,14 +397,17 @@
       tDel[k] = Math.abs(1 / (d[k] || 1e-9));
       tMax[k] = (d[k] > 0 ? c[k] + 1 - e[k] : e[k] - c[k]) * tDel[k];
     }
-    var prev = null;
+    var prev = null, tIn = 0;
     for (var n = 0; n < 32; n++) {
       var id = this.world.peekBlock(c[0], c[1], c[2]);
       if (id > 0 && !WG.FLUID[id]) {
-        return { x: c[0], y: c[1], z: c[2], id: id, px: prev ? prev[0] : c[0], py: prev ? prev[1] : c[1] + 1, pz: prev ? prev[2] : c[2] };
+        // hy は当たった点の高さのマスの中での位置（0〜1）：階段・ハーフブロックの上下を決める
+        return { x: c[0], y: c[1], z: c[2], id: id, px: prev ? prev[0] : c[0], py: prev ? prev[1] : c[1] + 1, pz: prev ? prev[2] : c[2],
+          hy: e[1] + d[1] * tIn - c[1] };
       }
       k = tMax[0] < tMax[1] ? (tMax[0] < tMax[2] ? 0 : 2) : (tMax[1] < tMax[2] ? 1 : 2);
       if (tMax[k] > this.reach) return null;
+      tIn = tMax[k];
       prev = c.slice();
       c[k] += step[k]; tMax[k] += tDel[k];
     }
@@ -496,7 +499,7 @@
     // 昼と夜（空の色、空の光の弱まり、太陽・月・星）
     var sky = this.hooks.sky ? this.hooks.sky(dt) : null;
     if (sky) { fp.skyTop = sky.top; fp.skyLow = sky.low; fp.skyFog = sky.fog; fp.skyDark = sky.dark; fp.skyTint = sky.tint; fp.celestial = sky.celestial; }
-    this.view.ambient = WG.AMBIENT[this.world.dimKey] || 0;
+    this.view.ambient = this.nightVision ? 0.9 : WG.AMBIENT[this.world.dimKey] || 0;   // 暗視：暗い所もよく見える
     if (WG.isWater(eyeId)) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
     else if (WG.isLava(eyeId)) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }
     this.view.fp = fp;

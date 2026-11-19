@@ -3,7 +3,8 @@
 (function (G) {
   'use strict';
   var WG = G.WG = G.WG || {};
-  var B = WG.B, OPQ = WG.OPAQUE, EMIT = WG.EMIT;
+  var B = WG.B, OPQ = WG.OPAQUE, EMIT = WG.EMIT, LIGHT_EM = WG.LIGHT_EMIT;
+  var ORV = { N: [0, 0, -1], S: [0, 0, 1], E: [1, 0, 0], W: [-1, 0, 0], U: [0, 1, 0], D: [0, -1, 0] };
 
   // ---- 立体の範囲（体積データ） ----
   // 周囲 1 ブロックは空気で囲む。上端より上・下端より下・横の外側は空気として扱うので、切り口の面も描かれる。
@@ -11,7 +12,7 @@
     this.x0 = x0; this.z0 = z0; this.size = size; this.yMin = yMin; this.yMax = yMax;
     this.ny = yMax - yMin + 1;
     this.sx = size + 2; this.sz = size + 2; this.sy = this.ny + 2;
-    this.v = new Uint8Array(this.sx * this.sz * this.sy);
+    this.v = new Uint16Array(this.sx * this.sz * this.sy);
     this.bio = new Int8Array(size * size).fill(-1);
     this.world = world;
   }
@@ -80,6 +81,8 @@
       if (big) { itemTiles[k] = bigTile(big); return; }
       var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px);
     });
+    // ブロックではない追加の見た目（レッドストーンの粉の線など）
+    if (WG.EXTRA_TILES) Object.keys(WG.EXTRA_TILES).forEach(function (k) { extraTiles[k] = rgbaTile(WG.EXTRA_TILES[k]); });
     CRACKS.forEach(function (rows) {
       var px = new Uint8Array(256);
       for (var i = 0; i < 64; i++) if (rows[i >> 3][i & 7] === '#') px[i * 4 + 3] = 255;
@@ -106,7 +109,7 @@
       return n++;
     }
   }
-  var itemTiles = {}, crackTiles = [];
+  var itemTiles = {}, crackTiles = [], extraTiles = {};
   var CRACKS = [
     ['........', '........', '...#....', '....#...', '...##...', '........', '........', '........'],
     ['........', '..#.....', '...#..#.', '....##..', '...##...', '..#..#..', '........', '........'],
@@ -321,18 +324,59 @@
                 var ax = d >> 1, plane = (d & 1) === 0 ? hi3[ax] : lo3[ax], edge = (d & 1) === 0 ? plane === 16 : plane === 0, ni3 = i + dOff[d];
                 if (edge && OPQ[v[ni3]]) continue;
                 if (LT) { var lv6 = LT[edge ? ni3 : i]; L = light(lv6 >> 4, lv6 & 15); } else L = noLight();
-                var st3 = TT[id * 3 + FACE_IX[D.face]], sd3 = D.n[1] === 0, sf3 = D.shade * 0.5 * jit, sc3 = faceBase(id, D.face, bio);
+                // ピストンは向きに合わせて、押す面に上の見た目、後ろに下の見た目
+                var fc3 = D.face, or3 = WG.ORIENT[id];
+                if (or3) { var ov = ORV[or3]; fc3 = D.n[0] === ov[0] && D.n[1] === ov[1] && D.n[2] === ov[2] ? 'top' : D.n[0] === -ov[0] && D.n[1] === -ov[1] && D.n[2] === -ov[2] ? 'bottom' : 'side'; }
+                var mid3 = boxes[bq][6] || id, em3 = boxes[bq][7] ? 255 : 0;
+                var st3 = TT[mid3 * 3 + FACE_IX[fc3]], sd3 = D.n[1] === 0, sf3 = (em3 ? 0.5 : D.shade * 0.5) * jit, sc3 = faceBase(mid3, fc3, bio);
+                if (em3) L = noLight();
                 var uAx = D.u.indexOf(1), vAx = D.v.indexOf(1), q3 = [0, 0, 0];
                 v0 = op.nv;
                 for (k = 0; k < 4; k++) {
                   cu = CORNERS[k][0]; cv = CORNERS[k][1];
                   q3[ax] = plane; q3[uAx] = cu ? hi3[uAx] : lo3[uAx]; q3[vAx] = cv ? hi3[vAx] : lo3[vAx];
-                  op.vert(lx + q3[0], ly + q3[1], lz + q3[2], c8(sc3[0] * sf3 * L[0]), c8(sc3[1] * sf3 * L[1]), c8(sc3[2] * sf3 * L[2]), 0,
+                  op.vert(lx + q3[0], ly + q3[1], lz + q3[2], c8(sc3[0] * sf3 * L[0]), c8(sc3[1] * sf3 * L[1]), c8(sc3[2] * sf3 * L[2]), em3,
                     q3[uAx], sd3 ? 16 - q3[vAx] : q3[vAx], st3);
                 }
                 op.quad(v0, false);
               }
             }
+          } else if (kind === 'wire') {
+            // レッドストーンの粉：つながる向きへ線、上の段へは壁を登る線。色は強さ（Minecraft と同じ色の式）
+            var pw = WG.wirePower(id), pf = pw / 15;
+            var wr = Math.min(255, (pf * 0.6 + (pw > 0 ? 0.4 : 0.3)) * 255), wg2 = Math.max(0, pf * pf * 0.7 - 0.5) * 255, wb = Math.max(0, pf * pf * 0.6 - 0.7) * 255;
+            if (LT) { var lv8 = LT[i]; L = light(lv8 >> 4, lv8 & 15); } else L = noLight();
+            var conn = WG.wireConnections(function (dx, dy, dz) { return v[i + dx + dz * sx + dy * sxz]; });
+            var wf = 0.5 * (0.85 + 0.15 * pf), wcol = [c8(wr * wf * L[0]), c8(wg2 * wf * L[1]), c8(wb * wf * L[2])], wem = pw > 0 ? 90 : 0;
+            var dotT = extraTiles.WIRE_DOT, lineT = extraTiles.WIRE_LINE, yy = ly + 1;
+            var quad = function (ax, az, bx, bz, tile, rot) {
+              v0 = op.nv;
+              var P4 = [[ax, az], [bx, az], [bx, bz], [ax, bz]], UV4 = rot ? [[0, 0], [0, 16], [16, 16], [16, 0]] : [[0, 0], [16, 0], [16, 16], [0, 16]];
+              for (var q = 0; q < 4; q++) op.vert(lx + P4[q][0], yy, lz + P4[q][1], wcol[0], wcol[1], wcol[2], wem, UV4[q][0], UV4[q][1], tile);
+              op.quad(v0, false);
+            };
+            var nconn = conn.n + conn.e + conn.s + conn.w;
+            if (!nconn) quad(3, 3, 13, 13, dotT, false);
+            else {
+              quad(4, 4, 12, 12, dotT, false);
+              var ns = conn.n || conn.s, ew = conn.e || conn.w, one = nconn === 1;
+              if (conn.n || (one && conn.s)) quad(5, 0, 11, 6, lineT, false);
+              if (conn.s || (one && conn.n)) quad(5, 10, 11, 16, lineT, false);
+              if (conn.w || (one && conn.e)) quad(0, 5, 6, 11, lineT, true);
+              if (conn.e || (one && conn.w)) quad(10, 5, 16, 11, lineT, true);
+              void ns; void ew;
+            }
+            // 上の段へ登る線（隣のブロックの面に貼る）
+            [['n', 0, -1], ['e', 1, 0], ['s', 0, 1], ['w', -1, 0]].forEach(function (c) {
+              if (conn[c[0]] !== 2) return;
+              var fx = c[1], fz = c[2], x0w = fx > 0 ? 15 : fx < 0 ? 1 : 5, x1w = fx > 0 ? 15 : fx < 0 ? 1 : 11, z0w = fz > 0 ? 15 : fz < 0 ? 1 : 5, z1w = fz > 0 ? 15 : fz < 0 ? 1 : 11;
+              v0 = op.nv;
+              op.vert(lx + x0w, ly, lz + z0w, wcol[0], wcol[1], wcol[2], wem, 0, 16, lineT);
+              op.vert(lx + x1w, ly, lz + z1w, wcol[0], wcol[1], wcol[2], wem, 16, 16, lineT);
+              op.vert(lx + x1w, ly + 16, lz + z1w, wcol[0], wcol[1], wcol[2], wem, 16, 0, lineT);
+              op.vert(lx + x0w, ly + 16, lz + z0w, wcol[0], wcol[1], wcol[2], wem, 0, 0, lineT);
+              op.quad(v0, false);
+            });
           } else if (kind === 'crop') {
             // 作物：縦の 4 枚を井の字に（耕地の上なので 1/16 下げる）
             var ct = TT[id * 3 + FACE_IX.side];
@@ -372,14 +416,15 @@
               }
               buf.quad(v0, false);
             }
-          } else if (kind === 'plant' || kind === 'deco' || kind === 'web' || kind === 'fire') {
+          } else if (kind === 'plant' || kind === 'deco' || kind === 'web' || kind === 'fire' || kind === 'rtorch' || kind === 'cane') {
             // 対角に交差する 2 枚。草は色味を頂点の色で、花とトーチは切り抜きの色そのままで描く。
             var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? WG.blockColor(id, 'side', bio) : [255, 255, 255];
-            var torch = kind === 'deco', emit = torch || kind === 'fire' ? 255 : 0;
+            var torch = kind === 'deco' || kind === 'rtorch', emit = kind === 'deco' || kind === 'fire' || (kind === 'rtorch' && LIGHT_EM[id]) ? 255 : 0;
             if (LT && !emit) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else L = noLight();
             // トーチは少し小さく、壁掛けは壁に寄せて傾ける
             var s0 = torch ? 3 : 0, s1b = torch ? 13 : 16, hgt = torch ? 12 : 16, wdx = 0, wdz = 0, lift = 0;
-            if (id === B.WALL_TORCH_N) wdz = 1; else if (id === B.WALL_TORCH_S) wdz = -1; else if (id === B.WALL_TORCH_E) wdx = -1; else if (id === B.WALL_TORCH_W) wdx = 1;
+            var tw = WG.TORCH_WALL[id];
+            if (tw) { wdx = tw[0]; wdz = tw[1]; }
             if (wdx || wdz) lift = 3;
             for (var q = 0; q < 2; q++) {
               var za = q ? s1b : s0, zb = q ? s0 : s1b;

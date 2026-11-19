@@ -125,7 +125,7 @@
 
   Overworld.prototype.generate = function (cx, cz, surfaceOnly) {
     var seed = this.seed, x0 = cx << 4, z0 = cz << 4;
-    var blocks = new Uint8Array(H << 8), biome = new Uint8Array(256), hmap = new Int16Array(256);
+    var blocks = new Uint16Array(H << 8), biome = new Uint8Array(256), hmap = new Int16Array(256);
     var i, y, maxH = SEA;
     for (i = 0; i < 256; i++) {
       var col = this.column(x0 + (i & 15), z0 + (i >> 4));
@@ -388,7 +388,20 @@
           var mr = rnd(seed, wx, h + 1, wz, S.PLANT), mp = b === BI.SWAMP ? 0.012 : (b === BI.TAIGA || b === BI.FOREST) ? 0.004 : 0;
           if (mr < mp) blocks[ia] = mr < mp * 0.6 ? B.BROWN_MUSHROOM : B.RED_MUSHROOM;
         }
-      } else if (top === B.SAND && b === BI.DESERT && r < 0.006) {
+      }
+      // サトウキビ：水に接した草・砂・土の上に 1〜3 段（海面の高さ）
+      if (h === SEA && blocks[ia] === B.AIR && (top === B.GRASS || top === B.SAND || top === B.DIRT)) {
+        var lx = i & 15, lz = i >> 4, wet = false;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+          var nx = lx + d[0], nz = lz + d[1];
+          if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) { if (blocks[((h - MINY) << 8) | (nz << 4) | nx] === B.WATER) wet = true; }
+        });
+        if (wet && rnd(seed, wx, h + 2, wz, S.PLANT) < 0.12) {
+          var cn = 1 + (hash(seed, wx, 3, wz, S.PLANT) % 3);
+          for (var cj = 0; cj < cn; cj++) blocks[ia + cj * 256] = B.SUGAR_CANE;
+        }
+      }
+      if (top === B.SAND && b === BI.DESERT && r < 0.006) {
         var n = 1 + (hash(seed, wx, 2, wz, S.PLANT) % 3);
         for (var j = 0; j < n; j++) if (blocks[ia + j * 256] === B.AIR) blocks[ia + j * 256] = B.CACTUS;
       }

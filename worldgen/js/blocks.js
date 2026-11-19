@@ -112,10 +112,11 @@
   // ---- アイテム図鑑 PDF から加えたブロック ----
   // 畑と作物、キノコ、クモの巣、火、扉・階段・ハーフブロック・柵・はしご（向きや開け閉めは別のブロックとして持つ）
   var DIR4 = ['N', 'E', 'S', 'W'];
-  var WOODS = [['OAK', 'オーク', '#a5824f'], ['SPRUCE', 'トウヒ', '#73563a'], ['ACACIA', 'アカシア', '#aa5a32']];
+  var WOODS = [['OAK', 'オーク', '#a5824f'], ['SPRUCE', 'トウヒ', '#73563a'], ['ACACIA', 'アカシア', '#aa5a32'], ['BIRCH', 'シラカバ', '#c9b783'], ['JUNGLE', 'ジャングル', '#a2734f']];
   // 階段とハーフブロックの素材 [キーの頭, 名前, 見た目を借りるブロック, 色]
   var SHAPE_MATS = [['OAK', 'オークの', 'OAK_PLANKS', '#a5824f'], ['SPRUCE', 'トウヒの', 'SPRUCE_PLANKS', '#73563a'],
-    ['ACACIA', 'アカシアの', 'ACACIA_PLANKS', '#aa5a32'], ['COBBLESTONE', '丸石の', 'COBBLESTONE', '#6e6e6d'],
+    ['ACACIA', 'アカシアの', 'ACACIA_PLANKS', '#aa5a32'], ['BIRCH', 'シラカバの', 'BIRCH_PLANKS', '#c9b783'], ['JUNGLE', 'ジャングルの', 'JUNGLE_PLANKS', '#a2734f'],
+    ['COBBLESTONE', '丸石の', 'COBBLESTONE', '#6e6e6d'],
     ['STONE_BRICK', '石レンガの', 'STONE_BRICKS', '#7b7b7b'], ['SANDSTONE', '砂岩の', 'SANDSTONE', '#c8b27e'], ['BRICK', 'レンガの', 'BRICKS', '#a5604d']];
   var ALIAS = {};   // 見た目を借りるブロック（キー → キー）
   DEF.push(['FARMLAND', '耕地', '#6b4a2f', 'farm'], ['FARMLAND_MOIST', '耕地（湿っている）', '#4a3220', 'farm']);
@@ -133,12 +134,55 @@
     ALIAS[w[0] + '_FENCE'] = w[0] + '_PLANKS';
   });
   SHAPE_MATS.forEach(function (m) {
-    DIR4.forEach(function (d) { DEF.push([m[0] + '_STAIRS_' + d, m[1] + '階段', m[3], 'stairs']); ALIAS[m[0] + '_STAIRS_' + d] = m[2]; });
+    // 階段：向き 4 つ × 上下（_T は逆さま）。角の形は隣の階段から決める（WG.blockBoxes）
+    DIR4.forEach(function (d) {
+      ['', '_T'].forEach(function (t) { DEF.push([m[0] + '_STAIRS_' + d + t, m[1] + '階段', m[3], 'stairs']); ALIAS[m[0] + '_STAIRS_' + d + t] = m[2]; });
+    });
     DEF.push([m[0] + '_SLAB', m[1] + 'ハーフブロック', m[3], 'slab'], [m[0] + '_SLAB_TOP', m[1] + 'ハーフブロック', m[3], 'slab'],
       [m[0] + '_SLAB_DOUBLE', m[1] + 'ハーフブロック（2 段）', m[3], 'solid']);
     ALIAS[m[0] + '_SLAB'] = ALIAS[m[0] + '_SLAB_TOP'] = ALIAS[m[0] + '_SLAB_DOUBLE'] = m[2];
   });
   DIR4.forEach(function (d) { DEF.push(['LADDER_' + d, 'はしご', '#a5824f', 'ladder']); });
+
+  // ---- レッドストーン ----
+  // 粉は強さ 0〜15 を ID で持つ。トーチ・レバー・ボタン・感圧板・リピーター・ピストンは、向きと状態を ID で持つ。
+  // 壁に付くものの向き（N・E・S・W）は壁掛けトーチと同じ：E は西（−x）の壁に付いて東を向く。F は床。
+  for (var rp = 0; rp < 16; rp++) DEF.push(['REDSTONE_WIRE_' + rp, 'レッドストーンダスト', '#8a1a12', 'wire']);
+  DEF.push(['REDSTONE_TORCH', 'レッドストーントーチ', '#d0342a', 'rtorch'], ['REDSTONE_TORCH_OFF', 'レッドストーントーチ', '#5a2a24', 'rtorch']);
+  DIR4.forEach(function (d) { DEF.push(['REDSTONE_WALL_TORCH_' + d, 'レッドストーントーチ', '#d0342a', 'rtorch'], ['REDSTONE_WALL_TORCH_' + d + '_OFF', 'レッドストーントーチ', '#5a2a24', 'rtorch']); });
+  ['F', 'N', 'E', 'S', 'W'].forEach(function (f) {
+    DEF.push(['LEVER_' + f, 'レバー', '#8a8a86', 'lever'], ['LEVER_' + f + '_ON', 'レバー', '#8a8a86', 'lever']);
+    DEF.push(['STONE_BUTTON_' + f, '石のボタン', '#8a8a86', 'button'], ['STONE_BUTTON_' + f + '_ON', '石のボタン', '#8a8a86', 'button']);
+    DEF.push(['OAK_BUTTON_' + f, 'オークのボタン', '#a5824f', 'button'], ['OAK_BUTTON_' + f + '_ON', 'オークのボタン', '#a5824f', 'button']);
+  });
+  DEF.push(['STONE_PRESSURE_PLATE', '石の感圧板', '#8a8a86', 'plate'], ['STONE_PRESSURE_PLATE_ON', '石の感圧板', '#8a8a86', 'plate'],
+    ['OAK_PRESSURE_PLATE', 'オークの感圧板', '#a5824f', 'plate'], ['OAK_PRESSURE_PLATE_ON', 'オークの感圧板', '#a5824f', 'plate'],
+    ['REDSTONE_LAMP', 'レッドストーンランプ', '#8a3a24', 'solid'], ['REDSTONE_LAMP_ON', 'レッドストーンランプ', '#e8b060', 'solid'],
+    ['TNT', 'TNT', '#c4291f', 'solid']);
+  // レバー・ボタン・感圧板は、素材のブロックの見た目を借りる（地図の色など）
+  LIST_KEYS_ALIAS();
+  function LIST_KEYS_ALIAS() {
+    DEF.forEach(function (d) {
+      var k = d[0];
+      if (/^LEVER_/.test(k)) ALIAS[k] = 'COBBLESTONE';
+      else if (/^(STONE_BUTTON_|STONE_PRESSURE_PLATE)/.test(k)) ALIAS[k] = 'STONE';
+      else if (/^(OAK_BUTTON_|OAK_PRESSURE_PLATE)/.test(k)) ALIAS[k] = 'OAK_PLANKS';
+    });
+  }
+  DIR4.forEach(function (d) { for (var dl = 1; dl <= 4; dl++) DEF.push(['REPEATER_' + d + dl, 'リピーター', '#8a8a86', 'repeater'], ['REPEATER_' + d + dl + '_ON', 'リピーター', '#8a8a86', 'repeater']); });
+  ['N', 'E', 'S', 'W'].forEach(function (d) { ['C', 'O'].forEach(function (o) { ['L', 'U'].forEach(function (h) { DEF.push(['IRON_DOOR_' + d + o + h, '鉄のドア', '#d0d0d0', 'door']); }); }); });
+  ['N', 'E', 'S', 'W', 'U', 'D'].forEach(function (f) {
+    DEF.push(['PISTON_' + f, 'ピストン', '#9a8a6a', 'piston'], ['PISTON_' + f + '_X', 'ピストン', '#9a8a6a', 'piston'],
+      ['STICKY_PISTON_' + f, '粘着ピストン', '#8a9a6a', 'piston'], ['STICKY_PISTON_' + f + '_X', '粘着ピストン', '#8a9a6a', 'piston'],
+      ['PISTON_HEAD_' + f, 'ピストンヘッド', '#a5824f', 'phead'], ['STICKY_PISTON_HEAD_' + f, 'ピストンヘッド', '#8a9a6a', 'phead']);
+    ALIAS['PISTON_' + f] = ALIAS['PISTON_' + f + '_X'] = ALIAS['PISTON_HEAD_' + f] = 'PISTON';
+    ALIAS['STICKY_PISTON_' + f] = ALIAS['STICKY_PISTON_' + f + '_X'] = ALIAS['STICKY_PISTON_HEAD_' + f] = 'STICKY_PISTON';
+  });
+  // ---- エンチャント・醸造 ----
+  DEF.push(['ENCHANTING_TABLE', 'エンチャントテーブル', '#5a2a6a', 'etable', 0.4], ['BOOKSHELF', '本棚', '#8a6a3e', 'solid'],
+    ['BREWING_STAND', '醸造台', '#8a8a86', 'stand', 0.1], ['ANVIL', '金床', '#4a4a4c', 'anvil'],
+    ['SUGAR_CANE', 'サトウキビ', '#8ac25a', 'cane']);
+  for (var nw = 0; nw < 4; nw++) DEF.push(['NETHER_WART_' + nw, 'ネザーウォート', '#8a1a22', 'crop']);
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
   // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
@@ -170,6 +214,8 @@
     var m = /^(\w+)_DOOR_[NESW][CO]([LU])$/.exec(key);
     if (m) return TEX[m[1] + '_DOOR_' + m[2]];
     if (/^LADDER_/.test(key)) return TEX.LADDER;
+    if (/^REPEATER_/.test(key)) return TEX.REPEATER_BASE;
+    if (/^REDSTONE_WALL_TORCH_/.test(key)) return /_OFF$/.test(key) ? TEX.REDSTONE_TORCH_OFF : TEX.REDSTONE_TORCH;
     return /^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : /^BED_/.test(key) ? TEX.BED : null;
   }
   var CUT = [];
@@ -256,20 +302,126 @@
   // ガラス：固くて通れないが、向こうが見え、光も通す
   OPAQUE[B.GLASS] = 0; LIGHT_BLOCK[B.GLASS] = 0;
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
+  LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
+  LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
   // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
   var COLLIDE = new Float32Array(N);
   LIST.forEach(function (b) {
     var k = b.kind, key = b.key;
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
-      k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) : 0;
+      k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
+      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1 };
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1 };
+  // 形はあるが、ぶつからないもの
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1 };
+  // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
+  function rotE(b, f) {
+    if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
+    if (f === 'S') return [b[2], b[1], b[0], b[5], b[4], b[3]].concat(b.slice(6));
+    if (f === 'N') return [b[2], b[1], 16 - b[3], b[5], b[4], 16 - b[0]].concat(b.slice(6));
+    return b;
+  }
+  // N 向き（−z へ出す）を基準に、時計回りに回す
+  function rotN(b, f) {
+    var turns = { N: 0, E: 1, S: 2, W: 3 }[f], x0 = b[0], z0 = b[2], x1 = b[3], z1 = b[5];
+    for (var t = 0; t < turns; t++) { var nx0 = 16 - z1, nx1 = 16 - z0, nz0 = x0, nz1 = x1; x0 = nx0; x1 = nx1; z0 = nz0; z1 = nz1; }
+    return [x0, b[1], z0, x1, b[4], z1].concat(b.slice(6));
+  }
+  // U 向き（上へ出す）を基準に、6 方向へ
+  function rotU(b, f) {
+    var P = [[b[0], b[1], b[2]], [b[3], b[4], b[5]]].map(function (p) {
+      var x = p[0], y = p[1], z = p[2];
+      if (f === 'D') return [x, 16 - y, z];
+      if (f === 'N') return [x, z, 16 - y];
+      if (f === 'S') return [x, z, y];
+      if (f === 'E') return [y, x, z];
+      if (f === 'W') return [16 - y, x, z];
+      return [x, y, z];
+    });
+    return [Math.min(P[0][0], P[1][0]), Math.min(P[0][1], P[1][1]), Math.min(P[0][2], P[1][2]), Math.max(P[0][0], P[1][0]), Math.max(P[0][1], P[1][1]), Math.max(P[0][2], P[1][2])].concat(b.slice(6));
+  }
+  // 7 番目は見た目を借りるブロック、8 番目は光るかどうか
+  function redstoneBoxes(id, k, key) {
+    var on = /_ON$/.test(key), f;
+    if (k === 'lever') {
+      f = /LEVER_([FNESW])/.exec(key)[1];
+      var base = [5, 0, 4, 11, 3, 12, B.COBBLESTONE], stick = on ? [7, 3, 3, 9, 10, 5, B.OAK_PLANKS] : [7, 3, 11, 9, 10, 13, B.OAK_PLANKS];
+      if (f === 'F') return [base, stick];
+      return [rotE([0, 4, 5, 3, 12, 11, B.COBBLESTONE], f), rotE(on ? [3, 9, 7, 10, 11, 9, B.OAK_PLANKS] : [3, 5, 7, 10, 7, 9, B.OAK_PLANKS], f)];
+    }
+    if (k === 'button') {
+      f = /BUTTON_([FNESW])/.exec(key)[1];
+      var mat = /^OAK/.test(key) ? B.OAK_PLANKS : B.STONE, h = on ? 1 : 2;
+      if (f === 'F') return [[5, 0, 6, 11, h, 10, mat]];
+      return [rotE([0, 6, 5, h, 10, 11, mat], f)];
+    }
+    if (k === 'plate') {
+      var pm = /^OAK/.test(key) ? B.OAK_PLANKS : B.STONE;
+      return [on ? [2, 0, 2, 14, 1, 14, pm] : [1, 0, 1, 15, 1, 15, pm]];
+    }
+    if (k === 'repeater') {
+      var m = /REPEATER_([NESW])(\d)/.exec(key), dl = +m[2], tip = on ? B.REDSTONE_BLOCK : B.NETHER_BRICKS, out = [[0, 0, 0, 16, 2, 16]];
+      [2, 4 + dl * 2].forEach(function (z) { out.push([7, 2, z, 9, 5, z + 2, B.OAK_PLANKS], [7, 5, z, 9, 7, z + 2, tip, on ? 1 : 0]); });
+      return out.map(function (b) { return rotN(b, m[1]); });
+    }
+    if (k === 'piston') {
+      f = /PISTON_([NESWUD])/.exec(key)[1];
+      return [rotU(/_X$/.test(key) ? [0, 0, 0, 16, 12, 16] : [0, 0, 0, 16, 16, 16], f)];
+    }
+    if (k === 'phead') {
+      f = /HEAD_([NESWUD])$/.exec(key)[1];
+      return [rotU([0, 12, 0, 16, 16, 16], f), rotU([6, 0, 6, 10, 12, 10, B.OAK_PLANKS], f)];
+    }
+    if (k === 'etable') return [[0, 0, 0, 16, 12, 16]];
+    if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
+    if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
+    return null;
+  }
+  // ピストンの向き（見た目の「上」の面をどちらへ向けるか）
+  var ORIENT = [];
+  LIST.forEach(function (b) { var m = /PISTON_(?:HEAD_)?([NESWUD])(_X)?$/.exec(b.key); if (m && (b.kind === 'piston' || b.kind === 'phead')) ORIENT[b.id] = m[1]; });
+  WG.ORIENT = ORIENT;
   var FACE_OF = { N: 0, E: 1, S: 2, W: 3 };
-  var STAIR_TOP = [[0, 8, 0, 16, 16, 8], [8, 8, 0, 16, 16, 16], [0, 8, 8, 16, 16, 16], [0, 8, 0, 8, 16, 16]];
+  // 階段の形（Minecraft と同じ決め方）：高い側の隣が直角の階段なら外角、低い側の隣が直角の階段なら内角
+  var DV = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }, CCW = { N: 'W', E: 'N', S: 'E', W: 'S' }, OPP = { N: 'S', E: 'W', S: 'N', W: 'E' };
+  var STAIR_F = [], STAIR_T = [];
+  LIST.forEach(function (b) { var m = /_STAIRS_([NESW])(_T)?$/.exec(b.key); if (m) { STAIR_F[b.id] = m[1]; STAIR_T[b.id] = !!m[2]; } });
+  function isStair(id) { return STAIR_F[id] != null; }
+  function stairShape(id, nb) {
+    var f = STAIR_F[id], t = STAIR_T[id], v = DV[f], ax = v[0] ? 0 : 1;
+    function canTake(dir) { var n = nb(DV[dir][0], DV[dir][1]); return !(isStair(n) && STAIR_F[n] === f && STAIR_T[n] === t); }
+    var front = nb(v[0], v[1]);
+    if (isStair(front) && STAIR_T[front] === t) {
+      var d1 = STAIR_F[front];
+      if ((DV[d1][0] ? 0 : 1) !== ax && canTake(OPP[d1])) return d1 === CCW[f] ? 'OL' : 'OR';
+    }
+    var back = nb(-v[0], -v[1]);
+    if (isStair(back) && STAIR_T[back] === t) {
+      var d2 = STAIR_F[back];
+      if ((DV[d2][0] ? 0 : 1) !== ax && canTake(d2)) return d2 === CCW[f] ? 'IL' : 'IR';
+    }
+    return 'S';
+  }
+  function stairBoxes(id, nb) {
+    var f = STAIR_F[id], t = STAIR_T[id], v = DV[f], l = DV[CCW[f]], shape = nb ? stairShape(id, nb) : 'S';
+    var out = [t ? [0, 8, 0, 16, 16, 16] : [0, 0, 0, 16, 8, 16]], y0 = t ? 0 : 8;
+    for (var qz = 0; qz < 2; qz++) for (var qx = 0; qx < 2; qx++) {
+      var sx = qx * 2 - 1, sz = qz * 2 - 1, front = sx * v[0] + sz * v[1] > 0, left = sx * l[0] + sz * l[1] > 0, on;
+      if (shape === 'S') on = front;
+      else if (shape === 'OL') on = front && left;
+      else if (shape === 'OR') on = front && !left;
+      else if (shape === 'IL') on = front || left;
+      else on = front || !left;
+      if (on) out.push([qx * 8, y0, qz * 8, qx * 8 + 8, y0 + 8, qz * 8 + 8]);
+    }
+    return out;
+  }
+  WG.stairShape = stairShape;
   var DOOR_CLOSED = [[0, 0, 13, 16, 16, 16], [0, 0, 0, 3, 16, 16], [0, 0, 0, 16, 16, 3], [13, 0, 0, 16, 16, 16]];
   var DOOR_OPEN = [[0, 0, 0, 3, 16, 16], [0, 0, 0, 16, 16, 3], [13, 0, 0, 16, 16, 16], [0, 0, 13, 16, 16, 16]];
   var LADDER = [[0, 0, 15, 16, 16, 16], [0, 0, 0, 1, 16, 16], [0, 0, 0, 16, 16, 1], [15, 0, 0, 16, 16, 16]];
@@ -278,9 +430,12 @@
   function fenceLink(id) { return KIND[id] === 'fence' || (KIND[id] === 'solid' && OPAQUE[id]); }
   function blockBoxes(id, nb, forCollide) {
     var k = KIND[id], key = LIST[id].key, f;
+    if (forCollide && NOCOLLIDE[k]) return [];
+    var rb = redstoneBoxes(id, k, key);
+    if (rb) return rb;
     if (k === 'farm') return [[0, 0, 0, 16, 15, 16]];
     if (k === 'slab') return /_TOP$/.test(key) ? [[0, 8, 0, 16, 16, 16]] : [[0, 0, 0, 16, 8, 16]];
-    if (k === 'stairs') { f = FACE_OF[key.slice(-1)]; return [[0, 0, 0, 16, 8, 16], STAIR_TOP[f]]; }
+    if (k === 'stairs') return stairBoxes(id, nb);
     if (k === 'door') {
       var dm = /_([NESW])([CO])[LU]$/.exec(key);
       f = FACE_OF[dm[1]];
@@ -305,6 +460,21 @@
   WG.SHAPED = SHAPED;
   WG.blockBoxes = blockBoxes;
   WG.isShaped = function (id) { return !!SHAPED[KIND[id]]; };
+  // 支えのブロックへの向き（壊れたら一緒に取れる）
+  var SUPPORT = [];
+  LIST.forEach(function (b) {
+    var k = b.key, m;
+    if (b.kind === 'wire' || b.kind === 'plate' || b.kind === 'repeater' || k === 'REDSTONE_TORCH' || k === 'REDSTONE_TORCH_OFF' || /_F(_ON)?$/.test(k) && (b.kind === 'lever' || b.kind === 'button')) SUPPORT[b.id] = [0, -1, 0];
+    else if ((m = /_([NESW])(_ON|_OFF)?$/.exec(k)) && (b.kind === 'lever' || b.kind === 'button' || b.kind === 'rtorch')) {
+      var v = { N: [0, 1], E: [-1, 0], S: [0, -1], W: [1, 0] }[m[1]];
+      SUPPORT[b.id] = [v[0], 0, v[1]];
+    }
+  });
+  WG.SUPPORT = SUPPORT;
+  // 壁掛けのトーチ（普通とレッドストーン）の、壁への向き [dx, dz]
+  var TORCH_WALL = [];
+  LIST.forEach(function (b) { var m = /WALL_TORCH_([NESW])(_OFF)?$/.exec(b.key); if (m) TORCH_WALL[b.id] = { N: [0, 1], E: [-1, 0], S: [0, -1], W: [1, 0] }[m[1]]; });
+  WG.TORCH_WALL = TORCH_WALL;
   // はしご・扉の向き、ドアの開け閉め
   WG.DIR4 = DIR4;
   WG.DIR_VEC = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
