@@ -31,7 +31,7 @@
   // 拡大率が 8 以上のときは、ブロックの見た目（8×8）を描いた細かいタイルを使う
   var tileCache = new Map(), TILE_LIMIT = 9000, TEX_LIMIT = 400;
   var texCache = new Map();
-  function resOf() { return ZOOMS[state.zoom] >= 8 ? 8 : 1; }
+  function resOf() { var z = ZOOMS[state.zoom]; return z >= 16 ? 16 : z >= 8 ? 8 : 1; }
   var job = null, jobToken = 0;
 
   function resize2D() {

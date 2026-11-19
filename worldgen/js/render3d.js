@@ -35,27 +35,30 @@
   };
 
   // ---- 見た目のアトラス ----
-  // 上半分は 8×8 の見た目を 32×32 枚並べた 256×256。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
-  // 下半分は 16×16 のアイテムのアイコン（PDF のアイテム図鑑）を 16×16 枚。番号は BIG を足して区別する。
-  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 256, ATLAS_H = 512, PER_ROW = 32, BIG = 32768, tileTable = null, atlasPixels = null, seen = {}, nBig = 0;
+  // 16×16 の見た目を 32×32 枚並べた 512×512。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
+  // ブロックの見た目（js/tex16.js）もアイテムのアイコンも 16×16。古い 8×8 の絵は 2 倍に広げて入れる。
+  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 512, ATLAS_H = 512, PER_ROW = 32, TS = 16, tileTable = null, atlasPixels = null, seen = {};
   function atlas() {
     if (tileTable) return tileTable;
     tileTable = new Uint16Array(WG.BLOCKS.length * 3);
     atlasPixels = new Uint8Array(ATLAS * ATLAS_H * 4);
-    var n = 0, k;
-    function tile(src) {
-      var sig = src ? Array.prototype.join.call(src) : 'white';
+    var n = 0;
+    // 1 枚を置く。src は RGB（3）か RGBA（4）、辺は 8 か 16。src がなければ白。
+    function put(src, ch, sig) {
       if (seen[sig] != null) return seen[sig];
       seen[sig] = n;
-      var tx = (n % PER_ROW) * 8, ty = ((n / PER_ROW) | 0) * 8;
-      for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
+      var side = src ? Math.round(Math.sqrt(src.length / ch)) : TS, sh = TS / side;
+      var tx = (n % PER_ROW) * TS, ty = ((n / PER_ROW) | 0) * TS;
+      for (var j = 0; j < TS; j++) for (var i = 0; i < TS; i++) {
         var o = ((ty + j) * ATLAS + tx + i) * 4;
-        if (src) { k = (j * 8 + i) * 3; atlasPixels[o] = src[k]; atlasPixels[o + 1] = src[k + 1]; atlasPixels[o + 2] = src[k + 2]; }
-        else { atlasPixels[o] = atlasPixels[o + 1] = atlasPixels[o + 2] = 255; }
-        atlasPixels[o + 3] = 255;
+        if (!src) { atlasPixels[o] = atlasPixels[o + 1] = atlasPixels[o + 2] = atlasPixels[o + 3] = 255; continue; }
+        var q = (((j / sh) | 0) * side + ((i / sh) | 0)) * ch;
+        atlasPixels[o] = src[q]; atlasPixels[o + 1] = src[q + 1]; atlasPixels[o + 2] = src[q + 2]; atlasPixels[o + 3] = ch === 4 ? src[q + 3] : 255;
       }
       return n++;
     }
+    function tile(src) { return put(src, 3, src ? Array.prototype.join.call(src) : 'white'); }
+    function rgbaTile(px) { return put(px, 4, 'a' + Array.prototype.join.call(px)); }
     tile(null);
     WG.BLOCKS.forEach(function (b) {
       ['top', 'side', 'bottom'].forEach(function (f) {
@@ -77,37 +80,18 @@
     });
     // ブロックではないアイテムの絵と、壊している途中のひび（4 段階）
     if (WG.ITEMS) Object.keys(WG.ITEMS).forEach(function (k) {
-      var big = WG.itemIcon16 && WG.itemIcon16(k);
-      if (big) { itemTiles[k] = bigTile(big); return; }
-      var px = WG.itemPixels(k); if (px) itemTiles[k] = rgbaTile(px);
+      var px = (WG.itemIcon16 && WG.itemIcon16(k)) || WG.itemPixels(k);
+      if (px) itemTiles[k] = rgbaTile(px);
     });
     // ブロックではない追加の見た目（レッドストーンの粉の線など）
     if (WG.EXTRA_TILES) Object.keys(WG.EXTRA_TILES).forEach(function (k) { extraTiles[k] = rgbaTile(WG.EXTRA_TILES[k]); });
-    CRACKS.forEach(function (rows) {
+    CRACKS.forEach(function (rows, st) {
+      if (extraTiles['CRACK_' + st] != null) { crackTiles.push(extraTiles['CRACK_' + st]); return; }
       var px = new Uint8Array(256);
       for (var i = 0; i < 64; i++) if (rows[i >> 3][i & 7] === '#') px[i * 4 + 3] = 255;
       crackTiles.push(rgbaTile(px));
     });
     return tileTable;
-    function bigTile(px) {
-      var tx = (nBig % 16) * 16, ty = 256 + ((nBig / 16) | 0) * 16;
-      for (var j = 0; j < 16; j++) for (var i = 0; i < 16; i++) {
-        var o = ((ty + j) * ATLAS + tx + i) * 4, q = (j * 16 + i) * 4;
-        atlasPixels[o] = px[q]; atlasPixels[o + 1] = px[q + 1]; atlasPixels[o + 2] = px[q + 2]; atlasPixels[o + 3] = px[q + 3];
-      }
-      return BIG + nBig++;
-    }
-    function rgbaTile(px) {
-      var sig = 'a' + Array.prototype.join.call(px);
-      if (seen[sig] != null) return seen[sig];
-      seen[sig] = n;
-      var tx = (n % PER_ROW) * 8, ty = ((n / PER_ROW) | 0) * 8;
-      for (var j = 0; j < 8; j++) for (var i = 0; i < 8; i++) {
-        var o = ((ty + j) * ATLAS + tx + i) * 4, q = (j * 8 + i) * 4;
-        atlasPixels[o] = px[q]; atlasPixels[o + 1] = px[q + 1]; atlasPixels[o + 2] = px[q + 2]; atlasPixels[o + 3] = px[q + 3];
-      }
-      return n++;
-    }
   }
   var itemTiles = {}, crackTiles = [], extraTiles = {};
   var CRACKS = [
@@ -421,7 +405,7 @@
             }
           } else if (kind === 'plant' || kind === 'deco' || kind === 'web' || kind === 'fire' || kind === 'rtorch' || kind === 'cane') {
             // 対角に交差する 2 枚。草は色味を頂点の色で、花とトーチは切り抜きの色そのままで描く。
-            var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? WG.blockColor(id, 'side', bio) : [255, 255, 255];
+            var pt = TT[id * 3 + FACE_IX.side], pc = id === B.SHORT_GRASS ? faceBase(id, 'side', bio) : [255, 255, 255];
             var torch = kind === 'deco' || kind === 'rtorch', emit = kind === 'deco' || kind === 'fire' || (kind === 'rtorch' && LIGHT_EM[id]) ? 255 : 0;
             if (LT && !emit) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else L = noLight();
             // トーチは少し小さく、壁掛けは壁に寄せて傾ける
@@ -512,9 +496,8 @@
     'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL; varying float vBig;',
     'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
     'void main(){',
-    '  float t = floor(vTile + 0.5), sz = 8.0; vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 8.0;',
-    '  if (vBig > 0.5) { sz = 16.0; org = vec2(mod(t, 16.0), floor(t / 16.0)) * 16.0 + vec2(0.0, 256.0); }',
-    '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(256.0, 512.0);',
+    '  float t = floor(vTile + 0.5), sz = 16.0; vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 16.0;',
+    '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(512.0, 512.0);',
     '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
     '  vec3 c = tx.rgb * vCol.rgb * 2.0 * vL;',
     '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',

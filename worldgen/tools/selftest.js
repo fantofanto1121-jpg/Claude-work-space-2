@@ -141,13 +141,13 @@ console.log('シード ' + SEED + '\n');
   check(digest(only.blocks) === digest(full.blocks), '周りを生成しないで 1 チャンクだけ作っても同じ結果');
 })();
 
-// 見た目：草花とコーラス以外のブロックは、すべての面に 8×8 の見た目がある
+// 見た目：空気以外のブロックは、すべての面に 16×16 のドット絵の見た目がある
 (function () {
-  var none = ['AIR', 'SHORT_GRASS', 'DANDELION', 'POPPY', 'CHORUS_PLANT', 'CHORUS_FLOWER'];
+  var none = ['AIR'];
   var miss = WG.BLOCKS.filter(function (b) {
-    return none.indexOf(b.key) < 0 && ['top', 'side', 'bottom'].some(function (f) { var t = WG.skinTexture(b.id, f); return !t || t.length !== 192; });
+    return none.indexOf(b.key) < 0 && ['top', 'side', 'bottom'].some(function (f) { var t = WG.skinTexture(b.id, f); return !t || t.length !== 768; });
   }).map(function (b) { return b.key; });
-  check(!miss.length, 'ブロックの見た目が読み込めている（' + (WG.BLOCKS.length - none.length) + ' 種）' + (miss.length ? ' 不足: ' + miss.join(', ') : ''));
+  check(!miss.length, 'ブロックの見た目（16×16 のドット絵）が読み込めている（' + (WG.BLOCKS.length - none.length) + ' 種）' + (miss.length ? ' 不足: ' + miss.join(', ') : ''));
 })();
 
 // 歩く：平らな地面での速さとジャンプの高さが Minecraft と同じで、壁を抜けないこと

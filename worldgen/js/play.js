@@ -1222,7 +1222,7 @@
         }, lt);
       } else {
         var tile = it.block >= 0 && !WG.itemIcon16(e.key) ? WG.atlasTile(it.block, 'side') : WG.itemTile(e.key);
-        var c = it.block === B.SHORT_GRASS ? WG.blockColor(it.block, 'side', plains) : WHITE;
+        var c = it.block === B.SHORT_GRASS ? WG.tintOf(it.block, 'side', plains).map(function (m) { return m * 255; }) : WHITE;
         sprite(solid, x, y + bob, z, 0.4, r, tile, c, lt);
       }
     });

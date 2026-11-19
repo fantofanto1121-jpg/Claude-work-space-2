@@ -8,7 +8,7 @@
   function jitter(x, y, z) { return 0.965 + (WG.hash(0, x, y, z, 7) & 255) / 255 * 0.07; }
   function put(out, o, r, g, b) { out[o] = r; out[o + 1] = g; out[o + 2] = b; out[o + 3] = 255; }
 
-  // 1 ブロック分を描く。res が 1 なら 1 点、8 ならその面の見た目（8×8）を、
+  // 1 ブロック分を描く。res が 1 なら 1 点、8 や 16 ならその面の見た目（16×16）を、
   // 計算した色と代表色の比で明るさ・色味を合わせて描く。見た目がないブロックは単色。
   // P = { out, w: 横のブロック数, res }
   function px(P, u, v, id, face, r, g, b) {
@@ -20,9 +20,10 @@
       return;
     }
     var base = WG.skinColor(id, face);
+    var n = tex.length === 768 ? 16 : 8;   // 見た目の 1 辺（16×16 か、古い 8×8）
     var fr = r / Math.max(base[0], 1), fg = g / Math.max(base[1], 1), fb = b / Math.max(base[2], 1);
     for (j = 0; j < res; j++) for (i = 0; i < res; i++) {
-      var t = (((j * 8 / res) | 0) * 8 + ((i * 8 / res) | 0)) * 3;
+      var t = (((j * n / res) | 0) * n + ((i * n / res) | 0)) * 3;
       o = ((v * res + j) * W + u * res + i) * 4;
       out[o] = tex[t] * fr; out[o + 1] = tex[t + 1] * fg; out[o + 2] = tex[t + 2] * fb; out[o + 3] = 255;
     }

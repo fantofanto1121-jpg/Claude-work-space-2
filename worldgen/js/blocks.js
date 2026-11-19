@@ -197,7 +197,7 @@
   for (var nw = 0; nw < 4; nw++) DEF.push(['NETHER_WART_' + nw, 'ネザーウォート', '#8a1a22', 'crop']);
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
-  // 見た目（js/textures.js の 8×8 ピクセル）。ないブロックは上の単色を使う。
+  // 見た目（js/tex16.js の 16×16 ピクセル。なければ js/textures.js の 8×8）。ないブロックは上の単色を使う。
   var FACES = ['top', 'side', 'bottom'];
   // バイオームで色味を変えるブロック（草の上面と葉）
   var TINTED = ['GRASS', 'SHORT_GRASS', 'OAK_LEAVES', 'JUNGLE_LEAVES', 'ACACIA_LEAVES'];
@@ -218,7 +218,14 @@
     return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
   }
 
-  var B = {}, LIST = [], N = DEF.length, TEX = WG.TEXTURES || {};
+  var B = {}, LIST = [], N = DEF.length, TEX = {};
+  // 16×16 のドット絵（js/tex16.js）があればそれを使い、ないものは以前の 8×8 の見た目のまま
+  Object.keys(WG.TEXTURES || {}).forEach(function (k) { TEX[k] = WG.TEXTURES[k]; });
+  if (WG.TEX16) Object.keys(WG.TEX16).forEach(function (k) {
+    var t = WG.TEX16[k];
+    TEX[k] = { side: decode(t.side), top: decode(t.top), bottom: decode(t.bottom), rgba: t.rgba ? decode(t.rgba) : null, allFaces: !!t.allFaces };
+  });
+  if (WG.EXTRA16) Object.keys(WG.EXTRA16).forEach(function (k) { (WG.EXTRA_TILES = WG.EXTRA_TILES || {})[k] = decode(WG.EXTRA16[k]); });
   // 流れる水・溶岩は、元の水・溶岩と同じ見た目
   function texOf(key) {
     if (TEX[key]) return TEX[key];
@@ -266,7 +273,7 @@
   function skinColor(id, face) {
     return face ? RGB_FACE[id][face] : RGB[id];
   }
-  // skinTexture: 面の 8×8 ピクセル（RGB を左上から行ごとに 192 バイト）。見た目がなければ null。
+  // skinTexture: 面の 16×16 ピクセル（RGB を左上から行ごとに 768 バイト。古い 8×8 なら 192 バイト）。見た目がなければ null。
   function skinTexture(id, face) {
     return PIX[id] ? PIX[id][face || 'side'] : null;
   }

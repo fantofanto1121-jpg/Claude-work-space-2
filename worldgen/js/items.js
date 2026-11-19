@@ -341,9 +341,10 @@
   // ブロックは上・左・右の 3 面を斜めから見た形、それ以外は 8×8 の絵を拡大する。
   var iconCache = {};
   function faceCanvas(id, face, tint) {
-    var c = document.createElement('canvas'); c.width = c.height = 8;
-    var x = c.getContext('2d'), img = x.createImageData(8, 8), px = WG.skinTexture(id, face), col = WG.skinColor(id, face);
-    for (var i = 0; i < 64; i++) {
+    var px = WG.skinTexture(id, face), col = WG.skinColor(id, face), n = px && px.length === 192 ? 8 : 16;
+    var c = document.createElement('canvas'); c.width = c.height = n;
+    var x = c.getContext('2d'), img = x.createImageData(n, n);
+    for (var i = 0; i < n * n; i++) {
       var r = px ? px[i * 3] : col[0], g = px ? px[i * 3 + 1] : col[1], b = px ? px[i * 3 + 2] : col[2];
       img.data[i * 4] = r * tint[0]; img.data[i * 4 + 1] = g * tint[1]; img.data[i * 4 + 2] = b * tint[2]; img.data[i * 4 + 3] = 255;
     }
@@ -370,10 +371,10 @@
       var id = it.block >= 0 ? it.block : it.icon, plains = WG.BI ? WG.BI.PLAINS : -1;
       var tTop = WG.tintOf(id, 'top', plains), tSide = WG.tintOf(id, 'side', plains);
       var top = faceCanvas(id, 'top', tTop), side = faceCanvas(id, 'side', tSide);
-      x.setTransform(20 / 8, 10 / 8, -20 / 8, 10 / 8, 24, 3); x.drawImage(top, 0, 0);
-      x.setTransform(20 / 8, 10 / 8, 0, 23 / 8, 4, 13); x.drawImage(side, 0, 0);
+      x.setTransform(20 / 8, 10 / 8, -20 / 8, 10 / 8, 24, 3); x.drawImage(top, 0, 0, 8, 8);
+      x.setTransform(20 / 8, 10 / 8, 0, 23 / 8, 4, 13); x.drawImage(side, 0, 0, 8, 8);
       x.fillStyle = 'rgba(0,0,0,0.22)'; x.fillRect(0, 0, 8, 8);
-      x.setTransform(20 / 8, -10 / 8, 0, 23 / 8, 24, 23); x.drawImage(side, 0, 0);
+      x.setTransform(20 / 8, -10 / 8, 0, 23 / 8, 24, 23); x.drawImage(side, 0, 0, 8, 8);
       x.fillStyle = 'rgba(0,0,0,0.4)'; x.fillRect(0, 0, 8, 8);
       x.setTransform(1, 0, 0, 1, 0, 0);
     }
