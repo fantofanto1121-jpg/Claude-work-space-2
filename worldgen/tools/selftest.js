@@ -413,7 +413,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
 
 // アイテム図鑑から加えたもの
 (function () {
-  check(Object.keys(WG.ICONS).length >= 120 && WG.itemIcon16('DIAMOND_SWORD').length === 1024 && WG.BLOCKS.length <= 65535, 'アイテム図鑑のアイコン（' + Object.keys(WG.ICONS).length + ' 個、16×16）、ブロックは ' + WG.BLOCKS.length + ' 種類（2 バイトで持つ）');
+  check(Object.keys(WG.ICONS).length >= 120 && WG.itemIcon16('DIAMOND_SWORD').length === 1024 && WG.BLOCKS.length <= 65535, 'アイテムのアイコン（ドット絵 ' + Object.keys(WG.ICONS).length + ' 個、16×16）、ブロックは ' + WG.BLOCKS.length + ' 種類（2 バイトで持つ）');
   var w = flatWorld(function (x, y, z) { return y <= 10 ? (y === 10 ? B.GRASS : B.DIRT) : 0; }), g = playGame(w), i, t;
   w.setBlock(3, 10, 0, B.WATER);
   function aim(x, y, z, px, py, pz) { g.walker.target = { x: x, y: y, z: z, id: w.block(x, y, z), px: px, py: py, pz: pz }; }
