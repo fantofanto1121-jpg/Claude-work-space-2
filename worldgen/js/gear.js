@@ -29,7 +29,7 @@
     [['PPP', 'PCP', 'PPP'], { P: 'PAPER', C: 'COMPASS' }, 'MAP', 1],
     [[' I ', 'IRI', ' I '], { I: 'IRON_INGOT', R: 'REDSTONE' }, 'COMPASS', 1],
     [[' G ', 'GRG', ' G '], { G: 'GOLD_INGOT', R: 'REDSTONE' }, 'CLOCK', 1],
-    [[' A ', ' C ', ' C '], { A: 'GLASS', C: 'COPPER_INGOT' }, 'SPYGLASS', 1]
+    [['A', 'C', 'C'], { A: 'AMETHYST_SHARD', C: 'COPPER_INGOT' }, 'SPYGLASS', 1]
   );
   Craft.SHAPELESS.push([['NETHERITE_SCRAP', 'NETHERITE_SCRAP', 'NETHERITE_SCRAP', 'NETHERITE_SCRAP', 'GOLD_INGOT', 'GOLD_INGOT', 'GOLD_INGOT', 'GOLD_INGOT'], 'NETHERITE_INGOT', 1]);
   Craft.SMELT.ANCIENT_DEBRIS = 'NETHERITE_SCRAP';

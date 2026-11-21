@@ -187,5 +187,5 @@
     return was !== this.burn > 0;
   };
 
-  WG.Craft = { match: match, SMELT: SMELT, FUEL: FUEL, COOK: COOK, Furnace: Furnace, SHAPED: SHAPED, SHAPELESS: SHAPELESS };
+  WG.Craft = { match: match, SMELT: SMELT, FUEL: FUEL, COOK: COOK, Furnace: Furnace, SHAPED: SHAPED, SHAPELESS: SHAPELESS, GROUPS: GROUPS };
 })(typeof window !== 'undefined' ? window : globalThis);

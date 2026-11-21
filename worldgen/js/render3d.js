@@ -392,7 +392,8 @@
             }
           } else if (ftype) {
             // 水と流れる溶岩：段階に合わせて上の面を下げ、角ごとの高さでなめらかに傾ける
-            var buf = ftype === 1 ? wa : op, emf = ftype === 2 ? 255 : 0;
+            var buf = ftype === 1 ? wa : op, emf = ftype === 2 ? 255 : 0, plantId = kind === 'waterplant' ? id : 0;
+            if (plantId) id = B.WATER;   // 水の中の植物：水の見た目で描いてから、植物を重ねる
             var wc = faceBase(id, 'top', bio), aboveSame = FL[v[i + sxz]] === ftype;
             var hc = aboveSame ? null : [cornerH(i, 0, 0, ftype), cornerH(i, 1, 0, ftype), cornerH(i, 0, 1, ftype), cornerH(i, 1, 1, ftype)];
             for (d = 0; d < 6; d++) {
@@ -413,6 +414,20 @@
                 buf.vert(px, py, pz, c8(wc[0] * wf * L[0]), c8(wc[1] * wf * L[1]), c8(wc[2] * wf * L[2]), emf, cu * 16, ws ? 16 - cv * 16 : cv * 16, wt);
               }
               buf.quad(v0, false);
+            }
+            if (plantId) {
+              var wpt = TT[plantId * 3 + FACE_IX.side];
+              if (LT) { var lv8 = LT[i]; L = light(lv8 >> 4, lv8 & 15); } else L = noLight();
+              for (var wq = 0; wq < 2; wq++) {
+                var wza = wq ? 16 : 0, wzb = wq ? 0 : 16, wf1 = 0.36 * jit, wf2 = 0.48 * jit;
+                v0 = op.nv;
+                op.vert(lx, ly, lz + wza, c8(255 * wf1 * L[0]), c8(255 * wf1 * L[1]), c8(255 * wf1 * L[2]), 0, 0, 16, wpt);
+                op.vert(lx + 16, ly, lz + wzb, c8(255 * wf1 * L[0]), c8(255 * wf1 * L[1]), c8(255 * wf1 * L[2]), 0, 16, 16, wpt);
+                op.vert(lx + 16, ly + 16, lz + wzb, c8(255 * wf2 * L[0]), c8(255 * wf2 * L[1]), c8(255 * wf2 * L[2]), 0, 16, 0, wpt);
+                op.vert(lx, ly + 16, lz + wza, c8(255 * wf2 * L[0]), c8(255 * wf2 * L[1]), c8(255 * wf2 * L[2]), 0, 0, 0, wpt);
+                op.quad(v0, false);
+              }
+              id = plantId;
             }
           } else if (kind === 'plant' || kind === 'deco' || kind === 'web' || kind === 'fire' || kind === 'rtorch' || kind === 'cane') {
             // 対角に交差する 2 枚。草は色味を頂点の色で、花とトーチは切り抜きの色そのままで描く。

@@ -283,7 +283,7 @@
     }
     // はしご：横の速さと落ちる速さを抑え、スニークで止まる（Minecraft と同じ）
     var feet = this.world.block(Math.floor(this.pos[0]), Math.floor(this.pos[1]), Math.floor(this.pos[2]));
-    var onLadder = !this.flying && WG.blockKind(feet) === 'ladder';
+    var onLadder = !this.flying && (WG.blockKind(feet) === 'ladder' || WG.blockKind(feet) === 'vine');
     if (onLadder) {
       v[0] = Math.max(-0.15, Math.min(0.15, v[0])); v[2] = Math.max(-0.15, Math.min(0.15, v[2]));
       v[1] = Math.max(v[1], -0.15);
@@ -405,7 +405,7 @@
     var prev = null, tIn = 0;
     for (var n = 0; n < 32; n++) {
       var id = this.world.peekBlock(c[0], c[1], c[2]);
-      if (id > 0 && !WG.FLUID[id]) {
+      if (id > 0 && (!WG.FLUID[id] || (WG.isWaterPlant && WG.isWaterPlant(id)))) {
         // hy は当たった点の高さのマスの中での位置（0〜1）：階段・ハーフブロックの上下を決める
         return { x: c[0], y: c[1], z: c[2], id: id, px: prev ? prev[0] : c[0], py: prev ? prev[1] : c[1] + 1, pz: prev ? prev[2] : c[2],
           hy: e[1] + d[1] * tIn - c[1] };

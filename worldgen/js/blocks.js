@@ -272,6 +272,23 @@
     ['SHELL_BOX', '貝の箱', '#8a6a9a', 'solid'], ['LINKED_CHEST', 'つながったチェスト', '#2a3a3a', 'solid'],
     ['EMERALD_BLOCK', 'エメラルドブロック', '#2ab454', 'solid'], ['NETHERITE_BLOCK', 'ネザライトブロック', '#4a4246', 'solid']);
   // ---- 第 4 回：ハチの巣、黒い頭蓋骨（三つ首の骸を呼ぶ）、帰りの門（エンドポータル）----
+  // ---- 第 5 回：石の種類・アメジスト・植物・水中の植物・雪の層・巨大キノコ・ネザーのバイオームのブロック ----
+  DEF.push(['GRANITE', '花崗岩', '#9a6a58', 'solid'], ['DIORITE', '閃緑岩', '#c8c8c4', 'solid'], ['ANDESITE', '安山岩', '#888a88', 'solid'], ['TUFF', '凝灰岩', '#6a6a62', 'solid'],
+    ['CALCITE', '方解石', '#e0e0da', 'solid'], ['SMOOTH_BASALT', 'なめらかな玄武岩', '#4a4a50', 'solid'], ['AMETHYST_BLOCK', 'アメジストブロック', '#8a62c8', 'solid'],
+    ['AMETHYST_CLUSTER', 'アメジストの結晶', '#a888e8', 'plant'], ['MELON', 'スイカ', '#6a9a2a', 'solid'], ['BAMBOO', '竹', '#5a9a2a', 'bamboo'], ['LILY_PAD', 'スイレンの葉', '#3a7a2a', 'lily'],
+    ['SNOW_LAYER', '雪', '#f2f4f6', 'snowlayer'], ['MUSHROOM_STEM', 'キノコの柄', '#d8d0c0', 'solid'], ['RED_MUSHROOM_BLOCK', '赤いキノコブロック', '#b8302a', 'solid'],
+    ['BROWN_MUSHROOM_BLOCK', '茶色いキノコブロック', '#8a6a4a', 'solid'], ['SEAGRASS', '海草', '#3a8a3a', 'waterplant'], ['KELP', '昆布', '#4a7a2a', 'waterplant'],
+    ['CRIMSON_NYLIUM', '真紅のナイリウム', '#8a1e1e', 'solid'], ['WARPED_NYLIUM', '歪んだナイリウム', '#2a7a6a', 'solid'], ['CRIMSON_STEM', '真紅の幹', '#6a2a3a', 'solid'],
+    ['WARPED_STEM', '歪んだ幹', '#2a5a5a', 'solid'], ['CRIMSON_PLANKS', '真紅の板材', '#7a3a4a', 'solid'], ['WARPED_PLANKS', '歪んだ板材', '#2a6a62', 'solid'],
+    ['NETHER_WART_BLOCK', 'ネザーウォートブロック', '#8a1a1a', 'solid'], ['WARPED_WART_BLOCK', '歪んだウォートブロック', '#1a7a7a', 'solid'], ['SHROOMLIGHT', 'シュルームライト', '#f0a050', 'solid'],
+    ['BLACKSTONE', 'ブラックストーン', '#2a2428', 'solid'], ['CRIMSON_ROOTS', '真紅の根', '#a02a3a', 'plant'], ['WARPED_ROOTS', '歪んだ根', '#2a9a8a', 'plant']);
+  // サンゴ（ブロックと、水の中の小さなサンゴ）
+  var CORALS = [['TUBE', 'クダ', '#3a5ad8'], ['BRAIN', 'ノウ', '#d85aa8'], ['BUBBLE', 'アワ', '#a83ad8'], ['FIRE', 'ミレポラ', '#d83a3a'], ['HORN', 'シカツノ', '#e8c83a']];
+  CORALS.forEach(function (c) { DEF.push([c[0] + '_CORAL_BLOCK', c[1] + 'サンゴブロック', c[2], 'solid'], [c[0] + '_CORAL', c[1] + 'サンゴ', c[2], 'waterplant']); });
+  WG.CORALS = CORALS;
+  // カボチャとスイカの茎（8 段）、カカオの実（N/E/S/W：幹のある向き、0 小 1 実り）、つる（はしごと同じ向きの決め方）
+  for (var st = 0; st < 8; st++) DEF.push(['PUMPKIN_STEM_' + st, 'カボチャの茎', '#7a9a3a', 'crop'], ['MELON_STEM_' + st, 'スイカの茎', '#7a9a3a', 'crop']);
+  DIR4.forEach(function (d) { DEF.push(['COCOA_' + d + '_0', 'カカオ', '#8a7a3a', 'cocoa'], ['COCOA_' + d + '_1', 'カカオ', '#a0602a', 'cocoa'], ['VINE_' + d, 'つる', '#3a7a2a', 'vine']); ALIAS['VINE_' + d] = 'VINE'; ALIAS['COCOA_' + d + '_0'] = 'COCOA_0'; ALIAS['COCOA_' + d + '_1'] = 'COCOA_1'; });
   DEF.push(['BEEHIVE', 'ハチの巣箱', '#c8a050', 'solid'], ['BEE_NEST', 'ハチの巣', '#d8b040', 'solid'], ['DARK_SKULL', '黒い頭蓋骨', '#2a2a2c', 'skull'], ['END_PORTAL', 'エンドポータル', '#0a0a14', 'endportal']);
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -385,6 +402,9 @@
     FLUID[b.id] = type; FLUID_LEVEL[b.id] = lv; FLUID_ID[type][lv] = b.id;
     if (type === 2) OPAQUE[b.id] = lv === 0 ? 1 : 0;   // 流れる溶岩は低いので、隣の面を隠さない
   });
+  // 水の中の植物（海草・昆布・サンゴ）は、水源の水としても扱う（泳げて、水の面を描く）
+  LIST.forEach(function (b) { if (b.kind === 'waterplant') { FLUID[b.id] = 1; FLUID_LEVEL[b.id] = 0; } });
+  WG.isWaterPlant = function (id) { return KIND[id] === 'waterplant'; };
 
   // ---- 光 ----
   // LIGHT_EMIT: 自分が出す光（0〜15）。PDF の「光源レベル」と同じ値。
@@ -404,7 +424,8 @@
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
-  LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.END_PORTAL] = 15; LIGHT_EMIT[B.LINKED_CHEST] = 7;
+  LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.END_PORTAL] = 15; LIGHT_EMIT[B.SHROOMLIGHT] = 15; LIGHT_EMIT[B.AMETHYST_CLUSTER] = 5;
+  [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
   WG.railInfo = function (id) { return RAIL_INFO[LIST[id].key] || null; }; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
@@ -415,16 +436,16 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1 };
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -534,6 +555,15 @@
       return pot;
     }
     if (k === 'skull') return [[4, 0, 4, 12, 8, 12]];
+    if (k === 'bamboo') return [[6.5, 0, 6.5, 9.5, 16, 9.5]];
+    if (k === 'lily') return [[0, 0, 0, 16, 0.4, 16]];
+    if (k === 'snowlayer') return [[0, 0, 0, 16, 2, 16]];
+    if (k === 'cocoa') {
+      var cd = key.split('_')[1], big = /_1$/.test(key), hw = big ? 3 : 2, hh = big ? 7 : 5, off = big ? 6 : 4;
+      var cbx = { N: [8 - hw, 12 - hh, 1, 8 + hw, 12, 1 + off], S: [8 - hw, 12 - hh, 15 - off, 8 + hw, 12, 15], W: [1, 12 - hh, 8 - hw, 1 + off, 12, 8 + hw], E: [15 - off, 12 - hh, 8 - hw, 15, 12, 8 + hw] }[cd];
+      return [cbx];
+    }
+    if (k === 'vine') return [LADDER[FACE_OF[key.slice(-1)]]];
     if (k === 'endportal') return [[0, 0, 0, 16, 12, 16, B.END_PORTAL, 1]];
     if (k === 'beacon') return [[0, 0, 0, 16, 16, 16, B.GLASS], [1, 0, 1, 15, 3, 15, B.OBSIDIAN], [3, 3, 3, 13, 13, 13, B.BEACON, 1]];
     if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];

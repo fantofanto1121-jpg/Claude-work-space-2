@@ -99,7 +99,22 @@
   BLOCK_DATA.push(['BROWN_WOOL', 0.8, 'BROWN_WOOL'], ['GLASS_PANE', 0.3, null], ['IRON_BARS', 5, 'IRON_BARS'], ['FLOWER_POT', 0, 'FLOWER_POT'],
     ['BEACON', 3, 'BEACON'], ['LOOM', 2.5, 'LOOM'], ['BARREL', 2.5, 'BARREL'], ['SHELL_BOX', 2, null], ['LINKED_CHEST', 22.5, 'LINKED_CHEST'],
     ['EMERALD_BLOCK', 5, 'EMERALD_BLOCK'], ['NETHERITE_BLOCK', 50, 'NETHERITE_BLOCK'],
+    ['GRANITE', 1.5, 'GRANITE'], ['DIORITE', 1.5, 'DIORITE'], ['ANDESITE', 1.5, 'ANDESITE'], ['TUFF', 1.5, 'TUFF'], ['CALCITE', 0.75, 'CALCITE'],
+    ['SMOOTH_BASALT', 1.25, 'SMOOTH_BASALT'], ['AMETHYST_BLOCK', 1.5, 'AMETHYST_BLOCK'], ['AMETHYST_CLUSTER', 1.5, 'AMETHYST_SHARD', 4, 4], ['MELON', 1, 'MELON_SLICE', 3, 7],
+    ['BAMBOO', 1, 'BAMBOO'], ['LILY_PAD', 0, 'LILY_PAD'], ['SNOW_LAYER', 0.1, 'SNOWBALL'], ['MUSHROOM_STEM', 0.2, null], ['RED_MUSHROOM_BLOCK', 0.2, 'RED_MUSHROOM', 0, 2],
+    ['BROWN_MUSHROOM_BLOCK', 0.2, 'BROWN_MUSHROOM', 0, 2], ['SEAGRASS', 0, null], ['KELP', 0, 'KELP'], ['CRIMSON_NYLIUM', 0.4, 'NETHERRACK'], ['WARPED_NYLIUM', 0.4, 'NETHERRACK'],
+    ['CRIMSON_STEM', 2, 'CRIMSON_STEM'], ['WARPED_STEM', 2, 'WARPED_STEM'], ['CRIMSON_PLANKS', 2, 'CRIMSON_PLANKS'], ['WARPED_PLANKS', 2, 'WARPED_PLANKS'],
+    ['NETHER_WART_BLOCK', 1, 'NETHER_WART_BLOCK'], ['WARPED_WART_BLOCK', 1, 'WARPED_WART_BLOCK'], ['SHROOMLIGHT', 1, 'SHROOMLIGHT'], ['BLACKSTONE', 1.5, 'BLACKSTONE'],
+    ['CRIMSON_ROOTS', 0, 'CRIMSON_ROOTS'], ['WARPED_ROOTS', 0, 'WARPED_ROOTS'],
     ['BEEHIVE', 0.6, 'BEEHIVE'], ['BEE_NEST', 0.3, 'BEE_NEST'], ['DARK_SKULL', 1, 'DARK_SKULL'], ['END_PORTAL', -1, null]);
+  WG.CORALS.forEach(function (c) { BLOCK_DATA.push([c[0] + '_CORAL_BLOCK', 1.5, c[0] + '_CORAL_BLOCK'], [c[0] + '_CORAL', 0, null]); });
+  WG.BLOCKS.forEach(function (b) {
+    var m = /^(PUMPKIN|MELON)_STEM_\d$/.exec(b.key);
+    if (m) BLOCK_DATA.push([b.key, 0, m[1] + '_SEEDS']);
+    else if (/^COCOA_\w_1$/.test(b.key)) BLOCK_DATA.push([b.key, 0.2, 'COCOA_BEANS', 2, 3]);
+    else if (/^COCOA_\w_0$/.test(b.key)) BLOCK_DATA.push([b.key, 0.2, 'COCOA_BEANS']);
+    else if (/^VINE_/.test(b.key)) BLOCK_DATA.push([b.key, 0.2, null]);
+  });
   WG.COLORS16.forEach(function (c) {
     BLOCK_DATA.push([c[0] + '_CONCRETE', 1.8, c[0] + '_CONCRETE'], [c[0] + '_CONCRETE_POWDER', 0.5, c[0] + '_CONCRETE_POWDER'], [c[0] + '_STAINED_GLASS', 0.3, null],
       [c[0] + '_TERRACOTTA', 1.25, c[0] + '_TERRACOTTA'], [c[0] + '_STAINED_GLASS_PANE', 0.3, null]);
@@ -142,6 +157,8 @@
   mine('pickaxe', 0, 'TERRACOTTA SMOOTH_STONE LANTERN STONECUTTER BLAST_FURNACE BLAST_FURNACE_LIT SMOKER SMOKER_LIT');
   mine('pickaxe', 3, 'ANCIENT_DEBRIS NETHERITE_BLOCK');
   mine('pickaxe', 2, 'EMERALD_BLOCK');
+  mine('pickaxe', 0, 'GRANITE DIORITE ANDESITE TUFF CALCITE SMOOTH_BASALT AMETHYST_BLOCK BLACKSTONE ' + WG.CORALS.map(function (c) { return c[0] + '_CORAL_BLOCK'; }).join(' '));
+  mine('shovel', 0, 'SNOW_LAYER');
   mine('pickaxe', 0, 'IRON_BARS LINKED_CHEST ' + WG.BLOCKS.filter(function (b) { return /_CONCRETE$|_TERRACOTTA$|^IRON_TRAPDOOR_/.test(b.key) || b.kind === 'wall'; }).map(function (b) { return b.key; }).join(' '));
   mine('shovel', 0, 'SNOW');
   mine('sword', 0, 'COBWEB');
@@ -345,7 +362,7 @@
     var k = b.key;
     return b.id !== B.AIR && !WG.FLUID[b.id] && k !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(k) && !/^BED_/.test(k) &&
       // 向き・開け閉め・育ち具合の違うもの、置けないもの（扉・はしご・階段は別のアイテムで置く）
-      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$|^NETHER_PORTAL|^RAIL_|^POWERED_RAIL_|^COMPOSTER_[1-8]$|_LIT$|_TRAPDOOR_|_FENCE_GATE_|^(WALL_)?SIGN_|^ITEM_FRAME_|^PAINTING_|^(WALL_)?BANNER_|^POTTED_|^END_PORTAL$/.test(k);
+      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$|^NETHER_PORTAL|^RAIL_|^POWERED_RAIL_|^COMPOSTER_[1-8]$|_LIT$|_TRAPDOOR_|_FENCE_GATE_|^(WALL_)?SIGN_|^ITEM_FRAME_|^PAINTING_|^(WALL_)?BANNER_|^POTTED_|^END_PORTAL$|_STEM_\d$|^COCOA_|^VINE_/.test(k);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----

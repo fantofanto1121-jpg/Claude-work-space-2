@@ -1097,6 +1097,120 @@ def main():
         for x in range(N): lc.set(x, y, [20, 30, 32])
     for (x, y) in [(7, 6), (8, 6), (7, 7), (8, 7), (7, 8), (8, 8)]: lc.set(x, y, [90, 220, 190])
     put('LINKED_CHEST', lc, panel([34, 48, 50], 134, 'dots'))
+    # ---- 第 5 回：石の種類・植物・ネザーのバイオーム ----
+    def speck(base, seed, cols, n=26, lv=(0.9, 0.97, 1.03, 1.1)):
+        return specks(noisy(base, seed, lv, ((2, 0.4), (1, 0.6))), seed + 1, n, cols)
+    put('GRANITE', speck([154, 106, 88], 150, [[110, 70, 60], [200, 160, 140], [90, 60, 50]], 34))
+    put('DIORITE', speck([200, 200, 196], 151, [[120, 120, 118], [90, 90, 88], [236, 236, 232]], 30))
+    put('ANDESITE', speck([136, 138, 136], 152, [[110, 112, 110], [160, 162, 160]], 20, (0.86, 0.95, 1.03, 1.1)))
+    put('TUFF', speck([106, 106, 98], 153, [[80, 84, 76], [130, 128, 116], [96, 110, 96]], 24))
+    put('CALCITE', noisy([224, 224, 218], 154, (0.93, 0.98, 1.02, 1.05), ((4, 0.6), (1, 0.4))))
+    put('SMOOTH_BASALT', noisy([74, 74, 80], 155, (0.9, 0.97, 1.03), ((4, 0.7), (1, 0.3))))
+    am = Img()
+    for y in range(N):
+        for x in range(N):
+            k2 = 1.25 if (x + y) % 8 == 0 else 0.8 if (x - y) % 8 == 0 else 1.0 + 0.06 * ((hsh(156, x, y) % 3) - 1)
+            am.set(x, y, sc([138, 98, 200], k2))
+    put('AMETHYST_BLOCK', am)
+    ac = plant_cut(['................', '.......a........', '......aba.......', '...a..aba..a....', '..aba.aba.aba...', '..aba.abc.aba...', '..abaaabcaaba....', '...abcabcabc....',
+                    '...abcabcabc..a.', '.a.abcabcabc.ab.', 'aba.aaaaaaa.abc.', 'abc.........abc.', 'abc..........a..', '.a..............', '................', '................'],
+                   {'a': [168, 136, 232], 'b': [220, 200, 255], 'c': [120, 86, 180]})
+    put('AMETHYST_CLUSTER', ac, cut=ac)
+    mel = Img()
+    for y in range(N):
+        for x in range(N): mel.set(x, y, sc([106, 154, 42], (1.15 if x % 4 == 1 else 0.82 if x % 4 == 3 else 1.0) * (0.95 + 0.1 * ((hsh(157, x, y) % 3) / 2))))
+    melt = Img()
+    for y in range(N):
+        for x in range(N): melt.set(x, y, sc([120, 168, 52], 0.85 if max(abs(x - 7.5), abs(y - 7.5)) % 3 < 1 else 1.0))
+    for (x, y) in [(7, 7), (8, 7), (7, 8), (8, 8)]: melt.set(x, y, [70, 90, 30])
+    put('MELON', mel, melt, melt)
+    bam = Img()
+    for y in range(N):
+        for x in range(N): bam.set(x, y, [60, 120, 40] if y % 5 == 0 else sc([96, 160, 52], 1.12 if x % 4 == 1 else 0.9 if x % 4 == 3 else 1.0))
+    put('BAMBOO', bam, panel([140, 190, 80], 158))
+    lp = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            d = math.hypot(x - 7.5, y - 7.5)
+            if d < 7.4 and not (x > 7 and abs(y - 7.5) < (x - 7) * 0.4): lp.set(x, y, sc([58, 122, 42], 1.12 if d < 3 else 0.86 if (x + y) % 5 == 0 else 1.0))
+    put('LILY_PAD', lp, lp, lp, cut=lp)
+    put('SNOW_LAYER', T['SNOW']['side'], T['SNOW']['top'])
+    st_ = Img()
+    for y in range(N):
+        for x in range(N): st_.set(x, y, sc([216, 208, 192], 0.88 if x % 3 == 0 else 1.0 + 0.05 * ((hsh(159, x, y) % 3) - 1)))
+    put('MUSHROOM_STEM', st_)
+    rm = noisy([184, 48, 42], 160, (0.9, 1.0, 1.08))
+    for (x, y) in [(2, 3), (3, 3), (2, 4), (3, 4), (10, 2), (11, 2), (10, 3), (6, 9), (7, 9), (6, 10), (7, 10), (12, 11), (13, 11), (12, 12), (3, 13)]: rm.set(x, y, [236, 230, 220])
+    put('RED_MUSHROOM_BLOCK', rm)
+    put('BROWN_MUSHROOM_BLOCK', speck([140, 106, 74], 161, [[120, 88, 60], [160, 124, 90]], 30))
+    sg2 = plant_cut(['................', '....a......a....', '....a..a...a....', '...aa..a...ab...', '...a...ab..b....', '..ab...b...b..a.', '..b...ab..ab..a.', '.ab...b...b..ab.',
+                     '.b...ab..ab..ab.', '.b...b...b...b..', 'ab..ab..ab..ab..', 'b...b...b...b...', 'b..ab..ab..ab...', 'b..b...b...b....', 'b..b...b...b....', 'b..b...b...b....'],
+                    {'a': [84, 168, 72], 'b': [52, 128, 56]})
+    put('SEAGRASS', sg2, cut=sg2)
+    kp = plant_cut(['.......aa.......', '......aab.......', '.......ab.c.....', '......abb.cc....', '..cc..ab........', '..ccc.abb.......', '......aab.......', '.......ab..cc...',
+                    '.......abb.ccc..', '......aab.......', '..cc..ab........', '..ccc.abb.......', '......aab.......', '.......ab.cc....', '......abb.ccc...', '.......ab.......'],
+                   {'a': [92, 140, 52], 'b': [62, 104, 36], 'c': [124, 164, 62]})
+    put('KELP', kp, cut=kp)
+    nr = T['NETHERRACK']['side']
+    for k, c in [('CRIMSON', [150, 30, 34]), ('WARPED', [40, 128, 112])]:
+        top = noisy(c, 162 + len(k), (0.82, 0.94, 1.04, 1.14), ((2, 0.4), (1, 0.6)))
+        side = nr.copy()
+        for x in range(N):
+            hh = 3 + (hsh(163, x) % 3)
+            for y in range(hh): side.set(x, y, top.get(x, y))
+        put(k + '_NYLIUM', side, top, nr)
+        stc = [108, 40, 58] if k == 'CRIMSON' else [44, 90, 92]
+        stem_s = Img()
+        for y in range(N):
+            for x in range(N): stem_s.set(x, y, sc(stc, [0.8, 1.0, 1.15, 0.9][(x + hsh(164, x) % 2) % 4] * (0.95 + 0.1 * ((hsh(165, x, y // 3) % 3) / 2))))
+        for y in range(0, N, 5):
+            for x in range(N):
+                if hsh(166 + len(k), x, y) % 3 == 0: stem_s.set(x, y, [210, 120, 60] if k == 'CRIMSON' else [60, 220, 190])
+        put(k + '_STEM', stem_s, log_top(stc, sc(stc, 1.35), 167))
+        put(k + '_PLANKS', planks(sc(stc, 1.2), 168 + len(k)))
+        put('NETHER_WART_BLOCK' if k == 'CRIMSON' else 'WARPED_WART_BLOCK', noisy([138, 26, 26] if k == 'CRIMSON' else [26, 122, 122], 169, (0.8, 0.92, 1.04, 1.16), ((2, 0.5), (1, 0.5))))
+        rc = [170, 40, 58] if k == 'CRIMSON' else [44, 160, 140]
+        roots = plant_cut(['................', '................', '...a.......a....', '...a...a...a....', '..ab...a..ab....', '..b...ab..b..a..', '.ab...b...b..b..',
+                           '.b...ab..ab.ab..', '.b...b...b..b...', 'ab..ab..ab.ab...', 'b...b...b..b....', 'b..ab..ab.ab....', 'b..b...b..b.....', 'b..b...b..b.....', '................', '................'],
+                          {'a': mixc(rc, [255, 255, 255], 0.25), 'b': rc})
+        put(k + '_ROOTS', roots, cut=roots)
+    sl2 = Img()
+    for y in range(N):
+        for x in range(N): sl2.set(x, y, [255, 200, 110] if hsh(170, x, y) % 7 == 0 else sc([240, 150, 70], 0.9 + 0.2 * ((hsh(171, x, y) % 3) / 2)))
+    put('SHROOMLIGHT', sl2)
+    put('BLACKSTONE', speck([42, 36, 40], 172, [[24, 20, 24], [70, 62, 66]], 30, (0.85, 1.0, 1.15)), noisy([42, 36, 40], 173, (0.85, 1.0, 1.15)))
+    for k, c in [('TUBE', '#3a5ad8'), ('BRAIN', '#d85aa8'), ('BUBBLE', '#a83ad8'), ('FIRE', '#d83a3a'), ('HORN', '#e8c83a')]:
+        base = hx(c)
+        cb = noisy(base, 174 + len(k), (0.84, 0.96, 1.06), ((2, 0.5), (1, 0.5)))
+        for y in range(1, N, 4):
+            for x in range((y // 4) % 2 * 2, N, 4): cb.set(x, y, sc(base, 0.55)); cb.set(x + 1, y, sc(base, 0.7))
+        put(k + '_CORAL_BLOCK', cb)
+        cp = plant_cut(['................', '..a.....a....a..', '..a..a..a...aa..', '.ab..a.ab..ab...', '..b.ab.b..ab....', '..bab..b.ab..a..', '...b...bab..ab..',
+                        '...b..ab...ab...', '...bab.b..ab....', '....b..bab......', '....b...b.......', '....bb.bb.......', '.....bbb........', '......b.........', '......b.........', '......b.........'],
+                       {'a': mixc(base, [255, 255, 255], 0.35), 'b': base})
+        put(k + '_CORAL', cp, cut=cp)
+    for k in ('PUMPKIN', 'MELON'):
+        for stg in range(8):
+            im = Img(alpha=True)
+            h2 = 3 + stg * 1.6
+            col2 = mixc([96, 160, 52], [190, 160, 70], stg / 7)
+            for y in range(int(16 - h2), 16):
+                im.set(7, y, col2); im.set(8, y, sc(col2, 0.8))
+                if y % 3 == 0: im.set(6, y, col2); im.set(9, y - 1, sc(col2, 1.1))
+            put(k + '_STEM_' + str(stg), im, cut=im)
+    for stg, c in [(0, [150, 170, 70]), (1, [176, 104, 50])]:
+        cc = Img()
+        for y in range(N):
+            for x in range(N): cc.set(x, y, sc(c, 1.15 if x % 4 == 1 else 0.82 if x % 4 == 3 else 1.0))
+        put('COCOA_' + str(stg), cc)
+    vn = Img(alpha=True)
+    r3 = random.Random(175)
+    for x0 in range(0, N, 3):
+        x = x0 + r3.randrange(0, 2)
+        for y in range(N):
+            if r3.random() < 0.85: vn.set(x % N, y, [56, 110, 40] if y % 2 else [74, 136, 52])
+            if r3.random() < 0.25: vn.set((x + 1) % N, y, [92, 156, 64])
+    put('VINE', vn, cut=vn, all_faces=True)
     # 第 4 回：ハチの巣箱・ハチの巣・黒い頭蓋骨・エンドポータル
     hv_s = planks([196, 156, 84], 140); hv_f = hv_s.copy()
     for y in range(8, 12):

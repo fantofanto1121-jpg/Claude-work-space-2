@@ -954,5 +954,53 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(wd2.ai.heard > 0 && g.health <= 0 || g.dead, '深淵の番人：歩く音を聞きつけ、叩かれると 30 のダメージ（体力 20 では倒れる）');
 })();
 
+// ---- 第 5 回：地形・植物・石・ネザーのバイオーム ----
+(function () {
+  console.log('\n[第 5 回：地形・植物・石・バイオーム]');
+  function scan(dim, x0, x1, z0, z1) {
+    var w = new WG.World(SEED, dim), cnt = {};
+    for (var cx = x0; cx <= x1; cx++) for (var cz = z0; cz <= z1; cz++) { var bl = w.chunk(cx, cz).blocks; for (var i = 0; i < bl.length; i++) cnt[bl[i]] = (cnt[bl[i]] || 0) + 1; }
+    return function (k) { return cnt[B[k]] || 0; };
+  }
+  var o = scan('overworld', -12, -8, -12, 2), stones = ['GRANITE', 'DIORITE', 'ANDESITE', 'TUFF'].every(function (k) { return o(k) > 1000; });
+  var geode = o('SMOOTH_BASALT') && o('CALCITE') && o('AMETHYST_BLOCK') && o('AMETHYST_CLUSTER');
+  check(stones && geode && o('WATER_FALL') + o('LAVA_FALL') > 0, '石の種類（花崗岩 ' + o('GRANITE') + '・閃緑岩 ' + o('DIORITE') + '・安山岩 ' + o('ANDESITE') + '・凝灰岩 ' + o('TUFF') + '）、アメジストの晶洞（結晶 ' + o('AMETHYST_CLUSTER') + '）、崖の滝');
+  var corals = WG.CORALS.reduce(function (a, c) { return a + o(c[0] + '_CORAL_BLOCK') + o(c[0] + '_CORAL'); }, 0);
+  check(o('SNOW_LAYER') > 0 && o('SEAGRASS') > 0 && o('KELP') > 0 && corals > 0 && o('PUMPKIN') > 0, '雪の層 ' + o('SNOW_LAYER') + '、海草 ' + o('SEAGRASS') + '・昆布 ' + o('KELP') + '・サンゴ ' + corals + '、カボチャ ' + o('PUMPKIN'));
+  var j = scan('overworld', 20, 30, -6, 6), cocoa = ['N', 'S', 'E', 'W'].reduce(function (a, d) { return a + j('COCOA_' + d + '_1'); }, 0), vine = ['N', 'S', 'E', 'W'].reduce(function (a, d) { return a + j('VINE_' + d); }, 0);
+  check(j('BAMBOO') && j('MELON') && cocoa && vine && j('LILY_PAD') && j('MUSHROOM_STEM'), 'ジャングルと沼：竹 ' + j('BAMBOO') + '、スイカ ' + j('MELON') + '、カカオ ' + cocoa + '、つる ' + vine + '、スイレンの葉 ' + j('LILY_PAD') + '、巨大キノコ');
+  var n = scan('nether', -12, -6, -12, 12);
+  check(n('CRIMSON_NYLIUM') && n('WARPED_NYLIUM') && n('CRIMSON_STEM') && n('WARPED_STEM') && n('SHROOMLIGHT') && n('BLACKSTONE') && n('SOUL_SOIL') && n('ANCIENT_DEBRIS'),
+    'ネザー：真紅の森・歪んだ森（巨大な菌 ' + (n('CRIMSON_STEM') + n('WARPED_STEM')) + '、シュルームライト ' + n('SHROOMLIGHT') + '）、ソウルサンドの谷、玄武岩の三角州、古代の残骸 ' + n('ANCIENT_DEBRIS'));
+
+  var w = flatWorld(function (x, y, z) { return y <= 9 ? B.DIRT : y === 10 ? B.GRASS : 0; }), g = playGame(w), i;
+  var hold = function (k, nn) { g.inv.slots[0] = k ? { key: k, n: nn || 1 } : null; g.inv.sel = 0; };
+  // 茎：種を耕地に植え、育ちきると横にカボチャ
+  w.setBlock(0, 10, 0, B.FARMLAND_MOIST); hold('PUMPKIN_SEEDS', 4);
+  g.walker.target = { id: B.FARMLAND_MOIST, x: 0, y: 10, z: 0, px: 0, py: 11, pz: 0 }; g.place();
+  var planted = w.block(0, 11, 0) === B.PUMPKIN_STEM_0;
+  for (i = 0; i < 400; i++) g.growCrop(0, 11, 0, 0);
+  var fruit = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(function (d) { return w.block(d[0], 11, d[1]) === B.PUMPKIN; });
+  check(planted && w.block(0, 11, 0) === B.PUMPKIN_STEM_7 && fruit, 'カボチャの種を植えると茎が 8 段階に育ち、横の地面にカボチャが実る');
+  // 竹：伸びて、根元を折ると上もすべて折れる
+  w.setBlock(5, 11, 0, B.BAMBOO);
+  for (i = 0; i < 30; i++) WG.growPlant(g, 5, 11 + i, 0);
+  var tall = 0; while (w.block(5, 11 + tall, 0) === B.BAMBOO) tall++;
+  g.entities.length = 0; g.breakBlock(5, 11, 0, true); for (i = 0; i < 5; i++) g.tick();
+  var bams = g.entities.filter(function (e) { return e.key === 'BAMBOO'; }).reduce(function (a, e) { return a + e.n; }, 0);
+  check(tall === 12 && w.block(5, 15, 0) === B.AIR && bams === 12, '竹は 12 段まで伸び、根元を折ると上もすべて折れる（' + bams + ' 本）');
+  // カカオ：ジャングルの原木の横に植えると実る。水の中の昆布を取ると水が残る
+  w.setBlock(8, 11, 0, B.JUNGLE_LOG); hold('COCOA_BEANS', 3);
+  g.walker.target = { id: B.JUNGLE_LOG, x: 8, y: 11, z: 0, px: 9, py: 11, pz: 0 }; g.place();
+  var c0 = w.block(9, 11, 0) === B.COCOA_W_0; WG.growPlant(g, 9, 11, 0);
+  w.setBlock(12, 11, 0, B.KELP); w.setBlock(12, 12, 0, B.KELP); g.breakBlock(12, 11, 0, true);
+  check(c0 && w.block(9, 11, 0) === B.COCOA_W_1 && w.block(12, 11, 0) === B.WATER && w.block(12, 12, 0) === B.WATER, 'カカオ豆を原木の横に植えると実り、昆布を取ると水が残る');
+  // レシピ：スイカ・アメジストブロック・望遠鏡（アメジストのかけら）・乾燥した昆布・真紅の板材から作業台
+  var m = WG.Craft.match, S = 'MELON_SLICE', A = 'AMETHYST_SHARD', Cu = 'COPPER_INGOT', P = 'CRIMSON_PLANKS';
+  var ok = m([S, S, S, S, S, S, S, S, S], 3).key === 'MELON' && m([A, A, null, A, A, null, null, null, null], 3).key === 'AMETHYST_BLOCK' &&
+    m([null, A, null, null, Cu, null, null, Cu, null], 3).key === 'SPYGLASS' && WG.Craft.SMELT.KELP === 'DRIED_KELP' && m([P, P, null, P, P, null, null, null, null], 3).key === 'CRAFTING_TABLE';
+  check(ok && WG.blockKind(B.VINE_N) === 'vine' && WG.MOB_TYPES.PANDA.drops[0][0] === 'BAMBOO', 'スイカ・アメジストブロック・望遠鏡（アメジストのかけら）・乾燥した昆布・真紅の板材の作業台。つるは登れる。パンダは竹を落とす');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
