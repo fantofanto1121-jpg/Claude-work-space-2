@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ワールド生成</title>
 <style>
   :root {
@@ -195,6 +195,67 @@
   .dead-title { font-size: 22px; font-weight: 600; color: #f0e6e2; }
   .dead-sub { color: #d8c8c4; font-size: 13px; }
   #dead button { padding: 7px 22px; }
+  /* ---- スマホ（タッチ）で遊ぶ：本家のスマホ版と同じ配置（左下に十字ボタン、右下にジャンプ、画面をなぞって視点） ---- */
+  body.touchplay aside, body.touchplay #status { display: none; }
+  body.touchplay #app { flex-direction: row; }
+  body.touchplay canvas { inset: 0; height: 100%; }
+  body.touchplay #hurt { inset: 0; }
+  body.touchplay, body.touchplay main { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #touchUI { position: absolute; inset: 0; z-index: 4; pointer-events: none; touch-action: none; }
+  #touchUI > * { pointer-events: auto; touch-action: none; }
+  #tLook { position: absolute; inset: 0; }
+  .tbtn { position: absolute; display: flex; align-items: center; justify-content: center; background: rgba(40, 42, 46, 0.46);
+    border: 1.5px solid rgba(225, 225, 225, 0.38); border-radius: 6px; color: #ecebe6; font-size: 14px; }
+  .tbtn.on, .tp.on { background: rgba(200, 200, 200, 0.42); }
+  #tPad { position: absolute; left: calc(22px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom));
+    width: 184px; height: 184px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 6px; }
+  .tp { position: relative; background: rgba(40, 42, 46, 0.46); border: 1.5px solid rgba(225, 225, 225, 0.38); border-radius: 6px; }
+  .tp::before { content: ''; position: absolute; left: 50%; top: 50%; width: 0; height: 0; border: 9px solid transparent; }
+  .tp.up { grid-area: 1 / 2; } .tp.up::before { border-bottom: 13px solid #ecebe6; transform: translate(-50%, -75%); }
+  .tp.down { grid-area: 3 / 2; } .tp.down::before { border-top: 13px solid #ecebe6; transform: translate(-50%, -25%); }
+  .tp.left { grid-area: 2 / 1; } .tp.left::before { border-right: 13px solid #ecebe6; transform: translate(-75%, -50%); }
+  .tp.right { grid-area: 2 / 3; } .tp.right::before { border-left: 13px solid #ecebe6; transform: translate(-25%, -50%); }
+  .tp.ul, .tp.ur { visibility: hidden; background: rgba(40, 42, 46, 0.3); }
+  .tp.ul { grid-area: 1 / 1; } .tp.ur { grid-area: 1 / 3; }
+  .tp.ul::before { border-right: 11px solid #ecebe6; border-bottom: 11px solid transparent; border-top: 0; border-left: 0; transform: translate(-50%, -50%); }
+  .tp.ur::before { border-left: 11px solid #ecebe6; border-bottom: 11px solid transparent; border-top: 0; border-right: 0; transform: translate(-50%, -50%); }
+  #tPad.fwd .tp.ul, #tPad.fwd .tp.ur { visibility: visible; }
+  .tp.mid { grid-area: 2 / 2; border-radius: 50%; margin: 9px; }
+  .tp.mid::before { width: 12px; height: 12px; border: 2px solid #ecebe6; border-radius: 50%; transform: translate(-50%, -50%); }
+  .tp.mid.fly::before { border: 9px solid transparent; border-top: 12px solid #ecebe6; border-radius: 0; width: 0; height: 0; transform: translate(-50%, -25%); }
+  #tJump { right: calc(40px + env(safe-area-inset-right)); bottom: calc(56px + env(safe-area-inset-bottom)); width: 76px; height: 76px; border-radius: 50%; }
+  #tJump::before { content: ''; border: 12px solid transparent; border-bottom: 17px solid #ecebe6; transform: translateY(-6px); }
+  #tTop { position: absolute; right: calc(12px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); display: flex; gap: 8px; background: none; border: 0; }
+  #tTop .tbtn { position: relative; width: 44px; height: 40px; }
+  #tPause::before, #tPause::after { content: ''; width: 5px; height: 16px; background: #ecebe6; margin: 0 3px; border-radius: 1px; }
+  #tChat::before { content: ''; width: 20px; height: 13px; border: 2px solid #ecebe6; border-radius: 3px; transform: translateY(-2px); }
+  #tChat::after { content: ''; position: absolute; left: 14px; top: 25px; border: 4px solid transparent; border-top: 5px solid #ecebe6; border-left-width: 0; }
+  #tAct { left: 50%; bottom: calc(132px + env(safe-area-inset-bottom)); transform: translateX(-50%); min-width: 96px; height: 38px; padding: 0 16px; font-size: 14px; }
+  #tInv { width: 40px; height: 40px; gap: 4px; }
+  #tInv i { width: 5px; height: 5px; background: #ecebe6; border-radius: 1px; }
+  #tRotate { position: absolute; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    background: rgba(20, 21, 23, 0.94); color: var(--text); font-size: 15px; text-align: center; padding: 24px; }
+  #tRotate b { width: 34px; height: 54px; border: 3px solid var(--text); border-radius: 6px; animation: turn 2.4s ease-in-out infinite; }
+  @keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) { body.touchplay #tRotate { display: flex; } }
+  body.touchplay #hud { z-index: 5; }
+  body.touchplay #inv, body.touchplay #dead, body.touchplay #chat, body.touchplay #cursorItem { z-index: 7; }
+  body.touchplay #walkCard { z-index: 8; }
+  body.touchplay #hud { bottom: calc(8px + env(safe-area-inset-bottom)); pointer-events: none; }
+  body.touchplay #hotbar { pointer-events: auto; grid-template-columns: repeat(9, 40px); }
+  body.touchplay #hotbar .slot { width: 40px; height: 40px; }
+  body.touchplay #hotbar .slot img { inset: 3px; width: 32px; height: 32px; }
+  body.touchplay #hotbarRow { display: flex; align-items: flex-end; gap: 6px; }
+  body.touchplay #tInv { position: static; pointer-events: auto; }
+  body.touchplay #inv { max-height: calc(100% - 16px); overflow-y: auto; top: 50%; }
+  body.touchplay #toast { bottom: 120px; }
+  #invClose { display: none; position: absolute; right: 8px; top: 8px; width: 34px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
+  body.touchplay #invClose { display: block; }
+  .keys.touch, .inv-help .touch { display: none; }
+  body.is-touch .inv-help .desk { display: none; }
+  body.is-touch .inv-help .touch { display: inline; }
+  body.is-touch .keys.desk { display: none; }
+  body.is-touch .keys.touch { display: grid; }
   .hide { display: none !important; }
   @media (max-width: 720px) {
     #app { flex-direction: column; }
@@ -296,7 +357,7 @@
     <div id="cross" class="hide"></div>
     <div id="walkCard" class="hide">
       <div class="wc-title" id="wcTitle">クリックして遊ぶ</div>
-      <dl class="keys">
+      <dl class="keys desk">
         <dt>マウス</dt><dd>視点を動かす</dd>
         <dt>W A S D</dt><dd>前・左・後ろ・右へ歩く</dd>
         <dt>スペース</dt><dd>ジャンプ（2 度押しで飛ぶ：クリエイティブ）</dd>
@@ -314,6 +375,15 @@
         <dt>Q</dt><dd>捨てる（Ctrl＋Q でまとめて）</dd>
         <dt>Esc</dt><dd>マウスを離して止まる</dd>
       </dl>
+      <dl class="keys touch">
+        <dt>画面をなぞる</dt><dd>視点を動かす</dd>
+        <dt>左下の十字</dt><dd>歩く（前を 2 度押しでダッシュ）。真ん中はスニーク（飛んでいるときは下がる）</dd>
+        <dt>右下のボタン</dt><dd>ジャンプ（2 度押しで飛ぶ：クリエイティブ）。段差は自動でジャンプ</dd>
+        <dt>タップ</dt><dd>置く・使う・開く。生き物は叩く</dd>
+        <dt>長押し</dt><dd>壊す。食べ物・弓などは使う</dd>
+        <dt>下の持ち物</dt><dd>タップで持ち替え、長押しで捨てる。「…」でインベントリ</dd>
+        <dt>右上</dt><dd>チャット（コマンド）と一時停止</dd>
+      </dl>
     </div>
     <div id="hurt"></div>
     <div id="sleepFade"></div>
@@ -330,14 +400,23 @@
       <div id="itemName"></div>
       <div class="bars"><div class="lcol"><div id="armor"></div><div id="hearts"></div></div><div class="rcol"><div id="air"></div><div id="food"></div></div></div>
       <div id="xpbar" class="empty"><i></i><b id="xplv"></b></div>
-      <div id="hotbar"></div>
+      <div id="hotbarRow"><div id="hotbar"></div><div id="tInv" class="tbtn hide"><i></i><i></i><i></i></div></div>
     </div>
     <div id="inv" class="hide">
       <div class="inv-title" id="invTitle">インベントリ</div>
+      <button id="invClose" aria-label="閉じる">×</button>
       <div id="invBody"></div>
-      <div class="inv-help">左クリックで束ごと、右クリックで半分か 1 個、Shift＋左クリックでまとめて移す。クラフトの枠に材料を並べると、右にできるものが出ます。E か Esc で閉じる。</div>
+      <div class="inv-help"><span class="desk">左クリックで束ごと、右クリックで半分か 1 個、Shift＋左クリックでまとめて移す。クラフトの枠に材料を並べると、右にできるものが出ます。E か Esc で閉じる。</span><span class="touch">タップで束ごと持ち上げ、置きたい枠をタップ。クラフトの枠に材料を並べると、右にできるものが出ます。右上の × で閉じる。</span></div>
     </div>
     <div id="cursorItem" class="hide"></div>
+    <div id="touchUI" class="hide">
+      <div id="tLook"></div>
+      <div id="tPad"><b class="tp ul"></b><b class="tp up"></b><b class="tp ur"></b><b class="tp left"></b><b class="tp mid"></b><b class="tp right"></b><b class="tp down"></b></div>
+      <div id="tJump" class="tbtn"></div>
+      <div id="tTop"><div id="tChat" class="tbtn"></div><div id="tPause" class="tbtn"></div></div>
+      <div id="tAct" class="tbtn hide">使う</div>
+    </div>
+    <div id="tRotate"><b></b><div>横向きにして遊んでください</div></div>
     <div id="dead" class="hide">
       <div class="dead-title">倒れてしまった</div>
       <div class="dead-sub">持っていたものはその場に落ちています</div>

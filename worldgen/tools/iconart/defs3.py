@@ -77,11 +77,11 @@ def block_marks(rows, mat):
             if ch == '.':
                 continue
             h = (x * 73856093 ^ y * 19349663) & 15
-            if mat in ('oak', 'spruce', 'acacia', 'birch', 'jungle') and ch in 'LR' and y % 3 == 0:
+            if mat in ('oak', 'spruce', 'acacia', 'birch', 'jungle', 'darkoak') and ch in 'LR' and y % 3 == 0:
                 marks.append((x, y, 'p'))
-            elif mat in ('cobble', 'stonebrick', 'stone2') and h < 3:
+            elif mat in ('cobble', 'stonebrick', 'stone2', 'blackstone') and h < 3:
                 marks.append((x, y, 's'))
-            elif mat == 'bricks' and ch in 'LR' and (y % 3 == 0):
+            elif mat in ('bricks', 'endbrick') and ch in 'LR' and (y % 3 == 0):
                 marks.append((x, y, 'm'))
             elif mat == 'sandstone' and ch in 'LR' and y % 4 == 0:
                 marks.append((x, y, 'q'))
@@ -94,12 +94,18 @@ def block_item(boxes, mat):
     fixed = {'p': base[1], 's': base[1], 'm': '#c8b8a8', 'q': base[1]}
     return (rows, fr, fixed, block_marks(rows, mat))
 
+# 第 6 回の建材の色
+RR.update({'darkoak': ['#1c120a', '#3a2614', '#4a3018', '#5e3e20', '#74502c'], 'netherbrick': ['#140808', '#2a1214', '#381a1c', '#4a2426', '#5c3032'],
+           'purpur': ['#4a2e4a', '#8a5e8a', '#a87ca8', '#bc92bc', '#d0aad0'], 'prismarine': ['#1e4a40', '#4a8a7a', '#64aa98', '#7cc0ac', '#98d4c0'],
+           'blackstone': ['#121014', '#28242a', '#363038', '#46404a', '#58525c'], 'endbrick': ['#6a6a40', '#b8ba84', '#dee0a8', '#eaecbc', '#f4f6d0']})
 D = {}
 CUBE = lambda: [(0, 0, 0, 1, 1, 1, 'T', 'L', 'R')]
 STAIRS = [(0, 0, 0, 1, 0.5, 1, 'T', 'L', 'R'), (0, 0.5, 0, 1, 1, 0.5, 'T', 'L', 'R')]
 SLAB = [(0, 0, 0, 1, 0.5, 1, 'T', 'L', 'R')]
 for k, m in [('OAK', 'oak'), ('SPRUCE', 'spruce'), ('ACACIA', 'acacia'), ('BIRCH', 'birch'), ('JUNGLE', 'jungle'), ('COBBLESTONE', 'cobble'),
-             ('STONE_BRICK', 'stonebrick'), ('SANDSTONE', 'sandstone'), ('BRICK', 'bricks')]:
+             ('STONE_BRICK', 'stonebrick'), ('SANDSTONE', 'sandstone'), ('BRICK', 'bricks'),
+             ('DARK_OAK', 'darkoak'), ('NETHER_BRICK', 'netherbrick'), ('PURPUR', 'purpur'), ('PRISMARINE_BRICK', 'prismarine'),
+             ('BLACKSTONE_BRICK', 'blackstone'), ('END_STONE_BRICK', 'endbrick')]:
     D[k + '_STAIRS'] = block_item(STAIRS, m)
     D[k + '_SLAB'] = block_item(SLAB, m)
 D['STONE_PRESSURE_PLATE'] = block_item([(0.06, 0, 0.06, 0.94, 0.14, 0.94, 'T', 'L', 'R')], 'stone2')

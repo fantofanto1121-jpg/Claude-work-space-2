@@ -244,18 +244,22 @@
     });
   }
 
-  // ---------------- 歩く・遊ぶ（パソコン版のみ） ----------------
+  // ---------------- 歩く・遊ぶ（パソコンはマウスとキーボード、スマホは画面のボタン） ----------------
   var DESKTOP = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var game = null, walker = null, walkKey = '', walkEdits = 0, gameMode = 'survival';
   // 持ち物・体力は、表示や次元を切り替えても残す（シードを変えたときだけ新しくする）
   var player = new WG.Player();
-  function locked() { return document.pointerLockElement === c3d; }
+  // スマホ（タッチ）：本家のスマホ版と同じく、画面のボタンで遊ぶ。touchPlay の間は「マウスを固定している」のと同じ扱い
+  var TOUCH = !DESKTOP && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+  var touchPlay = false, touchHold = false;
+  if (TOUCH) document.body.classList.add('is-touch');
+  function locked() { return document.pointerLockElement === c3d || (touchPlay && !touchHold); }
   var toastTimer = 0;
 
   var gameUI = {
     locked: locked,
     lock: lockPointer,
-    unlock: function () { if (locked()) document.exitPointerLock(); },
+    unlock: function () { if (touchPlay) { touchHold = true; releaseTouch(); updateWalkCard(); } else if (locked()) document.exitPointerLock(); },
     status: walkStatus,
     hurt: function () { var h = $('hurt'); h.classList.remove('on'); void h.offsetWidth; h.classList.add('on'); },
     hud: $('hud'), hotbar: $('hotbar'), hearts: $('hearts'), armor: $('armor'), air: $('air'), food: $('food'), itemName: $('itemName'),
@@ -335,6 +339,7 @@
     if (world().editCount !== walkEdits) { tileCache.clear(); texCache.clear(); }
     game.stop();
     game = null; walker = null; walkKey = ''; lastVolKey = '';
+    if (touchPlay) exitTouch();
     if (locked()) document.exitPointerLock();
     updateWalkCard();
   }
@@ -360,11 +365,14 @@
     var on = state.mode === 'walk' && !!game, busy = on && (game.invOpen || game.dead || chatting);
     $('cross').classList.toggle('hide', !(on && locked()));
     $('walkCard').classList.toggle('hide', !on || locked() || busy);
-    $('wcTitle').textContent = walkLoading ? '読み込み中…' : 'クリックして遊ぶ';
+    $('wcTitle').textContent = walkLoading ? '読み込み中…' : TOUCH ? 'タップして遊ぶ' : 'クリックして遊ぶ';
+    $('touchUI').classList.toggle('hide', !(on && touchPlay && !touchHold && !game.dead));
+    $('tInv').classList.toggle('hide', !touchPlay);
   }
 
   function lockPointer() {
     if (!game || locked() || game.dead || game.invOpen) return;
+    if (TOUCH) { enterTouch(); return; }
     try {
       var r = c3d.requestPointerLock();
       if (r && r.catch) r.catch(function () { updateWalkCard(); });
@@ -404,7 +412,7 @@
     var c = $('chat'), inp = $('chatIn');
     if (!promptCb) inp.placeholder = '/help でコマンドの一覧（Enter で実行、Esc で閉じる）';
     c.classList.remove('hide', 'closed');
-    if (locked()) document.exitPointerLock();
+    gameUI.unlock();
     inp.value = prefix || '';
     setTimeout(function () { inp.focus(); }, 0);
   };
@@ -425,12 +433,12 @@
     updateWalkCard();
   });
   document.addEventListener('mousemove', function (e) {
-    if (walker && locked()) walker.look(e.movementX || 0, e.movementY || 0);
+    if (walker && locked() && !touchPlay) walker.look(e.movementX || 0, e.movementY || 0);
     var cur = $('cursorItem');
     if (game && game.invOpen) { cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; }
   });
   document.addEventListener('mousedown', function (e) {
-    if (game && locked()) { e.preventDefault(); game.mouse(e.button, true); }
+    if (game && locked() && !touchPlay) { e.preventDefault(); game.mouse(e.button, true); }
   });
   document.addEventListener('mouseup', function (e) {
     if (game) game.mouse(e.button, false);
@@ -459,6 +467,160 @@
     if (GAME_KEYS[e.code]) { e.preventDefault(); walker.key(e.code, false, false); }
   });
   window.addEventListener('blur', function () { if (walker) walker.releaseKeys(); if (game) game.mouseL = game.mouseR = false; });
+  // ---------------- スマホ（タッチ）の操作 ----------------
+  // 配置と動かし方は本家のスマホ版にならう：左下の十字ボタン（真ん中はスニーク、前を押している間は斜め前も出る）、
+  // 右下のジャンプ（2 度押しで飛ぶ）、画面をなぞって視点、タップで置く・使う（生き物は叩く）、長押しで壊す（食べ物・弓などは使う）、
+  // 持ち物をタップで持ち替え・長押しで捨てる、「…」でインベントリ、右上にチャットと一時停止。段差は自動でジャンプする。
+  function enterTouch() {
+    if (!game || game.dead || game.invOpen) return;
+    touchPlay = true; touchHold = false;
+    document.body.classList.add('touchplay');
+    var de = document.documentElement;
+    try { if (de.requestFullscreen && !document.fullscreenElement) { var fr = de.requestFullscreen({ navigationUI: 'hide' }); if (fr && fr.then) fr.then(lockLandscape, function () {}); } else lockLandscape(); } catch (e) { /* 全画面にできなくても遊べる */ }
+    updateWalkCard();
+  }
+  function lockLandscape() { try { var o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(function () {}); } catch (e) { /* 向きを固定できない端末 */ } }
+  function exitTouch() {
+    sneakOn = false;
+    releaseTouch();
+    touchPlay = false; touchHold = false;
+    document.body.classList.remove('touchplay');
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {}); } catch (e) { /* なし */ }
+    updateWalkCard();
+  }
+  var looks = {}, padId = null, padDir = '', sneakOn = false, flyDown = false, autoJ = 0;
+  function releaseTouch() {
+    Object.keys(looks).forEach(function (id) { clearTimeout(looks[id].timer); });
+    looks = {}; padId = null; padDir = ''; flyDown = false; autoJ = 0;
+    if (walker) { walker.releaseKeys(); if (sneakOn) walker.key('ShiftLeft', true, false); }
+    if (game) game.mouseL = game.mouseR = false;
+    paintPad();
+  }
+  function touchOn(el, start, move, end) {
+    el.addEventListener('touchstart', function (e) { e.preventDefault(); if (game && touchPlay) [].forEach.call(e.changedTouches, function (t) { start(t, e); }); }, { passive: false });
+    if (move) el.addEventListener('touchmove', function (e) { e.preventDefault(); if (game && touchPlay) [].forEach.call(e.changedTouches, function (t) { move(t, e); }); }, { passive: false });
+    var fin = function (e) { e.preventDefault(); if (game) [].forEach.call(e.changedTouches, function (t) { end(t, e); }); };
+    el.addEventListener('touchend', fin, { passive: false }); el.addEventListener('touchcancel', fin, { passive: false });
+  }
+  // 視点・タップ・長押し
+  var HOLD_MS = 320, LOOK_K = 2.4, HOLD_USE = { BOW: 1, CROSSBOW: 1, TRIDENT: 1, SHIELD: 1, SPYGLASS: 1 };
+  function holdIsUse() {
+    var h = game.inv.held(), it = h && WG.ITEMS[h.key];
+    return !!(it && (HOLD_USE[it.key] || it.food || it.milk || (it.potion && !it.splash)));
+  }
+  touchOn($('tLook'), function (t) {
+    var r = looks[t.identifier] = { x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, t0: Date.now(), drag: false, hold: -1 };
+    r.timer = setTimeout(function () {
+      if (r.drag || !looks[t.identifier] || !game) return;
+      r.hold = holdIsUse() ? 2 : 0;
+      game.mouse(r.hold, true);
+    }, HOLD_MS);
+  }, function (t) {
+    var r = looks[t.identifier];
+    if (!r || !walker) return;
+    walker.look((t.clientX - r.x) * LOOK_K, (t.clientY - r.y) * LOOK_K);
+    r.x = t.clientX; r.y = t.clientY;
+    if (Math.hypot(r.x - r.sx, r.y - r.sy) > 12) r.drag = true;
+  }, function (t) {
+    var r = looks[t.identifier];
+    if (!r) return;
+    delete looks[t.identifier];
+    clearTimeout(r.timer);
+    if (r.hold >= 0) { game.mouse(r.hold, false); return; }
+    if (r.drag || Date.now() - r.t0 > HOLD_MS || !touchPlay || touchHold) return;
+    var b = game.mobs.target ? 0 : 2;   // 生き物は叩く、ほかは置く・使う
+    game.mouse(b, true); game.mouse(b, false);
+  });
+  // 十字ボタン（指を滑らせて隣のボタンへ移れる）
+  var PAD_KEYS = { F: ['KeyW'], B: ['KeyS'], L: ['KeyA'], R: ['KeyD'], UL: ['KeyW', 'KeyA'], UR: ['KeyW', 'KeyD'] };
+  function padAt(t) {
+    var rc = $('tPad').getBoundingClientRect(), col = Math.floor((t.clientX - rc.left) / rc.width * 3), row = Math.floor((t.clientY - rc.top) / rc.height * 3);
+    col = Math.max(0, Math.min(2, col)); row = Math.max(0, Math.min(2, row));
+    var fwd = padDir === 'F' || padDir === 'UL' || padDir === 'UR';
+    return [[fwd ? 'UL' : '', 'F', fwd ? 'UR' : ''], ['L', 'C', 'R'], ['', 'B', '']][row][col];
+  }
+  function setPad(d) {
+    if (d === 'C') d = '';
+    if (d === padDir || !walker) return;
+    var before = PAD_KEYS[padDir] || [], after = PAD_KEYS[d] || [];
+    before.forEach(function (k) { if (after.indexOf(k) < 0) walker.key(k, false, false); });
+    after.forEach(function (k) { if (before.indexOf(k) < 0) walker.key(k, true, false); });
+    padDir = d; paintPad();
+  }
+  function paintPad() {
+    var pad = $('tPad'), map = { F: 'up', B: 'down', L: 'left', R: 'right', UL: 'ul', UR: 'ur' };
+    [].forEach.call(pad.children, function (b) { b.classList.remove('on'); });
+    if (map[padDir]) pad.querySelector('.' + map[padDir]).classList.add('on');
+    pad.classList.toggle('fwd', padDir === 'F' || padDir === 'UL' || padDir === 'UR');
+    pad.querySelector('.mid').classList.toggle('on', sneakOn || flyDown);
+  }
+  touchOn($('tPad'), function (t) {
+    if (padId != null) return;
+    padId = t.identifier;
+    var d = padAt(t);
+    if (d === 'C') {
+      // 真ん中：飛んでいるときは押している間だけ下がる、歩いているときはスニークの切り替え
+      if (walker.flying) { flyDown = true; walker.key('ShiftLeft', true, false); }
+      else { sneakOn = !sneakOn; walker.key('ShiftLeft', sneakOn, false); }
+      paintPad(); return;
+    }
+    setPad(d);
+  }, function (t) {
+    if (t.identifier !== padId || flyDown) return;
+    var d = padAt(t);
+    if (d !== 'C') setPad(d);
+  }, function (t) {
+    if (t.identifier !== padId) return;
+    padId = null;
+    if (flyDown) { flyDown = false; if (walker) walker.key('ShiftLeft', sneakOn, false); }
+    setPad(''); paintPad();
+  });
+  touchOn($('tJump'), function () { walker.key('Space', true, false); $('tJump').classList.add('on'); }, null,
+    function () { if (walker) walker.key('Space', false, false); $('tJump').classList.remove('on'); });
+  // 持ち物：タップで持ち替え、長押しで捨てる。「…」でインベントリ
+  var barTimer = 0;
+  touchOn($('hotbar'), function (t) {
+    var el = t.target.closest && t.target.closest('.slot');
+    if (!el) return;
+    var i = [].indexOf.call($('hotbar').children, el);
+    if (i < 0) return;
+    game.inv.sel = i; game.inv.changed();
+    clearTimeout(barTimer);
+    barTimer = setTimeout(function () { if (game && touchPlay) game.dropHeld(false); }, 500);
+  }, null, function () { clearTimeout(barTimer); });
+  touchOn($('tInv'), function () { game.toggleInventory(); }, null, function () {});
+  $('invClose').addEventListener('click', function () { if (game && game.invOpen) game.toggleInventory(); });
+  touchOn($('tPause'), function () { exitTouch(); }, null, function () {});
+  touchOn($('tChat'), function () { gameUI.openChat(''); }, null, function () {});
+  $('chatIn').addEventListener('blur', function () { if (TOUCH && !$('chat').classList.contains('closed')) setTimeout(function () { if (document.activeElement !== $('chatIn')) { promptCb = null; closeChat(); } }, 150); });
+  // 生き物を見ているときの「使う」ボタン（取引・乗る・なつける・えさ など）
+  var RIDE = { HORSE: 1, DONKEY: 1, CAMEL: 1, PIG: 1, STRIDER: 1 };
+  touchOn($('tAct'), function () { game.mouse(2, true); game.mouse(2, false); }, null, function () {});
+  (function touchLoop() {
+    requestAnimationFrame(touchLoop);
+    if (!touchPlay || !game || !walker) return;
+    // 使うボタン
+    var mt = game.mobs.target && game.mobs.target.mob, held = game.inv.held(), label = '';
+    if (mt && !mt.dead) {
+      if (mt.type === 'VILLAGER' && !mt.baby) label = '取引';
+      else if (RIDE[mt.type] && !mt.baby && !game.riding) label = '乗る';
+      else if (held) label = '使う';
+      else if (mt.tame) label = '座らせる';
+    }
+    var act = $('tAct');
+    if (act.textContent !== label) act.textContent = label;
+    act.classList.toggle('hide', !label || touchHold);
+    $('tPad').querySelector('.mid').classList.toggle('fly', !!walker.flying);
+    // 段差の自動ジャンプ（前へ歩いていて、目の前が 1 段だけ高いとき）
+    if (autoJ > 0 && --autoJ === 0 && !$('tJump').classList.contains('on')) walker.keys.Space = false;
+    if (walker.keys.KeyW && walker.onGround && !walker.flying && !walker.sneak && !autoJ && !game.riding) {
+      var fx = -Math.sin(walker.yaw), fz = -Math.cos(walker.yaw), p = walker.pos, wd = game.world;
+      var bx = Math.floor(p[0] + fx * 0.75), bz = Math.floor(p[2] + fz * 0.75), by = Math.floor(p[1] + 0.01);
+      if (WG.COLLIDE[wd.block(bx, by, bz)] >= 1 && !WG.FLUID[wd.block(bx, by, bz)] && !(WG.COLLIDE[wd.block(bx, by + 1, bz)] >= 1) && !(WG.COLLIDE[wd.block(bx, by + 2, bz)] >= 1) &&
+        WG.COLLIDE[wd.block(bx, by, bz)] > 0.6) { walker.keys.Space = true; autoJ = 4; }
+    }
+  })();
+
   // 遊んでいる間に Ctrl＋W などでページを閉じかけたときは確認する
   window.addEventListener('beforeunload', function (e) {
     if (game && (locked() || world().editCount !== walkEdits)) { e.preventDefault(); e.returnValue = ''; }
@@ -476,11 +638,11 @@
     $('g-size').classList.toggle('hide', state.mode !== '3d');
     $('g-pad').classList.toggle('hide', walk);
     $('g-range').classList.toggle('hide', walk);
-    $('walkBtn').classList.toggle('hide', !DESKTOP);
+    $('walkBtn').classList.toggle('hide', !DESKTOP && !TOUCH);
     $('g-game').classList.toggle('hide', !walk);
     $('g-time').classList.toggle('hide', !walk || state.dim !== 'overworld');
     $('g-sound').classList.toggle('hide', !walk);
-    $('g-save').classList.toggle('hide', !DESKTOP);
+    $('g-save').classList.toggle('hide', !DESKTOP && !TOUCH);
     var saved = WG.readSave && WG.readSave(state.seed), at = null;
     if (saved) { var mm = /"savedAt":(\d+)/.exec(saved); at = mm ? new Date(+mm[1]) : null; }
     $('saveInfo').textContent = at ? '（' + (at.getMonth() + 1) + '/' + at.getDate() + ' ' + at.getHours() + ':' + ('0' + at.getMinutes()).slice(-2) + ' のデータあり）' : '';
