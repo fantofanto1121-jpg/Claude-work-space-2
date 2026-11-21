@@ -206,6 +206,9 @@
     ['LIGHT_GRAY', '薄灰色', '#8e8e86'], ['CYAN', '青緑色', '#158a92'], ['PURPLE', '紫色', '#7a2aa8'], ['BLUE', '青色', '#343c9c'],
     ['GREEN', '緑色', '#546c1c'], ['RED', '赤色', '#a42620'], ['BLACK', '黒色', '#18181c']];
   WOOL_COLORS.forEach(function (c) { DEF.push([c[0] + '_WOOL', c[1] + 'の羊毛', c[2], 'solid']); });
+  // ネザーポータル（黒曜石の枠に火を付けると、中にできる。X は東西に広がる面、Z は南北に広がる面）
+  DEF.push(['NETHER_PORTAL_X', 'ネザーポータル', '#6a2ab8', 'portal'], ['NETHER_PORTAL_Z', 'ネザーポータル', '#6a2ab8', 'portal']);
+  ALIAS.NETHER_PORTAL_X = ALIAS.NETHER_PORTAL_Z = 'NETHER_PORTAL';
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -337,7 +340,7 @@
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
-  LIGHT_EMIT[B.LANTERN] = 15;
+  LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
   // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
   var COLLIDE = new Float32Array(N);
   LIST.forEach(function (b) {
@@ -351,9 +354,9 @@
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1 };
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -430,6 +433,7 @@
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
     // ランタン：光る胴と、上の金具
+    if (k === 'portal') return /_X$/.test(key) ? [[0, 0, 6, 16, 16, 10, B.NETHER_PORTAL_X, 1]] : [[6, 0, 0, 10, 16, 16, B.NETHER_PORTAL_Z, 1]];
     if (k === 'lantern') return [[5, 0, 5, 11, 7, 11, B.LANTERN, 1], [6, 7, 6, 10, 9, 10, B.LANTERN]];
     return null;
   }

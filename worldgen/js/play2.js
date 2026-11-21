@@ -518,6 +518,7 @@
   // エンチャントを選ぶ・金床の結果を取る
   Game.prototype.clickExtra = function (c, i) {
     var surv = this.mode === 'survival';
+    if (c === 'trade') { this.trade(i); return true; }
     if (c === 'eopt') {
       var o = this.offers && this.offers.list[i], s0 = this.enchSlots[0], lap = this.enchSlots[1];
       if (!o || !s0 || !Object.keys(o.ench).length) return true;

@@ -1,0 +1,219 @@
+// 音：足音・ブロックを掘る／壊す／置く音・生き物の声・ダメージ・爆発・扉・アイテムを拾う音など。
+// 音のファイルは使わず、Web Audio で雑音と音の高さを組み合わせてその場で作る（独自の音。本家の音ではない）。
+// 聞こえ方：遠いほど小さく（16 ブロック、爆発は 48 ブロック）、左右は向きで振り分ける。画面の「音」で切り替える。
+(function (G) {
+  'use strict';
+  var WG = G.WG = G.WG || {};
+  var B = WG.B, ctx = null, noise = null, master = null;
+  var S = WG.Sound = { enabled: true, volume: 0.6, listener: { pos: [0, 0, 0], yaw: 0 }, last: '' };
+  try { var sv = G.localStorage && G.localStorage.getItem('wg-sound'); if (sv === 'off') S.enabled = false; } catch (e) { /* 保存できない環境 */ }
+
+  function ac() {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+    if (typeof window === 'undefined' || !(window.AudioContext || window.webkitAudioContext)) return null;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value = S.volume; master.connect(ctx.destination);
+      noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      var d = noise.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
+  S.setEnabled = function (on) {
+    S.enabled = !!on;
+    try { G.localStorage && G.localStorage.setItem('wg-sound', on ? 'on' : 'off'); } catch (e) { /* 保存できない環境 */ }
+  };
+
+  // ---- 部品：出口（音量と左右）、雑音、音の高さ ----
+  function out(vol, pan) {
+    var g = ctx.createGain(); g.gain.value = vol;
+    if (ctx.createStereoPanner) { var p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); }
+    else g.connect(master);
+    return g;
+  }
+  // 雑音を、フィルター（種類・周波数・Q）に通し、エンベロープ（立ち上がり a、長さ len）で鳴らす
+  function burst(dst, t, len, type, freq, q, a, peak, freq2) {
+    var src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = noise; f.type = type; f.frequency.setValueAtTime(freq, t); if (freq2) f.frequency.exponentialRampToValueAtTime(freq2, t + len);
+    f.Q.value = q || 1;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak || 1, t + (a || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(f); f.connect(g); g.connect(dst);
+    src.start(t, Math.random() * 1.5, len + 0.05);
+  }
+  // 音の高さ（波形、周波数 f0 → f1、長さ、強さ、ビブラート）
+  function tone(dst, t, len, wave, f0, f1, peak, vib, filt) {
+    var o = ctx.createOscillator(), g = ctx.createGain(), node = o;
+    o.type = wave; o.frequency.setValueAtTime(f0, t); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + len);
+    if (vib) { var l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = vib[0]; lg.gain.value = vib[1]; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + len + 0.05); }
+    if (filt) { var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = filt; f.Q.value = 2; o.connect(f); node = f; }
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak || 0.5, t + Math.min(0.03, len / 4)); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    node.connect(g); g.connect(dst);
+    o.start(t); o.stop(t + len + 0.05);
+  }
+  function rr(a, b) { return a + Math.random() * (b - a); }
+
+  // ---- 素材ごとの音（足音・掘る・壊す・置く） ----
+  var MAT = {};
+  function matOf(id) {
+    if (MAT[id]) return MAT[id];
+    var k = WG.BLOCKS[id] ? WG.BLOCKS[id].key : '', kind = WG.blockKind ? WG.blockKind(id) : '', m = 'stone';
+    if (/GRASS|DIRT|LEAVES|FARMLAND|CLAY|MUSHROOM|WHEAT|CARROT|POTATO|SUGAR_CANE|CACTUS|HAY|SLIME|DANDELION|POPPY|CHORUS|WART|COBWEB/.test(k) || kind === 'plant' || kind === 'crop') m = 'grass';
+    else if (/SAND|SOUL/.test(k)) m = 'sand';
+    else if (/GRAVEL/.test(k)) m = 'gravel';
+    else if (/SNOW/.test(k)) m = 'snow';
+    else if (/WOOL|BED/.test(k)) m = 'cloth';
+    else if (/GLASS|ICE|GLOWSTONE|LAMP|PORTAL/.test(k)) m = 'glass';
+    else if (/PLANKS|_LOG|DOOR_|FENCE|CHEST|CRAFTING|BOOKSHELF|LADDER|NOTE_BLOCK|DAYLIGHT|TORCH|_STAIRS_|_SLAB/.test(k) && !/IRON|COBBLE|STONE|BRICK|SANDSTONE/.test(k)) m = 'wood';
+    else if (/IRON|GOLD_BLOCK|ANVIL|HOPPER|LANTERN|COPPER_BLOCK/.test(k)) m = 'metal';
+    return (MAT[id] = m);
+  }
+  S.matOf = matOf;
+  // what：'step' 'hit'（掘っている途中）'break' 'place'
+  function blockSound(dst, t, m, what) {
+    var big = what === 'break' || what === 'place', v = what === 'step' ? 0.35 : what === 'hit' ? 0.4 : 0.9, len = what === 'step' ? 0.09 : what === 'hit' ? 0.07 : 0.2;
+    var p = rr(0.85, 1.15);
+    if (m === 'grass') { burst(dst, t, len * 1.3, 'lowpass', 1500 * p, 0.7, 0.01, v); if (big) burst(dst, t + 0.04, len, 'bandpass', 700 * p, 1, 0.01, v * 0.6); }
+    else if (m === 'sand') burst(dst, t, len * 1.4, 'highpass', 2500 * p, 0.6, 0.02, v * 0.6);
+    else if (m === 'gravel') { for (var i = 0; i < (big ? 6 : 3); i++) burst(dst, t + i * 0.022, 0.03, 'bandpass', rr(900, 2200), 2, 0.002, v * 0.9); }
+    else if (m === 'snow') burst(dst, t, len * 1.5, 'bandpass', 3500 * p, 0.8, 0.03, v * 0.5);
+    else if (m === 'cloth') burst(dst, t, len * 1.2, 'lowpass', 600 * p, 0.6, 0.02, v * 0.7);
+    else if (m === 'wood') { burst(dst, t, len, 'bandpass', 450 * p, 3, 0.002, v * 1.4); tone(dst, t, len * 0.9, 'triangle', 190 * p, 150 * p, v * 0.25); }
+    else if (m === 'glass') {
+      if (what === 'break') { burst(dst, t, 0.3, 'highpass', 3000, 1, 0.002, v); for (var j = 0; j < 4; j++) tone(dst, t + j * 0.03, 0.25, 'sine', rr(2200, 4200), null, 0.12); }
+      else burst(dst, t, len, 'bandpass', 2600 * p, 4, 0.002, v);
+    } else if (m === 'metal') { burst(dst, t, len * 0.6, 'bandpass', 1800 * p, 2, 0.002, v); tone(dst, t, big ? 0.4 : 0.12, 'square', 620 * p, 600 * p, v * 0.08); tone(dst, t, big ? 0.5 : 0.15, 'sine', 1430 * p, null, v * 0.12); }
+    else { burst(dst, t, len, 'bandpass', 1100 * p, 1.4, 0.002, v * 1.2); burst(dst, t, len * 0.5, 'lowpass', 300 * p, 1, 0.002, v * 0.8); }
+  }
+
+  // ---- 生き物の声（大まかな似せ方。高さは毎回少し変える） ----
+  function voice(dst, t, type, hurt) {
+    var p = rr(0.9, 1.1) * (hurt ? 1.25 : 1);
+    switch (type) {
+      case 'PIG': tone(dst, t, 0.12, 'sawtooth', 260 * p, 190 * p, 0.35, null, 900); tone(dst, t + 0.16, 0.14, 'sawtooth', 240 * p, 170 * p, 0.35, null, 900); break;
+      case 'COW': tone(dst, t, hurt ? 0.4 : 0.9, 'sawtooth', 120 * p, 95 * p, 0.45, [5, 4], 700); break;
+      case 'SHEEP': tone(dst, t, hurt ? 0.3 : 0.6, 'sawtooth', 330 * p, 300 * p, 0.3, [24, 18], 1500); break;
+      case 'CHICKEN': for (var i = 0; i < 2; i++) tone(dst, t + i * 0.09, 0.06, 'square', 1100 * p, 700 * p, 0.12, null, 2500); break;
+      case 'RABBIT': tone(dst, t, 0.05, 'sine', 1600 * p, 1200 * p, 0.1); break;
+      case 'WOLF': if (hurt) tone(dst, t, 0.25, 'sawtooth', 900 * p, 500 * p, 0.25, null, 2000); else { tone(dst, t, 0.1, 'sawtooth', 420 * p, 260 * p, 0.4, null, 1400); tone(dst, t + 0.16, 0.1, 'sawtooth', 420 * p, 260 * p, 0.35, null, 1400); } break;
+      case 'VILLAGER': tone(dst, t, 0.32, 'sawtooth', 230 * p, hurt ? 300 * p : 170 * p, 0.35, [7, 6], 800); break;
+      case 'ZOMBIE': tone(dst, t, 0.9, 'sawtooth', 95 * p, 70 * p, 0.45, [6, 6], 500); burst(dst, t, 0.6, 'lowpass', 400, 1, 0.1, 0.15); break;
+      case 'SKELETON': for (var j = 0; j < 4; j++) burst(dst, t + j * 0.05 + rr(0, 0.02), 0.03, 'bandpass', rr(1500, 2500), 5, 0.001, 0.6); break;
+      case 'SPIDER': case 'CAVE_SPIDER': burst(dst, t, 0.4, 'highpass', 3000 * p, 0.7, 0.05, 0.35); break;
+      case 'BOMBER': burst(dst, t, 0.35, 'bandpass', 700 * p, 2, 0.05, 0.3, 300); break;
+      case 'SLIME': case 'MAGMA_SLIME': tone(dst, t, 0.12, 'sine', 180 * p, 60 * p, 0.5); burst(dst, t, 0.1, 'lowpass', 600, 1, 0.005, 0.3); break;
+      case 'WITCH': for (var k = 0; k < 3; k++) tone(dst, t + k * 0.1, 0.08, 'sawtooth', 520 * p + k * 30, 480 * p, 0.2, null, 1800); break;
+      case 'BAT': tone(dst, t, 0.04, 'sine', 3800 * p, 3200 * p, 0.08); break;
+      case 'SQUID': burst(dst, t, 0.3, 'lowpass', 500, 1, 0.05, 0.15); break;
+      default: burst(dst, t, 0.15, 'lowpass', 800, 1, 0.01, 0.3);
+    }
+  }
+
+  // ---- 鳴らす：name と、鳴る場所（なければ自分） ----
+  S.play = function (name, x, y, z, arg) {
+    if (!S.enabled || typeof window === 'undefined') return;
+    var c = ac();
+    if (!c) return;
+    var L = S.listener, dx = x == null ? 0 : x - L.pos[0], dy = y == null ? 0 : y - L.pos[1] - 1.6, dz = z == null ? 0 : z - L.pos[2];
+    var d = Math.hypot(dx, dy, dz), range = name === 'explode' ? 48 : name === 'step' ? 12 : 16;
+    if (d > range) return;
+    var vol = Math.pow(1 - d / range, 1.5), pan = 0;
+    if (d > 0.5) { var rx = Math.cos(L.yaw), rz = -Math.sin(L.yaw); pan = Math.max(-0.8, Math.min(0.8, (dx * rx + dz * rz) / d)); }
+    var t = c.currentTime + 0.005, dst = out(vol, pan);
+    switch (name) {
+      case 'step': case 'hit': case 'break': case 'place': blockSound(dst, t, arg || 'stone', name); break;
+      case 'mob': voice(dst, t, arg, false); break;
+      case 'mobhurt': voice(dst, t, arg, true); burst(dst, t, 0.08, 'lowpass', 900, 1, 0.002, 0.5); break;
+      case 'hurt': tone(dst, t, 0.18, 'sawtooth', 210, 140, 0.35, null, 900); burst(dst, t, 0.1, 'lowpass', 700, 1, 0.002, 0.6); break;
+      case 'explode': burst(dst, t, 1.4, 'lowpass', 900, 0.8, 0.005, 1.2, 80); tone(dst, t, 0.6, 'sine', 70, 35, 0.9); break;
+      case 'door': burst(dst, t, 0.18, 'bandpass', 320, 4, 0.01, 0.9); tone(dst, t + 0.12, 0.06, 'triangle', 160, 120, 0.3); break;
+      case 'pop': tone(dst, t, 0.08, 'sine', rr(700, 900), rr(1300, 1600), 0.2); break;
+      case 'orb': tone(dst, t, 0.25, 'sine', rr(1400, 2200), null, 0.08); break;
+      case 'eat': for (var i = 0; i < 3; i++) burst(dst, t + i * 0.09, 0.06, 'bandpass', rr(900, 1600), 2, 0.003, 0.5); break;
+      case 'drink': for (var j = 0; j < 3; j++) tone(dst, t + j * 0.12, 0.08, 'sine', rr(300, 380), rr(500, 600), 0.2); break;
+      case 'splash': burst(dst, t, 0.4, 'bandpass', 1400, 0.8, 0.01, 0.7, 500); break;
+      case 'ignite': burst(dst, t, 0.05, 'highpass', 4000, 1, 0.001, 0.7); burst(dst, t + 0.03, 0.3, 'lowpass', 1200, 1, 0.05, 0.3); break;
+      case 'portal': tone(dst, t, 1.2, 'sawtooth', 90, 140, 0.15, [3, 10], 500); burst(dst, t, 1.2, 'bandpass', 600, 2, 0.4, 0.3, 1400); break;
+      case 'trade': voice(dst, t, 'VILLAGER', false); tone(dst, t + 0.2, 0.2, 'sine', 1800, null, 0.06); break;
+      case 'bow': tone(dst, t, 0.12, 'triangle', 300, 180, 0.4); burst(dst, t, 0.1, 'highpass', 2000, 1, 0.002, 0.3); break;
+      case 'levelup': [523, 659, 784].forEach(function (f, n) { tone(dst, t + n * 0.08, 0.25, 'triangle', f, null, 0.2); }); break;
+    }
+  };
+
+  // ---- ゲームにつなぐ ----
+  var Game = WG.Game, Mobs = WG.Mobs;
+  if (!Game) return;
+  function at(x, y, z) { return [x + 0.5, y + 0.5, z + 0.5]; }
+  var tickExtra = Game.prototype.tickExtra;
+  Game.prototype.tickExtra = function () {
+    tickExtra.call(this);
+    var w = this.walker, wd = this.world, p = w.pos;
+    S.listener.pos = p; S.listener.yaw = w.yaw;
+    if (!S.enabled) return;
+    // 足音：1.6 ブロック歩くごと（しゃがみ・飛行中・水の中は鳴らさない）
+    var step = Math.floor((w.walkDist || 0) / 1.6);
+    if (this.stepN == null) this.stepN = step;
+    if (step !== this.stepN) {
+      this.stepN = step;
+      var below = wd.block(Math.floor(p[0]), Math.floor(p[1] - 0.2), Math.floor(p[2]));
+      if (w.onGround && !w.sneak && !w.flying && below && !WG.FLUID[below]) S.play('step', p[0], p[1] + 1.6, p[2], matOf(below));
+    }
+    // 着地
+    if (w.onGround && !this.wasGround && (this.lastVy || 0) < -0.4) {
+      var b2 = wd.block(Math.floor(p[0]), Math.floor(p[1] - 0.2), Math.floor(p[2]));
+      if (b2) S.play('step', p[0], p[1] + 1.6, p[2], matOf(b2));
+    }
+    this.wasGround = w.onGround; this.lastVy = w.vel ? w.vel[1] : 0;
+    // 掘っている途中の音（4 刻みごと）
+    var br = this.breaking;
+    if (br && this.mouseL && this.tickCount % 4 === 0) { var bid = wd.block(br.x, br.y, br.z); if (bid) S.play('hit', br.x + 0.5, br.y + 0.5, br.z + 0.5, matOf(bid)); }
+    // 生き物の鳴き声（近くの生き物が、ときどき）
+    var mobs = this.mobs.list;
+    for (var i = 0; i < mobs.length; i++) {
+      var m = mobs[i];
+      if (m.dead || Math.random() > 1 / 320) continue;
+      if (Math.abs(m.x - p[0]) > 16 || Math.abs(m.z - p[2]) > 16) continue;
+      S.play('mob', m.x, m.y + 1, m.z, m.type);
+    }
+  };
+  var breakBlock = Game.prototype.breakBlock;
+  Game.prototype.breakBlock = function (x, y, z, harvest) {
+    var id = this.world.block(x, y, z), r = breakBlock.call(this, x, y, z, harvest);
+    if (id && this.world.block(x, y, z) !== id) { var q = at(x, y, z); S.play('break', q[0], q[1], q[2], matOf(id)); }
+    return r;
+  };
+  var place = Game.prototype.place;
+  Game.prototype.place = function () {
+    var t = this.walker.target, n0 = this.world.editCount, r = place.apply(this, arguments);
+    if (t && this.world.editCount !== n0) {
+      var id = this.world.block(t.px, t.py, t.pz) || this.world.block(t.x, t.y, t.z), q = at(t.px, t.py, t.pz);
+      S.play('place', q[0], q[1], q[2], matOf(id));
+    }
+    return r;
+  };
+  var damage = Game.prototype.damage;
+  Game.prototype.damage = function () {
+    var r = damage.apply(this, arguments);
+    if (r !== false && this.mode === 'survival') S.play('hurt');
+    return r;
+  };
+  var splash = Game.prototype.splash;
+  if (splash) Game.prototype.splash = function (t) { S.play('splash', t.x, t.y, t.z); return splash.apply(this, arguments); };
+  var explode = Game.prototype.explode;
+  Game.prototype.explode = function (x, y, z) { S.play('explode', x, y, z); return explode.apply(this, arguments); };
+  var toggleDoor = Game.prototype.toggleDoor;
+  Game.prototype.toggleDoor = function (x, y, z) { S.play('door', x + 0.5, y + 1, z + 0.5); return toggleDoor.apply(this, arguments); };
+  var consumeExtra = Game.prototype.consumeExtra;
+  Game.prototype.consumeExtra = function (it) { S.play(it && (it.potion || it.milk) ? 'drink' : 'eat'); return consumeExtra.apply(this, arguments); };
+  if (Mobs) {
+    var hurt = Mobs.prototype.hurt;
+    Mobs.prototype.hurt = function (m) {
+      var r = hurt.apply(this, arguments);
+      if (r) S.play('mobhurt', m.x, m.y + 1, m.z, m.type);
+      return r;
+    };
+  }
+  // 音符ブロックの音も、音を切っているときは鳴らさない
+  var note = WG.noteSound;
+  if (note) WG.noteSound = function () { if (S.enabled) note.apply(this, arguments); };
+})(typeof window !== 'undefined' ? window : globalThis);

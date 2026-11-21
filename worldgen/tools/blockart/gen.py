@@ -893,6 +893,15 @@ def main():
         lv = (0.8, 0.9, 1.0, 1.1) if sum(base) > 120 else (0.8, 1.0, 1.25, 1.5)
         put(k + '_WOOL', noisy(base, 39, lv, ((2, 0.5), (1, 0.5))))
 
+    # ネザーポータル：紫の渦
+    pt = Img()
+    for y in range(N):
+        for x in range(N):
+            dx, dy = x - 7.5, y - 7.5
+            v = math.sin(math.hypot(dx, dy) * 0.9 - math.atan2(dy, dx) * 2) + 0.35 * math.sin(x * 1.3 + y * 0.7)
+            pt.set(x, y, [168, 96, 255] if v > 1.0 else [122, 52, 214] if v > 0.3 else [90, 30, 170] if v > -0.6 else [62, 16, 128])
+    put('NETHER_PORTAL', pt)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

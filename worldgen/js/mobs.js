@@ -1,4 +1,4 @@
-// 生き物：豚・牛・羊・鶏・ウサギ・オオカミ・イカ・コウモリと、ゾンビ・スケルトン・ハゼゴケ・クモ・洞窟グモ・スライム・魔女・マグマスライム（敵）。
+// 生き物：豚・牛・羊・鶏・ウサギ・オオカミ・イカ・コウモリ・村人と、ゾンビ・スケルトン・ハゼゴケ・クモ・洞窟グモ・スライム・魔女・マグマスライム（敵）。
 // ハゼゴケ（爆ぜ苔）は、近づいてきて膨らみ、爆発する苔むした生き物。見た目と名前はこのプログラムのもの。
 // 大きさ・体力・攻撃・ドロップは Minecraft の値に合わせている。見た目は箱を組み合わせた簡単な形。
 (function (G) {
@@ -112,6 +112,15 @@
     ],
     SLIME: slimeModel('#6cbc50', '#8ad06a', '#1e3a18'),
     MAGMA_SLIME: slimeModel('#4a1a10', '#5e2414', '#ffb040', '#e8661c'),
+    // 村人：大きな頭と高い鼻、組んだ腕。服（prof）の色は職業で変わる
+    VILLAGER: [
+      box(-4, 0, -2, 4, 12, 4, '#4a3a2c', 'L1'), box(0, 0, -2, 4, 12, 4, '#4a3a2c', 'L2'),
+      Object.assign(box(-4.3, 4, -3.3, 8.6, 20, 6.6, '#7a5a3a'), { prof: 1 }),
+      Object.assign(box(-6, 16, 2.6, 12, 4, 3, '#6a4a30'), { prof: 2 }),
+      box(-4, 24, -4, 8, 10, 8, '#c8a07a'), box(-1, 26, 4, 2, 4, 2, '#b88c66'),
+      box(-3, 30, 4, 6, 1, 0.3, '#5a3a24'), box(-3, 29, 4, 2, 1, 0.3, '#ececec'), box(1, 29, 4, 2, 1, 0.3, '#ececec'),
+      box(-2, 29, 4.05, 1, 1, 0.3, '#2c6a3a'), box(2, 29, 4.05, 1, 1, 0.3, '#2c6a3a')
+    ],
     // 魔女：紫の服、とんがり帽子、緑がかった顔と高い鼻
     WITCH: [
       box(-4, 0, -2, 4, 12, 4, '#3e2a50', 'L1'), box(0, 0, -2, 4, 12, 4, '#3e2a50', 'L2'),
@@ -141,7 +150,8 @@
     RABBIT: { name: 'ウサギ', w: 0.4, h: 0.5, hp: 3, speed: 0.07, food: ['CARROT', 'GOLDEN_CARROT', 'DANDELION'], hops: true,
       drops: [['RABBIT_HIDE', 0, 1], ['RAW_RABBIT', 0, 1]], rare: ['RABBIT_FOOT'], rareP: 0.1 },
     // オオカミ：叩くと怒って噛みつく。骨で飼いならすと、ついてきて敵と戦う
-    WOLF: { name: 'オオカミ', w: 0.6, h: 0.85, hp: 8, speed: 0.08, food: [], drops: [] },
+    WOLF: { name: 'オオカミ', w: 0.6, h: 0.85, hp: 8, speed: 0.08, food: [], drops: [],
+      breed: ['RAW_BEEF', 'COOKED_BEEF', 'RAW_PORKCHOP', 'COOKED_PORKCHOP', 'RAW_CHICKEN', 'COOKED_CHICKEN', 'RAW_MUTTON', 'COOKED_MUTTON', 'RAW_RABBIT', 'COOKED_RABBIT', 'ROTTEN_FLESH'] },
     // イカ：水の中を泳ぐ。陸に上がると弱る
     SQUID: { name: 'イカ', w: 0.8, h: 0.8, hp: 10, speed: 0.04, food: [], swims: true, despawn: true, drops: [['INK_SAC', 1, 3]] },
     // コウモリ：暗い洞窟を飛び回る
@@ -154,10 +164,15 @@
     // マグマスライム：ネザーのスライム。高く跳ね、溶岩と火に強い
     MAGMA_SLIME: { name: 'マグマスライム', w: 0.52, h: 0.52, hp: 1, speed: 0.12, hostile: true, range: 16, sizes: true, noFall: true, jump: 0.62, fireproof: true,
       dmg: [0, 3, 4, 0, 6], drops: [['MAGMA_CREAM', 0, 1]], dropSize: 'big' },
+    // 村人：村の家に住む。右クリックで取引（js/village.js）。ゾンビが近いと逃げる
+    VILLAGER: { name: '村人', w: 0.6, h: 1.95, hp: 20, speed: 0.05, food: [], drops: [] },
     // 魔女：離れた所から毒・鈍化・負傷の投げポーションを投げる
     WITCH: { name: '魔女', w: 0.6, h: 1.95, hp: 26, speed: 0.08, hostile: true, range: 16,
       drops: [['GLASS_BOTTLE', 0, 2], ['GLOWSTONE_DUST', 0, 2], ['GUNPOWDER', 0, 2], ['REDSTONE', 0, 2], ['SPIDER_EYE', 0, 2], ['SUGAR', 0, 2], ['STICK', 0, 2]] }
   };
+  // 繁殖のえさ（ないものは近寄ってくるえさと同じ）。オオカミはなついたものだけ
+  ['PIG', 'COW', 'SHEEP', 'CHICKEN', 'RABBIT'].forEach(function (k) { TYPES[k].breed = TYPES[k].food; TYPES[k].breeds = true; });
+  TYPES.WOLF.breeds = true;
   var PASSIVE = ['PIG', 'COW', 'SHEEP', 'CHICKEN', 'RABBIT', 'WOLF'], PASSIVE_W = [10, 8, 12, 10, 6, 4];
   var HOSTILE = ['ZOMBIE', 'SKELETON', 'BOMBER', 'SPIDER', 'WITCH'], HOSTILE_W = [40, 40, 20, 30, 5];
   // 地下深く（y 40 未満）では、スライムと洞窟グモも出る
@@ -188,13 +203,14 @@
     m.pyaw = m.yaw;
     // スライムの大きさ（1・2・4）。体力は大きさの 2 乗
     if (T.sizes) { m.size = size || SIZES[Math.floor(Math.random() * 3)]; m.hp = m.maxHp = m.size * m.size; }
+    if (type === 'VILLAGER' && WG.setupVillager) WG.setupVillager(m);
     this.list.push(m);
     return m;
   };
 
   // 大きさ（スライムは大きさを掛ける）
-  function mw(m) { return TYPES[m.type].w * (m.size || 1); }
-  function mh(m) { return TYPES[m.type].h * (m.size || 1); }
+  function mw(m) { return TYPES[m.type].w * (m.size || 1) * (m.baby ? 0.5 : 1); }
+  function mh(m) { return TYPES[m.type].h * (m.size || 1) * (m.baby ? 0.5 : 1); }
   function box3(m) { var w2 = mw(m) / 2; return [m.x - w2, m.y, m.z - w2, m.x + w2, m.y + mh(m), m.z + w2]; }
 
   // ---- 1 刻み ----
@@ -209,6 +225,11 @@
       if (m.dead) { if (++m.dead > 20) { this.die(m); continue; } keep.push(m); continue; }
       if (m.hurt > 0) m.hurt--;
       if (m.invul > 0) m.invul--;
+      // 子どもは 20 分（24000 刻み）で大人になる。繁殖したあとは 5 分休む
+      if (m.baby > 0) m.baby--;
+      if (m.breedCd > 0) m.breedCd--;
+      if (m.love > 0) { m.love--; if (m.love % 10 === 0) g.puff(m.x, m.y + mh(m) + 0.2, m.z, [230, 80, 100], 1, 0.3); }
+      if (m.trades && m.age % 6000 === 0) m.trades.forEach(function (t) { t.uses = 0; });   // 村人の品物は時間がたつと補充される
       var dx = p[0] - m.x, dz = p[2] - m.z, dist = Math.hypot(dx, dz), dy = p[1] - m.y;
       // 遠くの敵は消える（Minecraft と同じく 128 ブロックより遠いとすぐ、32 より遠いと少しずつ）
       if ((T.hostile || T.despawn) && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
@@ -331,6 +352,28 @@
   // 種類ごとの特別な動き。'done' なら動きはここで済み、{ want, speed, chase } なら向かう先、null ならふつうの動き
   Mobs.prototype.special = function (m, T, dist, dx, dy, dz) {
     var g = this.game, ai = m.ai, w = g.walker, wd = this.world, self = this;
+    // 恋をしている動物は、同じ種類の恋をしている相手へ向かい、近づくと子どもが生まれる
+    if (m.love > 0 && !(m.type === 'WOLF' && m.sit)) {
+      var mate = null, md = 8;
+      this.list.forEach(function (o) {
+        if (o === m || o.dead || o.type !== m.type || !(o.love > 0) || o.baby) return;
+        var d = Math.hypot(o.x - m.x, o.z - m.z);
+        if (d < md && Math.abs(o.y - m.y) < 3) { md = d; mate = o; }
+      });
+      if (mate) {
+        if (md < Math.max(1.2, mw(m) + 0.3)) this.breed(m, mate);
+        return { want: [mate.x, mate.z], speed: T.speed, chase: false };
+      }
+    }
+    if (m.type === 'VILLAGER') {
+      // ゾンビが近いと逃げる。ふだんは家の近く（生まれた所から 12 ブロック以内）を歩く
+      var z = null, zd = 8;
+      this.list.forEach(function (o) { if (!o.dead && o.type === 'ZOMBIE') { var d = Math.hypot(o.x - m.x, o.z - m.z); if (d < zd) { zd = d; z = o; } } });
+      if (z) return { want: [m.x + (m.x - z.x), m.z + (m.z - z.z)], speed: T.speed * 1.8, chase: false };
+      if (m.trading) { m.yaw = Math.atan2(dx, dz); return 'done'; }
+      if (m.home && Math.hypot(m.x - m.home[0], m.z - m.home[1]) > 12) return { want: [m.home[0], m.home[1]], speed: T.speed, chase: false };
+      return null;
+    }
     if (m.type === 'BAT') {
       // 3 次元でふらふら飛ぶ。ときどき行き先を変え、天井や床に近づきすぎない
       if (ai.timer-- <= 0 || ai.tx == null) {
@@ -400,6 +443,28 @@
       return 'done';
     }
     return null;
+  };
+  // えさをやる：大人は恋をし（繁殖）、子どもは育つ。使ったら true（えさが 1 つ減る）
+  Mobs.prototype.feed = function (m, key) {
+    var T = TYPES[m.type];
+    if (!T.breeds || !T.breed || T.breed.indexOf(key) < 0 || m.dead) return false;
+    if (m.type === 'WOLF') {
+      if (!m.tame) return false;
+      if (m.hp < m.maxHp) { m.hp = Math.min(m.maxHp, m.hp + 4); return true; }   // なついたオオカミは肉で回復
+    }
+    if (m.baby > 0) { m.baby = Math.floor(m.baby * 0.9); this.game.puff(m.x, m.y + mh(m), m.z, [120, 200, 90], 4, 0.3); return true; }
+    if (m.love > 0 || m.breedCd > 0) return false;
+    m.love = 600;   // 30 秒
+    return true;
+  };
+  Mobs.prototype.breed = function (a, b) {
+    var c = this.spawn(a.type, (a.x + b.x) / 2, Math.max(a.y, b.y), (a.z + b.z) / 2);
+    c.baby = 24000;
+    if (a.type === 'WOLF') { c.tame = true; c.hp = c.maxHp = 20; }
+    a.love = b.love = 0; a.breedCd = b.breedCd = 6000;
+    this.game.puff(c.x, c.y + 0.5, c.z, [230, 80, 100], 8, 0.5);
+    if (this.game.spawnOrbs) this.game.spawnOrbs(c.x, c.y + 0.5, c.z, 1 + Math.floor(Math.random() * 7));
+    return c;
   };
   // スライムの跳ね方：地面にいて間が空いたら、向きへ跳ぶ
   Mobs.prototype.hop = function (m, T, ux, uz, k) {
@@ -502,7 +567,7 @@
         c.vy = 0.2;
       }
     }
-    var dropOk = !T.dropSize || (T.dropSize === 'small' ? m.size === 1 : m.size > 1);
+    var dropOk = !m.baby && (!T.dropSize || (T.dropSize === 'small' ? m.size === 1 : m.size > 1));
     if (dropOk) T.drops.forEach(function (d) {
       if (m.sheared && d[0] === 'WHITE_WOOL') return;   // 毛を刈った羊は羊毛を落とさない
       var n = d[1] + Math.floor(Math.random() * (d[2] - d[1] + 1 + (m.looting || 0)));   // ドロップ増加で最大が増える
@@ -510,7 +575,7 @@
       if (n > 0) g.spawnItem(key, n, m.x, m.y + 0.3, m.z, 0.1, 10);
     });
     // 経験値（敵は 5、動物は 1〜3）
-    if (g.spawnOrbs && m.type !== 'BAT' && m.type !== 'SQUID') g.spawnOrbs(m.x, m.y + 0.5, m.z, T.sizes ? m.size : T.hostile ? 5 : 1 + Math.floor(Math.random() * 3));
+    if (g.spawnOrbs && m.type !== 'BAT' && m.type !== 'SQUID' && !m.baby) g.spawnOrbs(m.x, m.y + 0.5, m.z, T.sizes ? m.size : T.hostile ? 5 : 1 + Math.floor(Math.random() * 3));
     if (T.rare && Math.random() < (T.rareP || 0.025)) g.spawnItem(T.rare[Math.floor(Math.random() * T.rare.length)], 1, m.x, m.y + 0.3, m.z, 0.1, 10);
     g.puff(m.x, m.y + mh(m) / 2, m.z, [220, 220, 220], 12);
   };
@@ -609,6 +674,7 @@
       var sx = (cx << 4) + (i & 15), sy = wd.minY + (i >> 8), sz = (cz << 4) + ((i >> 4) & 15);
       wd.spawners.set(sx + ',' + sy + ',' + sz, { x: sx, y: sy, z: sz, timer: 200 + Math.floor(Math.random() * 600), type: WG.hash(wd.seed, sx, sy, sz, 301) % 3 === 0 ? 'SKELETON' : 'ZOMBIE' });
     }
+    if (WG.populateVillage) WG.populateVillage(this, cx, cz);   // 村の家に村人を置く（js/village.js）
     if (Math.random() >= 0.1 || !c.hmap) return;
     var type = pick(PASSIVE, PASSIVE_W), n = 2 + Math.floor(Math.random() * 3);
     for (var k = 0; k < n * 4 && n > 0; k++) {
@@ -706,7 +772,7 @@
       var yaw = m.pyaw + angleDiff(m.pyaw, m.yaw) * a, walk = m.pwalk + (m.walk - m.pwalk) * a;
       var swing = Math.sin(walk * 1.6) * Math.min(0.7, Math.hypot(m.vx, m.vz) * 12);
       var fuse = m.type === 'BOMBER' ? (m.ai.pfuse + (m.ai.fuse - m.ai.pfuse) * a) / 30 : 0;
-      var scale = (T.scale || 1) * (m.size || 1) * (1 + fuse * 0.25), flash = fuse > 0 && Math.floor(fuse * 12) % 2 === 0 ? 0.6 : 0;
+      var scale = (T.scale || 1) * (m.size || 1) * (m.baby ? 0.5 : 1) * (1 + fuse * 0.25), flash = fuse > 0 && Math.floor(fuse * 12) % 2 === 0 ? 0.6 : 0;
       var age = m.age + a, flap = Math.sin(age * 1.1) * 0.9, sway = Math.sin(age * 0.25) * 0.35;
       // スライムは跳ぶときに縦に伸び、着地でつぶれる
       var sq = T.sizes ? 1 + Math.max(-0.25, Math.min(0.3, (m.py === m.y ? 0 : m.y - m.py) * 1.5)) : 1;
@@ -723,6 +789,7 @@
           if (pi === 4) { c = [214, 200, 180]; pt = { o: [-4.5, 12, -7], s: [9, 8, 14], c: c, sw: null }; }
         }
         if (pt.tame && !m.tame) return;   // 首輪は飼いならしたオオカミだけ
+        if (pt.prof && WG.profColor) c = WG.profColor(m, pt.prof);   // 村人の服は職業の色
         if (pt.sw === 'EYE' && m.angry && !m.tame) c = [200, 40, 30];   // 怒ったオオカミの目
         if (red) c = [c[0] + (220 - c[0]) * red, c[1] * (1 - red), c[2] * (1 - red)];
         if (burn) c = [c[0] + (255 - c[0]) * burn, c[1] + (140 - c[1]) * burn, c[2] * (1 - burn)];

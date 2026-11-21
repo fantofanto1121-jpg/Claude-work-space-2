@@ -263,8 +263,26 @@
     sleep: function (k) { $('sleepFade').style.opacity = k * 0.92; },
     xpbar: $('xpbar'), xplv: $('xplv'), effects: $('effects'), shield: $('shieldView'),
     burning: function (on) { $('burnView').classList.toggle('on', !!on); },
-    inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead')
+    inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead'),
+    // ポータルで次元を移る：今のゲームを止め、行き先の世界で近くのポータル（なければ新しく作る）の前に立つ
+    travel: function (dim, x, y, z) { setTimeout(function () { travelTo(dim, x, y, z); }, 0); }
   };
+  function travelTo(dim, x, y, z) {
+    if (!game) return;
+    var mode = game.mode;
+    stopWalk();
+    state.dim = dim; state.cx = Math.round(x); state.cz = Math.round(z);
+    $('cx').value = state.cx; $('cz').value = state.cz;
+    var a = WG.portalArrival(world(), x, z, y);
+    state.cx = Math.round(a.pos[0]); state.cz = Math.round(a.pos[2]);
+    gameMode = mode;
+    startWalk();
+    if (!game) return;
+    walker.pos = a.pos.slice(); walker.prev = a.pos.slice(); walker.vel = [0, 0, 0]; walker.yaw = a.yaw;
+    game.portalLock = true;
+    syncUI();
+    if (gameUI.toast) gameUI.toast(WG.DIMS[dim].name + 'へ移りました');
+  }
 
   function startWalk() {
     if (!view3d) view3d = new WG.View3D(c3d);
@@ -313,7 +331,7 @@
     if (tt) { t += '　' + tt; $('timeNow').textContent = tt; }
     $('hover').textContent = t;
     var mt = game && game.mobs.target, r;
-    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + T.name + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + (mt.mob.maxHp || T.hp) + '）'; }
+    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + T.name + (mt.mob.prof && WG.profName ? '・' + WG.profName(mt.mob) : '') + (mt.mob.baby ? '（子ども）' : '') + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + (mt.mob.maxHp || T.hp) + '）'; }
     else r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
     setProgress(r);
@@ -368,7 +386,7 @@
     if (game && locked() && !game.invOpen) { e.preventDefault(); game.wheel(e.deltaY); }   // インベントリを開いている間は、一覧のスクロールに使う
   }, { passive: false });
   $('invBody').addEventListener('mousedown', function (e) {
-    var el = e.target.closest('.slot');
+    var el = e.target.closest('.slot, .trade, .eopt');
     if (!el || !game) return;
     e.preventDefault();
     game.clickSlot(el, e.button, e.shiftKey);
@@ -406,6 +424,12 @@
     $('walkBtn').classList.toggle('hide', !DESKTOP);
     $('g-game').classList.toggle('hide', !walk);
     $('g-time').classList.toggle('hide', !walk || state.dim !== 'overworld');
+    $('g-sound').classList.toggle('hide', !walk);
+    $('g-save').classList.toggle('hide', !DESKTOP);
+    var saved = WG.readSave && WG.readSave(state.seed), at = null;
+    if (saved) { var mm = /"savedAt":(\d+)/.exec(saved); at = mm ? new Date(+mm[1]) : null; }
+    $('saveInfo').textContent = at ? '（' + (at.getMonth() + 1) + '/' + at.getDate() + ' ' + at.getHours() + ':' + ('0' + at.getMinutes()).slice(-2) + ' のデータあり）' : '';
+    [].forEach.call($('soundSeg').children, function (b) { b.classList.toggle('on', (b.dataset.v === 'on') === !!(WG.Sound && WG.Sound.enabled)); });
     [].forEach.call($('modesGame').children, function (b) { b.classList.toggle('on', b.dataset.v === gameMode); });
     c2d.classList.toggle('hide', state.mode === '3d' || walk);
     c3d.classList.toggle('hide', state.mode !== '3d' && !walk);
@@ -445,6 +469,95 @@
     var v = e.target.dataset && e.target.dataset.v;
     if (!v || v === state.dim) return;
     state.dim = v; syncUI(); refresh();
+  };
+  // ---------------- セーブとロード ----------------
+  // 体力などはゲームの中の値をプレイヤーへ写してから保存する
+  function syncPlayer() {
+    if (!game) return;
+    player.health = game.health; player.air = game.air; player.dead = game.dead;
+    player.food = game.food; player.sat = game.sat; player.exhaust = game.exhaust;
+  }
+  function saveText() {
+    syncPlayer();
+    var ws = {};
+    Object.keys(worlds).forEach(function (k) { var p = k.split('|'); if (p[0] === state.seed) ws[p[1]] = worlds[k]; });
+    var place = { dim: state.dim, mode: game ? game.mode : gameMode, cx: state.cx, cz: state.cz };
+    if (walker) { place.pos = walker.pos.slice(); place.yaw = walker.yaw; place.pitch = walker.pitch; }
+    return WG.saveGame(state.seed, ws, player, place);
+  }
+  // 歩いているときは、画面の中のお知らせにも出す（下の欄は照準の表示で上書きされるため）
+  function notify(t) { setProgress(t); if (game && gameUI.toast) gameUI.toast(t); }
+  function doSave(quiet) {
+    var text = saveText(), ok = WG.storeSave(state.seed, text);
+    if (!quiet || !ok) notify(ok ? 'セーブしました（' + Math.ceil(text.length / 1024) + ' KB）' : 'ブラウザに保存できませんでした（容量が足りないか、保存できない環境です）。「ファイルへ」で書き出してください');
+    syncUI();
+    return ok;
+  }
+  function doLoad(text) {
+    var r;
+    try { r = WG.loadGame(text); } catch (e) { notify('読み込めませんでした：' + e.message); return; }
+    stopWalk();
+    state.seed = r.seed; $('seed').value = r.seed;
+    worlds = {};
+    Object.keys(r.worlds).forEach(function (dim) { worlds[r.seed + '|' + dim] = r.worlds[dim]; });
+    player = r.player;
+    var pl = r.place;
+    state.dim = WG.DIMS[pl.dim] ? pl.dim : 'overworld';
+    gameMode = pl.mode === 'creative' ? 'creative' : 'survival';
+    if (pl.pos) { state.cx = Math.round(pl.pos[0]); state.cz = Math.round(pl.pos[2]); }
+    else if (pl.cx != null) { state.cx = pl.cx; state.cz = pl.cz; }
+    $('cx').value = state.cx; $('cz').value = state.cz;
+    tileCache.clear(); texCache.clear(); lastVolKey = '';
+    state.mode = 'walk';
+    syncUI();
+    startWalk();
+    if (game && pl.pos) { walker.pos = pl.pos.slice(); walker.prev = pl.pos.slice(); walker.vel = [0, 0, 0]; if (pl.yaw != null) walker.yaw = pl.yaw; if (pl.pitch != null) walker.pitch = pl.pitch; }
+    syncUI(); refresh();
+    notify('ロードしました');
+  }
+  // ファイルに書き出す（アーティファクトの中では、保存の確認を出す仕組みを使う）
+  function exportSave() {
+    var name = 'world_' + state.seed + '_save.json', blob = new Blob([saveText()], { type: 'application/json' });
+    if (window.claude && window.claude.use) {
+      window.claude.use('downloads').then(function (dl) {
+        if (!dl) { notify('この画面ではファイルを保存できません'); return; }
+        return dl.save({ filename: name, data: blob }).then(function () { notify('ファイルに書き出しました'); }, function (e) {
+          notify(e && e.code === 'declined' ? '書き出しを取りやめました' : 'ファイルに書き出せませんでした');
+        });
+      });
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    notify('ファイルに書き出しました');
+  }
+  $('saveSeg').onclick = function (e) {
+    var v = e.target.dataset && e.target.dataset.v;
+    if (v === 'save') doSave(false);
+    else if (v === 'load') { var t = WG.readSave(state.seed); if (t) doLoad(t); else notify('このシードのセーブデータはありません'); }
+  };
+  $('fileSeg').onclick = function (e) {
+    var v = e.target.dataset && e.target.dataset.v;
+    if (v === 'export') exportSave();
+    else if (v === 'import') $('saveFile').click();
+  };
+  $('saveFile').onchange = function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () { doLoad(String(rd.result)); };
+    rd.readAsText(f);
+    this.value = '';
+  };
+  // 歩いている間は 2 分ごとと、ページを離れるときに自動でセーブする
+  setInterval(function () { if (game && !game.dead) doSave(true); }, 120000);
+  document.addEventListener('visibilitychange', function () { if (document.hidden && game) doSave(true); });
+
+  $('soundSeg').onclick = function (e) {
+    var v = e.target.dataset && e.target.dataset.v;
+    if (!v || !WG.Sound) return;
+    WG.Sound.setEnabled(v === 'on'); syncUI();
   };
   $('modes').onclick = function (e) {
     var v = e.target.dataset && e.target.dataset.v;

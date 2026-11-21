@@ -797,6 +797,15 @@
     if (this.useExtra(t, held, it, shift)) return;
     // スポーンエッグ：見ている面の前に生き物を出す（スポナーなら中身を変える）
     if (it && it.egg && t && !mt) { WG.useSpawnEgg(this, t, it); this.mouseR = this.clickR = false; return; }
+    // えさをやる：動物は恋をして子どもを作り、子どもは早く育つ
+    if (mt && it && !mt.dead && this.mobs.feed(mt, it.key)) {
+      if (surv) this.inv.take(this.inv.sel, 1);
+      if (WG.Sound) WG.Sound.play('eat', mt.x, mt.y + 0.5, mt.z);
+      this.mouseR = this.clickR = false;
+      return;
+    }
+    // 村人：右クリックで取引の画面
+    if (mt && !mt.dead && mt.type === 'VILLAGER' && !mt.baby && !(it && it.egg)) { this.mouseR = this.clickR = false; this.openTrade(mt); return; }
     // オオカミ：骨で飼いならす（3 回に 1 回）。飼いならしたオオカミは、骨以外で右クリックすると座る・立つ
     if (mt && !mt.dead && mt.type === 'WOLF') {
       if (!mt.tame && it && it.key === 'BONE' && !mt.angry) {
@@ -854,7 +863,8 @@
     if (it.igniter) {
       if (wd.block(t.px, t.py, t.pz) === B.AIR && WG.COLLIDE[t.id]) {
         if (t.id === B.TNT) this.primeTnt(t.x, t.y, t.z, 80);
-        else this.setFire(t.px, t.py, t.pz, true, 0);
+        else if (!(WG.lightPortal && WG.lightPortal(this, t.px, t.py, t.pz))) this.setFire(t.px, t.py, t.pz, true, 0);
+        if (WG.Sound) WG.Sound.play('ignite', t.px + 0.5, t.py + 0.5, t.pz + 0.5);
         if (surv) this.wearTool(1);
       }
       this.mouseR = this.clickR = false;
@@ -1158,7 +1168,9 @@
       if (e.delay > 0) e.delay--;
       // 拾う（体の周り 1 ブロック、上下 0.5 ブロックの範囲）
       if (!this.dead && e.delay === 0 && e.x > pb[0] - 1 && e.x < pb[3] + 1 && e.y + 0.25 > pb[1] - 0.5 && e.y < pb[4] + 0.5 && e.z > pb[2] - 1 && e.z < pb[5] + 1) {
-        e.n -= this.inv.add(e.key, e.n, e.dmg, e.ench);
+        var got = this.inv.add(e.key, e.n, e.dmg, e.ench);
+        e.n -= got;
+        if (got && WG.Sound) WG.Sound.play('pop', e.x, e.y, e.z);
       }
       if (e.n > 0 && e.age < 6000 && e.y > wd.minY - 64) keep.push(e);
     }
@@ -1379,6 +1391,7 @@
       var left = s.n - self.inv.add(s.key, s.n, s.dmg, s.ench);
       if (left > 0) self.spawnItem(s.key, left, w.pos[0], w.pos[1] + 1, w.pos[2], 0.1, 40, s.dmg, s.ench);
     });
+    if (this.tradeMob) { this.tradeMob.trading = false; this.tradeMob = null; }
     this.craft = []; this.craftResult = null; this.cursor = null; this.screen = null; this.furnaceKey = null; this.chestKey = null; this.lastScreen = null; this.contKey = null;
     this.ui.inv.classList.add('hide');
     this.ui.cursor.classList.add('hide');
@@ -1394,8 +1407,9 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
     if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp') html += this.renderExtraScreen(sc);
+    if (sc === 'trade') html += this.renderTrade();
     if (sc === 'creative') {
       html += '<div class="grid pal">';
       WG.PLACEABLE.concat(Object.keys(ITEMS).filter(function (k) { return ITEMS[k].block < 0; })).forEach(function (k) {

@@ -572,5 +572,84 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     'レシピ：スライムブロック、干し草の俵、ランタン（明るさ 15）、染料と色付きの羊毛（' + WG.WOOL_COLORS.length + ' 色）、テラコッタ、なめらかな石');
 })();
 
+// 繁殖：えさをやった 2 頭の牛から子牛が生まれ、20 分で大人になる。村人：村の家に住み、エメラルドで取引する
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.GRASS : 0; }), g = playGame(w), i;
+  g.setMode('survival'); g.walker.pos = [10.5, 11, 10.5]; g.walker.prev = g.walker.pos.slice();
+  var a = g.mobs.spawn('COW', 3.5, 11, 3.5), b = g.mobs.spawn('COW', 6.5, 11, 3.5);
+  var fedA = g.mobs.feed(a, 'WHEAT'), fedB = g.mobs.feed(b, 'WHEAT'), again = g.mobs.feed(a, 'WHEAT'), wrong = g.mobs.feed(g.mobs.spawn('PIG', 0.5, 11, 8.5), 'WHEAT');
+  for (i = 0; i < 200; i++) g.tick();
+  var calf = g.mobs.list.filter(function (m) { return m.type === 'COW' && m.baby > 0; })[0];
+  var calfH = calf && WG.MOB_TYPES.COW.h * 0.5;
+  if (calf) { calf.baby = 2; g.tick(); g.tick(); }
+  check(fedA && fedB && !again && !wrong && calf && a.breedCd > 0 && calf && !calf.baby,
+    '繁殖：小麦をやった牛 2 頭から子牛が生まれ（高さ ' + calfH + '）、育つと大人になる。休み中の牛と、えさでない物（豚に小麦）は受け付けない');
+  // 村人の取引
+  var v = g.mobs.spawn('VILLAGER', 8.5, 11, 8.5); WG.setupVillager(v, 'FARMER');
+  g.inv.clear(); g.inv.add('WHEAT', 40);
+  g.tradeMob = v;
+  var ok1 = g.trade(0), ok2 = g.trade(0), ok3 = g.trade(0);
+  var em = g.inv.slots.reduce(function (n, s) { return n + (s && s.key === 'EMERALD' ? s.n : 0); }, 0);
+  var buy = g.trade(3);
+  var bread = g.inv.slots.reduce(function (n, s) { return n + (s && s.key === 'BREAD' ? s.n : 0); }, 0);
+  check(ok1 && ok2 && !ok3 && em === 2 && buy && bread === 6 && v.trades[0].uses === 2,
+    '村人の取引：農民に小麦 20 個でエメラルド 1 個（小麦 40 個で 2 回、3 回目は足りない）、エメラルド 1 個でパン 6 個');
+  // 生成された村には、家ごとに村人がいる
+  var wo = new WG.World(SEED, 'overworld'), st = wo.gen.structures, vil = null;
+  for (var rx = -3; rx <= 3 && !vil; rx++) for (var rz = -3; rz <= 3 && !vil; rz++) { var vv = st.village(rx, rz); if (vv && vv.parts.some(function (p) { return p.kind === 'house'; })) vil = vv; }
+  var gv = new WG.Game(nullView, wo, nullUI), houses = vil.parts.filter(function (p) { return p.kind === 'house'; }).length;
+  for (var cx = (vil.x >> 4) - 3; cx <= (vil.x >> 4) + 3; cx++) for (var cz = (vil.z >> 4) - 3; cz <= (vil.z >> 4) + 3; cz++) gv.mobs.populate(cx, cz);
+  var vills = gv.mobs.list.filter(function (m) { return m.type === 'VILLAGER'; });
+  check(vills.length >= Math.min(houses, 3) && vills.every(function (m) { return m.trades && m.trades.length >= 5 && m.home; }),
+    '村：家 ' + houses + ' 軒の村に村人 ' + vills.length + ' 人（' + vills.map(function (m) { return WG.profName(m); }).join('・') + '）');
+})();
+
+// ネザーポータル：黒曜石の枠に火を付けるとでき、4 秒立つと移る。行き先にはポータルができ、枠を壊すと消える
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i, went = null;
+  g.ui = Object.assign({}, g.ui, { travel: function (d, x, y, z) { went = [d, x, y, z]; } });
+  // 内側 2×3 の枠（四隅なし）
+  for (i = 0; i < 2; i++) { w.setBlock(4 + i, 11, 0, B.OBSIDIAN); w.setBlock(4 + i, 15, 0, B.OBSIDIAN); }
+  for (i = 0; i < 3; i++) { w.setBlock(3, 12 + i, 0, B.OBSIDIAN); w.setBlock(6, 12 + i, 0, B.OBSIDIAN); }
+  var bad = WG.lightPortal(g, 4, 16, 0);
+  var lit = WG.lightPortal(g, 4, 12, 0);
+  var filled = 0; for (i = 0; i < 6; i++) if (WG.isPortal(w.block(4 + (i & 1), 12 + (i >> 1), 0))) filled++;
+  g.setMode('survival'); g.walker.pos = [5, 12, 0.5]; g.walker.prev = g.walker.pos.slice();
+  for (i = 0; i < 79; i++) g.tickExtra();
+  var early = went;
+  g.tickExtra();
+  var nw = new WG.World(SEED, 'nether'), arr = WG.portalArrival(nw, went[1], went[3], went[2]);
+  var there = WG.isPortal(nw.block(Math.floor(arr.pos[0]), arr.pos[1], Math.floor(arr.pos[2]))), again = WG.portalArrival(nw, went[1] + 5, went[3], 60);
+  g.breakBlock(3, 13, 0, false);
+  var gone = !WG.isPortal(w.block(4, 12, 0)) && !WG.isPortal(w.block(5, 14, 0));
+  check(!bad && lit && filled === 6 && !early && went && went[0] === 'nether' && Math.abs(went[1] - 5 / 8) < 1e-9 && there && again.pos[0] === arr.pos[0] && gone,
+    'ネザーポータル：枠（内側 2×3）に火を付けると 6 マスがポータルになり、4 秒立つとネザーの x/8 へ。行き先にポータルができ、近くでは同じものを使う。枠を壊すと消える');
+})();
+
+// セーブとロード：置いたブロック・チェスト・かまど・生き物・持ち物・体力が戻る。音の素材の見分け
+(function () {
+  var wo = new WG.World(SEED, 'overworld'), wn = new WG.World(SEED, 'nether'), pl = new WG.Player(), g = new WG.Game(nullView, wo, nullUI, pl);
+  wo.setBlock(1, 100, 1, B.DIAMOND_BLOCK); wo.setBlock(2, 100, 1, B.AIR); wn.setBlock(5, 60, 5, B.GLOWSTONE);
+  wo.chests.set('3,100,3', [{ key: 'DIAMOND', n: 5 }].concat(new Array(26).fill(null)));
+  var f = new WG.Craft.Furnace(); f.slots[0] = { key: 'RAW_IRON', n: 3 }; f.burn = 50; wo.furnaces.set('4,100,4', f);
+  var cow = g.mobs.spawn('COW', 10.5, 80, 10.5); cow.baby = 1234;
+  var vil = g.mobs.spawn('VILLAGER', 12.5, 80, 10.5); WG.setupVillager(vil, 'LIBRARIAN');
+  pl.inv.add('IRON_PICKAXE', 1, 7, { EFFICIENCY: 2 }); pl.inv.add('BREAD', 12); pl.health = 13; pl.food = 9; pl.xp.level = 4; pl.armor[1] = { key: 'IRON_CHESTPLATE', n: 1 };
+  wo.portals = [{ x: 0, y: 70, z: 0, axis: 'X', w: 2, h: 3 }];
+  var text = WG.saveGame(SEED, { overworld: wo, nether: wn }, pl, { dim: 'overworld', pos: [10, 80, 10], yaw: 1, pitch: 0, mode: 'survival' });
+  var r = WG.loadGame(text), o = r.worlds.overworld, n = r.worlds.nether, q = r.player;
+  var pick = q.inv.slots.filter(function (s) { return s && s.key === 'IRON_PICKAXE'; })[0];
+  var cow2 = o.mobs.filter(function (m) { return m.type === 'COW'; })[0], vil2 = o.mobs.filter(function (m) { return m.type === 'VILLAGER'; })[0];
+  var g2 = new WG.Game(nullView, o, nullUI, q);
+  check(o.block(1, 100, 1) === B.DIAMOND_BLOCK && o.block(2, 100, 1) === B.AIR && n.block(5, 60, 5) === B.GLOWSTONE && o.chests.get('3,100,3')[0].n === 5 &&
+    o.furnaces.get('4,100,4').canSmelt && o.furnaces.get('4,100,4').burn === 50 && cow2 && cow2.baby === 1234 && vil2 && vil2.prof === 'LIBRARIAN' && vil2.trades.length === 5 &&
+    pick && pick.dmg === 7 && pick.ench.EFFICIENCY === 2 && q.health === 13 && q.food === 9 && q.xp.level === 4 && q.armor[1].key === 'IRON_CHESTPLATE' && o.portals.length === 1 &&
+    r.place.pos[1] === 80 && g2.health === 13 && g2.mobs.list.length === 2,
+    'セーブとロード：置いた・壊したブロック（地上とネザー）、チェスト・かまど、生き物（子牛・司書）、持ち物（エンチャント・耐久）・防具・体力・空腹・経験値・場所が戻る（' + Math.ceil(text.length / 1024) + ' KB）');
+  var M = WG.Sound.matOf;
+  check(M(B.GRASS) === 'grass' && M(B.OAK_PLANKS) === 'wood' && M(B.STONE) === 'stone' && M(B.SAND) === 'sand' && M(B.GLASS) === 'glass' && M(B.WHITE_WOOL) === 'cloth' && M(B.IRON_BLOCK) === 'metal' && M(B.GRAVEL) === 'gravel',
+    '音：足音・掘る音の素材（草・木・石・砂・ガラス・布・金属・砂利）を見分ける');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
