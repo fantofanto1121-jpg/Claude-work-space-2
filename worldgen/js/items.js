@@ -85,6 +85,7 @@
     ['SMOOTH_STONE', 2, 'SMOOTH_STONE'], ['LANTERN', 3.5, 'LANTERN']);
   WG.WOOL_COLORS.forEach(function (c) { BLOCK_DATA.push([c[0] + '_WOOL', 0.8, c[0] + '_WOOL']); });
   BLOCK_DATA.push(['NETHER_PORTAL_X', 0, null], ['NETHER_PORTAL_Z', 0, null]);
+  BLOCK_DATA.push(['PUMPKIN', 1, 'PUMPKIN'], ['CARVED_PUMPKIN', 1, 'CARVED_PUMPKIN']);
 
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
@@ -124,7 +125,7 @@
   'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL FARMLAND FARMLAND_MOIST'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
   WG.BLOCKS.forEach(function (b) {
     var k = b.key;
-    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k)) FAST[k] = 'axe';
+    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k) || /PUMPKIN$/.test(k)) FAST[k] = 'axe';
   });
 
   // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）

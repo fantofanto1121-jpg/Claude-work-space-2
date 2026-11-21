@@ -810,7 +810,7 @@
     if (mt && !mt.dead && mt.type === 'WOLF') {
       if (!mt.tame && it && it.key === 'BONE' && !mt.angry) {
         if (surv) this.inv.take(this.inv.sel, 1);
-        if (Math.random() < 1 / 3) { mt.tame = true; mt.hp = mt.maxHp = 20; mt.ai.tx = null; this.puff(mt.x, mt.y + 0.9, mt.z, [220, 60, 70], 12); }
+        if (Math.random() < 1 / 3) { mt.tame = true; mt.hp = mt.maxHp = 20; mt.ai.tx = null; this.puff(mt.x, mt.y + 0.9, mt.z, [220, 60, 70], 12); if (WG.advance) WG.advance(this, 'tame'); }
         else this.puff(mt.x, mt.y + 0.9, mt.z, [90, 90, 90], 6);
         this.mouseR = this.clickR = false;
         return;
@@ -1167,7 +1167,7 @@
       }
       if (e.delay > 0) e.delay--;
       // 拾う（体の周り 1 ブロック、上下 0.5 ブロックの範囲）
-      if (!this.dead && e.delay === 0 && e.x > pb[0] - 1 && e.x < pb[3] + 1 && e.y + 0.25 > pb[1] - 0.5 && e.y < pb[4] + 0.5 && e.z > pb[2] - 1 && e.z < pb[5] + 1) {
+      if (!this.dead && !this.spectator && e.delay === 0 && e.x > pb[0] - 1 && e.x < pb[3] + 1 && e.y + 0.25 > pb[1] - 0.5 && e.y < pb[4] + 0.5 && e.z > pb[2] - 1 && e.z < pb[5] + 1) {
         var got = this.inv.add(e.key, e.n, e.dmg, e.ench);
         e.n -= got;
         if (got && WG.Sound) WG.Sound.play('pop', e.x, e.y, e.z);
@@ -1407,9 +1407,10 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
     if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp') html += this.renderExtraScreen(sc);
     if (sc === 'trade') html += this.renderTrade();
+    if (sc === 'adv') html += this.renderAdvancements();
     if (sc === 'creative') {
       html += '<div class="grid pal">';
       WG.PLACEABLE.concat(Object.keys(ITEMS).filter(function (k) { return ITEMS[k].block < 0; })).forEach(function (k) {

@@ -40,3 +40,4 @@ from defs1 import GEM
 EM = ['#0a3a1a', '#1a8a3e', '#2ab454', '#5ad67a', '#b4f4c4']
 D['EMERALD'] = (GEM, {'H': EM, 'T': [EM[0], EM[2], EM[3], EM[4], '#ffffff']}, {'w': '#ffffff'}, [(6, 4, 'w')])
 D['SPAWN_EGG_VILLAGER'] = (EGG, {'A': ramp_from('#7a5a3a'), 'B': ramp_from('#c8a07a')}, {}, [], [(x, y, 'B') for x, y in SPOTS])
+D['SPAWN_EGG_GOLEM'] = (EGG, {'A': ramp_from('#c2beb4'), 'B': ramp_from('#5d7a48')}, {}, [], [(x, y, 'B') for x, y in SPOTS])

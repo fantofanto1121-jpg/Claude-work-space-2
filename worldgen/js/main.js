@@ -269,7 +269,7 @@
   };
   function travelTo(dim, x, y, z) {
     if (!game) return;
-    var mode = game.mode;
+    var mode = game.gameMode || game.mode;
     stopWalk();
     state.dim = dim; state.cx = Math.round(x); state.cz = Math.round(z);
     $('cx').value = state.cx; $('cz').value = state.cz;
@@ -340,7 +340,8 @@
   var walkLoading = false;
 
   function updateWalkCard() {
-    var on = state.mode === 'walk' && !!game, busy = on && (game.invOpen || game.dead);
+    var chatting = !$('chat').classList.contains('hide') && !$('chat').classList.contains('closed');
+    var on = state.mode === 'walk' && !!game, busy = on && (game.invOpen || game.dead || chatting);
     $('cross').classList.toggle('hide', !(on && locked()));
     $('walkCard').classList.toggle('hide', !on || locked() || busy);
     $('wcTitle').textContent = walkLoading ? '読み込み中…' : 'クリックして遊ぶ';
@@ -362,9 +363,41 @@
   $('modesGame').addEventListener('click', function (e) {
     var v = e.target.dataset && e.target.dataset.v;
     if (!v) return;
+    setGameMode(v);
+  });
+  function setGameMode(v) {
     gameMode = v;
     if (game) game.setMode(v);
     syncUI();
+  }
+  gameUI.setGameMode = setGameMode;
+  // ---- コマンドの入力欄（T か / で開く） ----
+  var chatTimer = 0;
+  function chatLog(text) {
+    var log = $('chatLog');
+    String(text).split('\n').forEach(function (line) { var d = document.createElement('div'); d.textContent = line; log.appendChild(d); });
+    while (log.children.length > 14) log.removeChild(log.firstChild);
+    $('chat').classList.remove('hide');
+    clearTimeout(chatTimer);
+    chatTimer = setTimeout(function () { if ($('chat').classList.contains('closed')) $('chat').classList.add('hide'); }, 8000);
+  }
+  gameUI.openChat = function (prefix) {
+    var c = $('chat'), inp = $('chatIn');
+    c.classList.remove('hide', 'closed');
+    if (locked()) document.exitPointerLock();
+    inp.value = prefix || '';
+    setTimeout(function () { inp.focus(); }, 0);
+  };
+  function closeChat() { $('chat').classList.add('closed'); $('chatIn').blur(); chatTimer = setTimeout(function () { $('chat').classList.add('hide'); }, 6000); updateWalkCard(); }
+  $('chatIn').addEventListener('keydown', function (e) {
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); closeChat(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var t = this.value.trim();
+    closeChat();
+    if (t && game) { chatLog('> ' + t); chatLog(WG.runCommand(game, t)); syncUI(); }
+    if (game) lockPointer();
   });
   document.addEventListener('pointerlockchange', function () {
     if (!locked() && walker) { walker.releaseKeys(); game.mouseL = game.mouseR = false; }
@@ -395,6 +428,7 @@
   document.addEventListener('keydown', function (e) {
     if (!game || state.mode !== 'walk') return;
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && !locked()) return;
+    if (locked() && !e.repeat && (e.code === 'KeyT' || e.code === 'Slash') && !game.invOpen) { e.preventDefault(); gameUI.openChat(e.code === 'Slash' ? '/' : ''); return; }
     if (game.key(e, true)) { e.preventDefault(); updateWalkCard(); return; }
     if (!locked()) return;
     if (GAME_KEYS[e.code]) { e.preventDefault(); walker.key(e.code, true, e.repeat); }
@@ -481,7 +515,7 @@
     syncPlayer();
     var ws = {};
     Object.keys(worlds).forEach(function (k) { var p = k.split('|'); if (p[0] === state.seed) ws[p[1]] = worlds[k]; });
-    var place = { dim: state.dim, mode: game ? game.mode : gameMode, cx: state.cx, cz: state.cz };
+    var place = { dim: state.dim, mode: game ? game.gameMode || game.mode : gameMode, cx: state.cx, cz: state.cz };
     if (walker) { place.pos = walker.pos.slice(); place.yaw = walker.yaw; place.pitch = walker.pitch; }
     return WG.saveGame(state.seed, ws, player, place);
   }
@@ -503,7 +537,7 @@
     player = r.player;
     var pl = r.place;
     state.dim = WG.DIMS[pl.dim] ? pl.dim : 'overworld';
-    gameMode = pl.mode === 'creative' ? 'creative' : 'survival';
+    gameMode = WG.GAME_MODES[pl.mode] ? pl.mode : 'survival';
     if (pl.pos) { state.cx = Math.round(pl.pos[0]); state.cz = Math.round(pl.pos[2]); }
     else if (pl.cx != null) { state.cx = pl.cx; state.cz = pl.cz; }
     $('cx').value = state.cx; $('cz').value = state.cz;

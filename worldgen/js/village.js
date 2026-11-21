@@ -55,6 +55,17 @@
     st.near(x0, z0, false).forEach(function (v) {
       if (!v.parts) return;
       v.parts.forEach(function (p) {
+        // 井戸のそばに鉄の番人を 1 体
+        if (p.kind === 'well' && p.x >= x0 && p.x <= x0 + 15 && p.z >= z0 && p.z <= z0 + 15) {
+          for (var gy = p.y + 6; gy > p.y - 4; gy--) {
+            var gx = p.x + 3, gz = p.z + 3;
+            if (WG.COLLIDE[wd.block(gx, gy - 1, gz)] >= 1 && !WG.COLLIDE[wd.block(gx, gy, gz)] && !WG.COLLIDE[wd.block(gx, gy + 1, gz)] && !WG.COLLIDE[wd.block(gx, gy + 2, gz)]) {
+              var gm = mobs.spawn('GOLEM', gx + 0.5, gy, gz + 0.5); gm.home = [p.x + 0.5, p.z + 0.5];
+              break;
+            }
+          }
+          return;
+        }
         if (p.kind !== 'house') return;
         var hx = p.ox + p.ux * (p.W >> 1) + p.vx * (p.D >> 1), hz = p.oz + p.uz * (p.W >> 1) + p.vz * (p.D >> 1);
         if (hx < x0 || hx > x0 + 15 || hz < z0 || hz > z0 + 15) return;

@@ -80,6 +80,21 @@
   #toast { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); padding: 6px 12px; border-radius: 4px;
     background: rgba(22, 23, 25, 0.82); color: #e8e5de; font-size: 13px; pointer-events: none; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
   #toast.on { opacity: 1; }
+  /* コマンドの入力欄と結果 */
+  #chat { position: absolute; left: 10px; bottom: 96px; width: min(560px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 4px; }
+  #chatLog { display: flex; flex-direction: column; gap: 2px; }
+  #chatLog div { align-self: flex-start; max-width: 100%; padding: 3px 8px; background: rgba(22, 23, 25, 0.78); color: #e8e5de; font-size: 12.5px; border-radius: 3px; white-space: pre-wrap; }
+  #chatIn { width: 100%; padding: 6px 8px; background: rgba(22, 23, 25, 0.9); color: #f2efe8; border: 1px solid #5a5c60; border-radius: 3px; font: 13px ui-monospace, Menlo, monospace; }
+  #chat.closed #chatIn { display: none; }
+  #chat.closed { pointer-events: none; }
+  /* 進捗の一覧 */
+  .advs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-bottom: 10px; max-height: 330px; overflow-y: auto; min-width: 380px; }
+  .adv { padding: 5px 8px; background: #2a2a2e; border: 1px solid #3c3e42; border-radius: 3px; }
+  .adv b { display: block; font-size: 12.5px; font-weight: 600; color: #8a8c90; }
+  .adv span { font-size: 11px; color: #6c6e72; }
+  .adv.got { background: #3a3424; border-color: #6a5a30; }
+  .adv.got b { color: #f0d890; }
+  .adv.got span { color: #c8b88a; }
   #sleepFade { position: absolute; inset: 0 0 28px 0; background: #07080c; pointer-events: none; opacity: 0; }
   /* 経験値の棒とレベル */
   #xpbar { position: relative; height: 6px; background: #1e2a14; border: 1px solid #0d1209; border-radius: 1px; margin: 0 1px; }
@@ -197,7 +212,7 @@
 
     <div class="group hide" id="g-game">
       <div class="label">モード</div>
-      <div class="seg" id="modesGame"><button data-v="survival">サバイバル</button><button data-v="creative">クリエイティブ</button></div>
+      <div class="seg" id="modesGame"><button data-v="survival">サバイバル</button><button data-v="creative">クリエイティブ</button><button data-v="adventure">アドベンチャー</button><button data-v="spectator">スペクテイター</button></div>
     </div>
 
     <div class="group hide" id="g-time">
@@ -276,6 +291,8 @@
         <dt>左クリック（生き物）</dt><dd>叩く</dd>
         <dt>1〜9・ホイール</dt><dd>持ち替える</dd>
         <dt>E</dt><dd>インベントリ</dd>
+        <dt>T・/</dt><dd>コマンド（/help で一覧）</dd>
+        <dt>L</dt><dd>進捗</dd>
         <dt>Q</dt><dd>捨てる（Ctrl＋Q でまとめて）</dd>
         <dt>Esc</dt><dd>マウスを離して止まる</dd>
       </dl>
@@ -286,6 +303,7 @@
     <img id="shieldView" alt="">
     <div id="effects"></div>
     <div id="toast"></div>
+    <div id="chat" class="hide"><div id="chatLog"></div><input id="chatIn" autocomplete="off" spellcheck="false" placeholder="/help でコマンドの一覧（Enter で実行、Esc で閉じる）"></div>
     <div id="hud" class="hide">
       <div id="itemName"></div>
       <div class="bars"><div class="lcol"><div id="armor"></div><div id="hearts"></div></div><div class="rcol"><div id="air"></div><div id="food"></div></div></div>
@@ -335,6 +353,9 @@
 <script src="js/portal.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/save.js"></script>
+<script src="js/modes.js"></script>
+<script src="js/advance.js"></script>
+<script src="js/commands.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

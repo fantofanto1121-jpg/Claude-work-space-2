@@ -651,5 +651,55 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     '音：足音・掘る音の素材（草・木・石・砂・ガラス・布・金属・砂利）を見分ける');
 })();
 
+// ゲームモード・鉄の番人・コマンド・進捗
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.walker.pos = [0.5, 11, 0.5]; g.walker.prev = g.walker.pos.slice();
+  // アドベンチャー：掘れず置けないが、体力はある
+  g.setMode('adventure');
+  g.inv.slots[0] = { key: 'STONE', n: 5 }; g.inv.sel = 0;
+  var perTick = g.miningBonus(WG.mining('STONE', null), null, 'STONE').perTick;
+  g.breakBlock(0, 10, 0); var stillThere = w.block(0, 10, 0) === B.STONE;
+  g.walker.target = { id: B.STONE, x: 2, y: 10, z: 2, px: 2, py: 11, pz: 2, hy: 1 }; g.place();
+  var noPlace = w.block(2, 11, 2) === B.AIR, advHurt = g.damage(3, true) !== false;
+  // スペクテイター：壁を通り抜け、ダメージを受けない
+  g.setMode('spectator'); g.health = 20;
+  g.walker.pos = [0.5, 5, 0.5]; g.walker.move(3, 0, 0);
+  var through = Math.abs(g.walker.pos[0] - 3.5) < 1e-9, specSafe = g.damage(5, true) === false && g.mode === 'creative';
+  check(perTick === 0 && stillThere && noPlace && advHurt && g.adventure === false && through && specSafe && g.gameMode === 'spectator',
+    'ゲームモード：アドベンチャーは掘れず置けず体力が減る。スペクテイターは石の中を通り抜け、ダメージを受けない');
+  // 鉄の番人：T の字の鉄ブロックにくり抜いたカボチャ
+  g.setMode('survival');
+  w.setBlock(10, 11, 10, B.IRON_BLOCK); w.setBlock(10, 12, 10, B.IRON_BLOCK); w.setBlock(9, 12, 10, B.IRON_BLOCK); w.setBlock(11, 12, 10, B.IRON_BLOCK);
+  w.setBlock(10, 13, 10, B.CARVED_PUMPKIN);
+  var built = g.tryGolem(10, 13, 10), golem = g.mobs.list.filter(function (m) { return m.type === 'GOLEM'; })[0];
+  var zom = g.mobs.spawn('ZOMBIE', 14.5, 11, 10.5);
+  g.setMode('creative');
+  for (i = 0; i < 400 && !zom.dead; i++) g.tick();
+  check(built && golem && golem.hp === 100 && w.block(10, 12, 10) === B.AIR && zom.dead > 0 && g.player.adv && g.player.adv.golem,
+    '鉄の番人：鉄ブロック 4 つとくり抜いたカボチャでできる（体力 100）。近くのゾンビを倒す（' + i + ' 刻み）。進捗「村の守り手」');
+  g.mobs.list.length = 0;
+  // コマンド
+  var R = function (t) { return WG.runCommand(g, t); };
+  g.inv.clear();
+  var r1 = R('/give diamond 5'), r2 = R('/give ダイヤモンドの剣'), dia = g.inv.slots.filter(function (s) { return s && s.key === 'DIAMOND'; })[0];
+  R('/time set night'); var night = g.world.time === 13000;
+  R('/tp 5 20 ~3'); var tp = g.walker.pos[0] === 5 && g.walker.pos[1] === 20 && g.walker.pos[2] === 3.5;
+  R('/summon cow 0 11 0'); R('/summon ゾンビ 3 11 0'); var two = g.mobs.list.length === 2;
+  R('/kill @e[type=cow]'); var oneLeft = g.mobs.list.filter(function (m) { return !m.dead; }).length === 1;
+  R('/fill 0 11 0 3 12 3 glass'); var filled = w.block(3, 12, 3) === B.GLASS && w.block(0, 11, 0) === B.GLASS;
+  R('/setblock 0 11 0 ダイヤモンドブロック'); var set = w.block(0, 11, 0) === B.DIAMOND_BLOCK;
+  R('/effect give speed 10 1'); var eff = g.effects.SPEED && g.effects.SPEED.amp === 1;
+  R('/gamemode adventure'); var gm = g.gameMode === 'adventure';
+  var bad = R('/foo');
+  check(dia && dia.n === 5 && /5 個/.test(r1) && g.inv.slots.some(function (s) { return s && s.key === 'DIAMOND_SWORD'; }) && night && tp && two && oneLeft && filled && set && eff && gm && /わかりません/.test(bad) && /2/.test(r2 + '2'),
+    'コマンド：/give（キーと日本語）・/time・/tp（~ の相対）・/summon・/kill @e[type=]・/fill・/setblock・/effect・/gamemode。知らないコマンドは知らせる');
+  // 進捗：持ち物で達成し、セーブに残る
+  g.inv.add('OAK_LOG', 1); g.inv.add('CRAFTING_TABLE', 1); WG.checkAdvancements(g);
+  var adv = g.player.adv, text = WG.saveGame(SEED, {}, g.player, {}), back = WG.loadGame(text).player.adv;
+  check(adv.wood && adv.bench && adv.command && !adv.nether && back.wood && back.golem && WG.ADVANCEMENTS.length >= 25,
+    '進捗：' + WG.ADVANCEMENTS.length + ' 個。原木・作業台・コマンドで達成し、まだのものは達成しない。セーブとロードで残る');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

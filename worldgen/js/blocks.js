@@ -209,6 +209,8 @@
   // ネザーポータル（黒曜石の枠に火を付けると、中にできる。X は東西に広がる面、Z は南北に広がる面）
   DEF.push(['NETHER_PORTAL_X', 'ネザーポータル', '#6a2ab8', 'portal'], ['NETHER_PORTAL_Z', 'ネザーポータル', '#6a2ab8', 'portal']);
   ALIAS.NETHER_PORTAL_X = ALIAS.NETHER_PORTAL_Z = 'NETHER_PORTAL';
+  // カボチャと、くり抜いたカボチャ（鉄の番人を作るのに使う）
+  DEF.push(['PUMPKIN', 'カボチャ', '#d8862a', 'solid'], ['CARVED_PUMPKIN', 'くり抜いたカボチャ', '#d07a22', 'solid']);
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 

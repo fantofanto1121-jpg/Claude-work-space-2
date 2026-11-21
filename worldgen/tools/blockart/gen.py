@@ -902,6 +902,33 @@ def main():
             pt.set(x, y, [168, 96, 255] if v > 1.0 else [122, 52, 214] if v > 0.3 else [90, 30, 170] if v > -0.6 else [62, 16, 128])
     put('NETHER_PORTAL', pt)
 
+    # カボチャ：縦の筋のある橙色、上はへたのある面。くり抜いたものは横に顔
+    org = [216, 134, 42]
+    pk_side = Img()
+    for y in range(N):
+        for x in range(N):
+            rib = x % 4
+            k = [0.78, 1.0, 1.1, 0.94][rib] * (0.96 + 0.08 * ((hsh(80, x, y) % 3) / 2))
+            if y in (0, 15): k *= 0.85
+            pk_side.set(x, y, sc(org, k))
+    pk_top = Img()
+    for y in range(N):
+        for x in range(N):
+            d = max(abs(x - 7.5), abs(y - 7.5))
+            pk_top.set(x, y, sc(org, (0.9 if int(d) % 3 == 0 else 1.04) * (0.96 + 0.08 * ((hsh(81, x, y) % 3) / 2))))
+    for (x, y) in [(7, 6), (8, 6), (7, 7), (8, 7), (7, 8), (8, 8), (6, 7), (9, 8)]:
+        pk_top.set(x, y, [96, 120, 48] if (x + y) % 2 else [70, 92, 36])
+    put('PUMPKIN', pk_side, pk_top, pk_top)
+    face = pk_side.copy()
+    hole, glow = [58, 30, 10], [40, 20, 6]
+    for (x, y) in [(3, 4), (4, 4), (5, 4), (4, 5), (3, 5), (5, 5), (10, 4), (11, 4), (12, 4), (10, 5), (11, 5), (12, 5), (4, 3), (11, 3)]:
+        face.set(x, y, hole)
+    for x in range(3, 13):
+        face.set(x, 10, hole)
+        if x % 3 != 0: face.set(x, 11, hole)
+    for x in (4, 7, 10): face.set(x, 9, hole); face.set(x, 12, glow)
+    put('CARVED_PUMPKIN', face, pk_top, pk_top)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

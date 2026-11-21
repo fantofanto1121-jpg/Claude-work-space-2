@@ -121,6 +121,16 @@
       box(-3, 30, 4, 6, 1, 0.3, '#5a3a24'), box(-3, 29, 4, 2, 1, 0.3, '#ececec'), box(1, 29, 4, 2, 1, 0.3, '#ececec'),
       box(-2, 29, 4.05, 1, 1, 0.3, '#2c6a3a'), box(2, 29, 4.05, 1, 1, 0.3, '#2c6a3a')
     ],
+    // 鉄の番人：村を守る大きな鉄の体。苔の付いた肩、琥珀色の目、長い腕（独自の見た目）
+    GOLEM: [
+      box(-5, 0, -2.5, 4, 11, 5, '#9c988e', 'L1'), box(1, 0, -2.5, 4, 11, 5, '#9c988e', 'L2'),
+      box(-4.5, 11, -3, 9, 5, 6, '#aeaaa0'), box(-9, 16, -5.5, 18, 12, 11, '#c2beb4'),
+      box(-13, 4, -2.5, 4, 26, 5, '#b2aea4', 'L2'), box(9, 4, -2.5, 4, 26, 5, '#b2aea4', 'L1'),
+      box(-9.2, 24, -4, 6, 4.2, 8, '#5d7a48'), box(4, 27.9, -3, 5, 0.4, 5, '#6c8a52'), box(-13.2, 12, -1, 0.4, 6, 3, '#5d7a48'),
+      box(-6, 20, 5.5, 1.5, 1.5, 0.3, '#6e6a62'), box(4.5, 20, 5.5, 1.5, 1.5, 0.3, '#6e6a62'), box(-1, 17, 5.5, 2, 2, 0.3, '#6e6a62'),
+      box(-4, 28, -4, 8, 9, 8, '#c8c4ba'), box(-4.2, 34, -4.2, 8.4, 1.6, 8.4, '#8a867c'),
+      box(-3, 31.5, 4, 2, 1.5, 0.3, '#e0a030'), box(1, 31.5, 4, 2, 1.5, 0.3, '#e0a030'), box(-2, 29, 4, 4, 0.8, 0.3, '#6e6a62')
+    ],
     // 魔女：紫の服、とんがり帽子、緑がかった顔と高い鼻
     WITCH: [
       box(-4, 0, -2, 4, 12, 4, '#3e2a50', 'L1'), box(0, 0, -2, 4, 12, 4, '#3e2a50', 'L2'),
@@ -166,6 +176,8 @@
       dmg: [0, 3, 4, 0, 6], drops: [['MAGMA_CREAM', 0, 1]], dropSize: 'big' },
     // 村人：村の家に住む。右クリックで取引（js/village.js）。ゾンビが近いと逃げる
     VILLAGER: { name: '村人', w: 0.6, h: 1.95, hp: 20, speed: 0.05, food: [], drops: [] },
+    // 鉄の番人：村を守り、近くの敵を叩いて打ち上げる。叩いたプレイヤーには怒る（鉄のブロック 4 つとくり抜いたカボチャで作れる）
+    GOLEM: { name: '鉄の番人', w: 1.4, h: 2.7, hp: 100, speed: 0.05, food: [], noFall: true, drops: [['IRON_INGOT', 3, 5], ['POPPY', 0, 2]] },
     // 魔女：離れた所から毒・鈍化・負傷の投げポーションを投げる
     WITCH: { name: '魔女', w: 0.6, h: 1.95, hp: 26, speed: 0.08, hostile: true, range: 16,
       drops: [['GLASS_BOTTLE', 0, 2], ['GLOWSTONE_DUST', 0, 2], ['GUNPOWDER', 0, 2], ['REDSTONE', 0, 2], ['SPIDER_EYE', 0, 2], ['SUGAR', 0, 2], ['STICK', 0, 2]] }
@@ -228,6 +240,7 @@
       // 子どもは 20 分（24000 刻み）で大人になる。繁殖したあとは 5 分休む
       if (m.baby > 0) m.baby--;
       if (m.breedCd > 0) m.breedCd--;
+      if (m.ai.swing > 0) m.ai.swing--;
       if (m.love > 0) { m.love--; if (m.love % 10 === 0) g.puff(m.x, m.y + mh(m) + 0.2, m.z, [230, 80, 100], 1, 0.3); }
       if (m.trades && m.age % 6000 === 0) m.trades.forEach(function (t) { t.uses = 0; });   // 村人の品物は時間がたつと補充される
       var dx = p[0] - m.x, dz = p[2] - m.z, dist = Math.hypot(dx, dz), dy = p[1] - m.y;
@@ -364,6 +377,26 @@
         if (md < Math.max(1.2, mw(m) + 0.3)) this.breed(m, mate);
         return { want: [mate.x, mate.z], speed: T.speed, chase: false };
       }
+    }
+    if (m.type === 'GOLEM') {
+      if (ai.cd > 0) ai.cd--;
+      // 近くの敵（叩いたプレイヤーも）へ向かい、腕で叩いて打ち上げる（7〜21）
+      var foe2 = null, fd = 16;
+      this.list.forEach(function (o) {
+        if (o.dead || o === m || !TYPES[o.type].hostile) return;
+        var d = Math.hypot(o.x - m.x, o.z - m.z);
+        if (d < fd && Math.abs(o.y - m.y) < 6) { fd = d; foe2 = o; }
+      });
+      if (foe2) {
+        if (fd < mw(foe2) / 2 + 1.6 && ai.cd === 0) { self.hurt(foe2, 7 + Math.floor(Math.random() * 15), [m.x, m.z, 0.3]); foe2.vy = 0.6; ai.cd = 25; ai.swing = 10; }
+        return { want: [foe2.x, foe2.z], speed: T.speed * 1.4, chase: true };
+      }
+      if (m.angry && g.mode === 'survival' && !g.dead && dist < 20) {
+        if (dist < 2.2 && Math.abs(dy) < 2 && ai.cd === 0) { g.hurtPlayer(7 + Math.floor(Math.random() * 15), m.x, m.z); g.walker.vel[1] = 0.6; ai.cd = 25; ai.swing = 10; }
+        return { want: [w.pos[0], w.pos[2]], speed: T.speed * 1.4, chase: true };
+      }
+      if (m.home && Math.hypot(m.x - m.home[0], m.z - m.home[1]) > 20) return { want: [m.home[0], m.home[1]], speed: T.speed, chase: false };
+      return null;
     }
     if (m.type === 'VILLAGER') {
       // ゾンビが近いと逃げる。ふだんは家の近く（生まれた所から 12 ブロック以内）を歩く
@@ -553,7 +586,7 @@
       var dx = m.x - from[0], dz = m.z - from[1], d = Math.hypot(dx, dz) || 1, k = from[2] || 0.4;
       m.vx += dx / d * k; m.vz += dz / d * k; m.vy = 0.36;
     }
-    if (!TYPES[m.type].hostile) { m.ai.panic = 60; m.ai.tx = null; }
+    if (!TYPES[m.type].hostile && m.type !== 'GOLEM') { m.ai.panic = 60; m.ai.tx = null; }
     if (m.hp <= 0) { m.dead = 1; m.vx = m.vz = 0; }
     return true;
   };
@@ -638,7 +671,7 @@
           for (var mi = 0; mi < this.list.length && !hit; mi++) {
             var mm = this.list[mi], mb = box3(mm);
             if (mm.dead || a.x < mb[0] || a.x > mb[3] || a.y < mb[1] || a.y > mb[4] || a.z < mb[2] || a.z > mb[5]) continue;
-            this.hurt(mm, a.dmg, [a.x - a.vx, a.z - a.vz, 0.4 + (a.punch || 0) * 0.6]);
+            this.hurt(mm, a.dmg, [a.x - a.vx, a.z - a.vz, 0.4 + (a.punch || 0) * 0.6]); if (!a.any) mm.byPlayer = true;
             if (a.flame) mm.fire = Math.max(mm.fire || 0, 100);
             hit = true; a.dead = true;
           }
@@ -794,6 +827,7 @@
         if (red) c = [c[0] + (220 - c[0]) * red, c[1] * (1 - red), c[2] * (1 - red)];
         if (burn) c = [c[0] + (255 - c[0]) * burn, c[1] + (140 - c[1]) * burn, c[2] * (1 - burn)];
         if (flash) c = [c[0] + (255 - c[0]) * flash, c[1] + (255 - c[1]) * flash, c[2] + (255 - c[2]) * flash];
+        if (m.type === 'GOLEM' && m.ai.swing > 0 && pi >= 4 && pi <= 5) { pt = Object.assign({}, pt, { sw: 'A' }); }
         var ang = pt.sw === 'L1' ? swing : pt.sw === 'L2' ? -swing : pt.sw === 'A' ? -Math.PI / 2 + swing * 0.15 : pt.sw === 'T1' ? sway : pt.sw === 'T2' ? -sway : 0;
         var wing = pt.sw === 'W1' ? flap : pt.sw === 'W2' ? -flap : 0, wpx = pt.sw === 'W1' ? -1.5 : 1.5;
         var piv = pt.sw === 'A' ? [0, pt.o[1] + pt.s[1] - 2, 0] : [0, pt.o[1] + pt.s[1], pt.o[2] + pt.s[2] / 2];
