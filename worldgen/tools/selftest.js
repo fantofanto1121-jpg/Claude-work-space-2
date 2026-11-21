@@ -798,5 +798,72 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(blastOk && cooked && full && meal, '溶鉱炉：粗い鉄を 5 秒で焼き（かまどの 2 倍）、肉は焼かない。焚き火：豚肉を 30 秒で焼く。堆肥箱：いっぱいになると骨粉が取れる');
 })();
 
+// 第 3 回：建材・飾り・収納
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.setMode('survival'); g.walker.pos = [0.5, 11, 8.5]; g.walker.prev = g.walker.pos.slice(); g.walker.yaw = 0;
+  var T = function (x, y, z, px, py, pz, hy) { g.walker.target = { id: w.block(x, y, z), x: x, y: y, z: z, px: px, py: py, pz: pz, hy: hy == null ? 1 : hy }; };
+  var hold = function (k, n, extra) { g.inv.slots[0] = Object.assign({ key: k, n: n || 1 }, extra || {}); g.inv.sel = 0; };
+  // コンクリートパウダー：水の隣で固まる
+  w.setBlock(2, 11, 6, B.RED_CONCRETE_POWDER); w.setBlock(3, 11, 6, B.WATER);
+  for (i = 0; i < 11; i++) g.tick();
+  var hard = w.block(2, 11, 6) === B.RED_CONCRETE;
+  // 塀と板ガラスはつながる、フェンスゲートとトラップドアは開け閉めできる
+  w.setBlock(5, 11, 0, B.COBBLESTONE_WALL); w.setBlock(6, 11, 0, B.COBBLESTONE_WALL); w.setBlock(5, 11, 2, B.GLASS_PANE); w.setBlock(6, 11, 2, B.STONE);
+  var wallArms = WG.blockBoxes(B.COBBLESTONE_WALL, function (dx, dz) { return dx === 1 && dz === 0 ? B.COBBLESTONE_WALL : 0; }).length;
+  var paneArms = WG.blockBoxes(B.GLASS_PANE, function (dx, dz) { return dx === 1 && dz === 0 ? B.STONE : 0; }).length;
+  hold('OAK_FENCE_GATE'); T(8, 10, 0, 8, 11, 0); g.place(); var gate = WG.BLOCKS[w.block(8, 11, 0)].key;
+  T(8, 11, 0, 8, 12, 0); g.mobs.target = null; g.inv.slots[0] = null; g.use(); var gateOpen = WG.BLOCKS[w.block(8, 11, 0)].key;
+  hold('OAK_TRAPDOOR'); T(10, 10, 0, 10, 11, 0); g.place(); var td = WG.BLOCKS[w.block(10, 11, 0)].key;
+  g.inv.slots[0] = null; T(10, 11, 0, 10, 12, 0); g.use(); var tdOpen = WG.BLOCKS[w.block(10, 11, 0)].key;
+  check(hard && wallArms === 2 && paneArms === 2 && gate === 'OAK_FENCE_GATE_X' && gateOpen === 'OAK_FENCE_GATE_XO' && WG.COLLIDE[w.block(8, 11, 0)] === 0 && td === 'OAK_TRAPDOOR_B' && /^OAK_TRAPDOOR_O/.test(tdOpen),
+    'コンクリートパウダーが水で固まる。塀・板ガラスが隣とつながる。フェンスゲート（' + gate + ' → ' + gateOpen + '、開くと通れる）とトラップドア（' + td + ' → ' + tdOpen + '）');
+  // 看板・額縁・絵画・旗・植木鉢
+  var promptCb = null; g.ui = Object.assign({}, g.ui, { prompt: function (l, cb) { promptCb = cb; } });
+  hold('SIGN'); T(0, 10, 4, 0, 11, 4); g.place(); if (promptCb) promptCb('ようこそ/村へ');
+  var sign = w.signs && w.signs.get('0,11,4');
+  w.setBlock(4, 11, 6, B.STONE); w.setBlock(4, 12, 6, B.STONE); w.setBlock(5, 11, 6, B.STONE); w.setBlock(5, 12, 6, B.STONE);
+  hold('PAINTING'); T(5, 11, 6, 5, 11, 5); g.place();
+  var cells = w.paintings ? w.paintings.size : 0, art = w.paintings && w.paintings.get('5,11,5');
+  hold('ITEM_FRAME'); T(5, 12, 6, 5, 12, 5); g.place(); var frameId = WG.BLOCKS[w.block(5, 12, 5)].key;
+  if (frameId !== 'ITEM_FRAME_N') { w.setBlock(7, 11, 6, B.STONE); hold('ITEM_FRAME'); T(7, 11, 6, 7, 11, 5); g.place(); frameId = WG.BLOCKS[w.block(7, 11, 5)].key; }
+  hold('RED_BANNER', 1, { layers: [{ p: 'cross', c: 'WHITE' }] }); T(12, 10, 4, 12, 11, 4); g.place();
+  var bn = w.banners && w.banners.get('12,11,4');
+  g.breakBlock(12, 11, 4, true);
+  var bdrop = g.entities.filter(function (e) { return e.key === 'RED_BANNER'; })[0];
+  hold('FLOWER_POT'); T(14, 10, 4, 14, 11, 4); g.place(); hold('POPPY'); T(14, 11, 4, 14, 12, 4); g.use();
+  check(sign === 'ようこそ\n村へ' && cells === 4 && art && art.art.length && frameId === 'ITEM_FRAME_N' && bn && bn.layers[0].p === 'cross' && bdrop && bdrop.extra && bdrop.extra.layers.length === 1 &&
+    w.block(14, 11, 4) === B.POTTED_POPPY,
+    '看板の文字（2 行）、絵画（2×2 の空きに ' + (art && art.art) + '）、額縁、模様のある旗（壊しても模様が残る）、植木鉢にポピー');
+  // 機織り機：旗に模様を重ねる
+  g.workSlots = [{ key: 'BLUE_BANNER', n: 1 }, { key: 'YELLOW_DYE', n: 2 }]; g.screen = 'loom'; g.loomPick = 7;
+  g.loomRes = WG.loomResult(g.workSlots, 7); g.cursor = null; g.clickExtra('loomres', 0);
+  var woven = g.cursor && g.cursor.layers && g.cursor.layers[0].p === 'border' && g.cursor.layers[0].c === 'YELLOW' && g.workSlots[1].n === 1;
+  g.cursor = null;
+  // 貝の箱：壊しても中身が残り、置くと戻る
+  w.setBlock(16, 11, 0, B.SHELL_BOX); g.boxKey = '16,11,0'; g.boxSlots()[3] = { key: 'DIAMOND', n: 7 };
+  g.breakBlock(16, 11, 0, true);
+  var shell = g.entities.filter(function (e) { return e.key === 'SHELL_BOX'; })[0];
+  g.inv.clear(); g.inv.add('SHELL_BOX', 1, 0, null, shell.extra); g.inv.sel = 0;
+  T(18, 10, 0, 18, 11, 0); g.place();
+  var back = w.boxes.get('18,11,0'), kept = back && back[3] && back[3].n === 7;
+  // つながったチェスト：どれを開けても同じ中身
+  g.boxKey = 'ender'; g.boxSlots()[0] = { key: 'EMERALD', n: 3 }; var linked = g.player.ender[0].n === 3;
+  check(woven && shell && shell.extra.box && kept && linked, '機織り機で旗に黄色の縁取り。貝の箱は壊しても中身（ダイヤ 7 個）が残り、置き直すと戻る。つながったチェストはプレイヤーごとに 1 つの中身');
+  // ビーコン：鉄ブロックのピラミッド（2 段）で効果を与える
+  for (var dx = -2; dx <= 2; dx++) for (var dz = -2; dz <= 2; dz++) { w.setBlock(30 + dx, 9, 30 + dz, B.IRON_BLOCK); if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) w.setBlock(30 + dx, 10, 30 + dz, B.IRON_BLOCK); }
+  w.setBlock(30, 11, 30, B.BEACON);
+  var lv = WG.beaconLevel(w, 30, 11, 30);
+  g.beaconKey = '30,11,30'; g.workSlots = [{ key: 'IRON_INGOT', n: 1 }, null]; g.clickExtra('beaconopt', 1);
+  g.walker.pos = [31.5, 12, 33.5]; Object.keys(g.effects).forEach(function (k) { delete g.effects[k]; });
+  for (i = 0; i < 81; i++) g.tick();
+  check(lv === 2 && g.effects.JUMP_BOOST && !g.workSlots[0], 'ビーコン：鉄ブロックのピラミッド 2 段で、選んだ跳躍力上昇がかかる（支払いの鉄インゴットを使う）');
+  // 花火：空へ飛んで開く
+  g.rockets = []; hold('FIREWORK_ROCKET_COLOR', 2); T(0, 10, 12, 0, 11, 12); g.use();
+  var up = 0, np = 0;
+  for (i = 0; i < 50; i++) { g.tick(); if (g.rockets[0]) up = Math.max(up, g.rockets[0].y); np = Math.max(np, g.particles.filter(function (p) { return p.fw; }).length); }
+  check(up > 20 && np > 60 && g.rockets.length === 0, '花火：' + Math.round(up - 11) + ' ブロック上がってから、' + np + ' 粒の色の花火が開く');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

@@ -95,6 +95,25 @@
   BLOCK_DATA.push(['SMITHING_TABLE', 2.5, 'SMITHING_TABLE'], ['STONECUTTER', 3.5, 'STONECUTTER'], ['CARTOGRAPHY_TABLE', 2.5, 'CARTOGRAPHY_TABLE'],
     ['BLAST_FURNACE', 3.5, 'BLAST_FURNACE'], ['BLAST_FURNACE_LIT', 3.5, 'BLAST_FURNACE'], ['SMOKER', 3.5, 'SMOKER'], ['SMOKER_LIT', 3.5, 'SMOKER'],
     ['CAMPFIRE', 2, 'CHARCOAL', 2, 2], ['ANCIENT_DEBRIS', 30, 'ANCIENT_DEBRIS']);
+  // 第 3 回：建材・飾り・収納（ガラスと板ガラスは素手では何も落とさない）
+  BLOCK_DATA.push(['BROWN_WOOL', 0.8, 'BROWN_WOOL'], ['GLASS_PANE', 0.3, null], ['IRON_BARS', 5, 'IRON_BARS'], ['FLOWER_POT', 0, 'FLOWER_POT'],
+    ['BEACON', 3, 'BEACON'], ['LOOM', 2.5, 'LOOM'], ['BARREL', 2.5, 'BARREL'], ['SHELL_BOX', 2, null], ['LINKED_CHEST', 22.5, 'LINKED_CHEST'],
+    ['EMERALD_BLOCK', 5, 'EMERALD_BLOCK'], ['NETHERITE_BLOCK', 50, 'NETHERITE_BLOCK']);
+  WG.COLORS16.forEach(function (c) {
+    BLOCK_DATA.push([c[0] + '_CONCRETE', 1.8, c[0] + '_CONCRETE'], [c[0] + '_CONCRETE_POWDER', 0.5, c[0] + '_CONCRETE_POWDER'], [c[0] + '_STAINED_GLASS', 0.3, null],
+      [c[0] + '_TERRACOTTA', 1.25, c[0] + '_TERRACOTTA'], [c[0] + '_STAINED_GLASS_PANE', 0.3, null]);
+  });
+  WG.BLOCKS.forEach(function (b) {
+    var k = b.key, m;
+    if (/_WALL$/.test(k) && b.kind === 'wall') BLOCK_DATA.push([k, 2, k]);
+    else if ((m = /^(\w+)_TRAPDOOR_/.exec(k))) BLOCK_DATA.push([k, m[1] === 'IRON' ? 5 : 3, m[1] + '_TRAPDOOR']);
+    else if ((m = /^(\w+)_FENCE_GATE_/.exec(k))) BLOCK_DATA.push([k, 2, m[1] + '_FENCE_GATE']);
+    else if (/^(WALL_)?SIGN_/.test(k)) BLOCK_DATA.push([k, 1, 'SIGN']);
+    else if (/^ITEM_FRAME_/.test(k)) BLOCK_DATA.push([k, 0, 'ITEM_FRAME']);
+    else if (/^PAINTING_/.test(k)) BLOCK_DATA.push([k, 0, null]);
+    else if (/^(WALL_)?BANNER_/.test(k)) BLOCK_DATA.push([k, 1, null]);
+    else if (/^POTTED_/.test(k)) BLOCK_DATA.push([k, 0, 'FLOWER_POT']);
+  });
 
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
@@ -120,7 +139,9 @@
   mine('pickaxe', 2, 'GOLD_ORE DEEPSLATE_GOLD_ORE DIAMOND_ORE DEEPSLATE_DIAMOND_ORE REDSTONE_ORE DEEPSLATE_REDSTONE_ORE GOLD_BLOCK DIAMOND_BLOCK');
   mine('pickaxe', 3, 'OBSIDIAN');
   mine('pickaxe', 0, 'TERRACOTTA SMOOTH_STONE LANTERN STONECUTTER BLAST_FURNACE BLAST_FURNACE_LIT SMOKER SMOKER_LIT');
-  mine('pickaxe', 3, 'ANCIENT_DEBRIS');
+  mine('pickaxe', 3, 'ANCIENT_DEBRIS NETHERITE_BLOCK');
+  mine('pickaxe', 2, 'EMERALD_BLOCK');
+  mine('pickaxe', 0, 'IRON_BARS LINKED_CHEST ' + WG.BLOCKS.filter(function (b) { return /_CONCRETE$|_TERRACOTTA$|^IRON_TRAPDOOR_/.test(b.key) || b.kind === 'wall'; }).map(function (b) { return b.key; }).join(' '));
   mine('shovel', 0, 'SNOW');
   mine('sword', 0, 'COBWEB');
   mine('pickaxe', 0, WG.BLOCKS.filter(function (b) { return /^(HOPPER|DISPENSER|DROPPER|OBSERVER)_/.test(b.key); }).map(function (b) { return b.key; }).join(' '));
@@ -135,7 +156,7 @@
   'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL FARMLAND FARMLAND_MOIST'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
   WG.BLOCKS.forEach(function (b) {
     var k = b.key;
-    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB)/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k) || /PUMPKIN$/.test(k)) FAST[k] = 'axe';
+    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE)_(DOOR_|FENCE|STAIRS_|SLAB|TRAPDOOR_)/.test(k) || /^(WALL_)?SIGN_|^BARREL$|^LOOM$/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k) || /PUMPKIN$/.test(k)) FAST[k] = 'axe';
   });
 
   // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）
@@ -323,7 +344,7 @@
     var k = b.key;
     return b.id !== B.AIR && !WG.FLUID[b.id] && k !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(k) && !/^BED_/.test(k) &&
       // 向き・開け閉め・育ち具合の違うもの、置けないもの（扉・はしご・階段は別のアイテムで置く）
-      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$|^NETHER_PORTAL|^RAIL_|^POWERED_RAIL_|^COMPOSTER_[1-8]$|_LIT$/.test(k);
+      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$|^NETHER_PORTAL|^RAIL_|^POWERED_RAIL_|^COMPOSTER_[1-8]$|_LIT$|_TRAPDOOR_|_FENCE_GATE_|^(WALL_)?SIGN_|^ITEM_FRAME_|^PAINTING_|^(WALL_)?BANNER_|^POTTED_/.test(k);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----
@@ -335,13 +356,14 @@
   Inventory.prototype.changed = function () { this.version++; };
   // 入れられた個数を返す（ホットバーから先に、同じアイテムの束を優先）
   // dmg は道具の使った回数（道具だけ。束にならないので 1 つずつ持たせる）
-  Inventory.prototype.add = function (key, n, dmg, ench) {
-    var max = ITEMS[key].max, s = this.slots, left = n, i;
+  // extra：地図の場所・箱の中身・旗の模様など（あるものは重ねない）
+  Inventory.prototype.add = function (key, n, dmg, ench, extra) {
+    var max = ITEMS[key].max, s = this.slots, left = n, i, plain = function (q) { return !q.ench && !q.map && !q.box && !q.layers && !q.loaded; };
     for (i = 0; i < 36 && left > 0; i++) {
-      if (s[i] && s[i].key === key && s[i].n < max && !ench && !s[i].ench) { var a = Math.min(left, max - s[i].n); s[i].n += a; left -= a; }
+      if (s[i] && s[i].key === key && s[i].n < max && !ench && !extra && plain(s[i])) { var a = Math.min(left, max - s[i].n); s[i].n += a; left -= a; }
     }
     for (i = 0; i < 36 && left > 0; i++) {
-      if (!s[i]) { var b = Math.min(left, max); s[i] = { key: key, n: b }; if (dmg) s[i].dmg = dmg; if (ench) s[i].ench = ench; left -= b; }
+      if (!s[i]) { var b = Math.min(left, max); s[i] = { key: key, n: b }; if (dmg) s[i].dmg = dmg; if (ench) s[i].ench = ench; if (extra) Object.assign(s[i], JSON.parse(JSON.stringify(extra))); left -= b; }
     }
     if (left !== n) this.changed();
     return n - left;
@@ -385,7 +407,7 @@
     c.width = c.height = S;
     var x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
-    var sprite = itemIcon16(key) || (it.shape ? itemPixels(key) : null) || (it.bed ? WG.skinCutout(B.BED_FOOT_N) : (WG.blockKind(it.block) === "deco" && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === "plant" && WG.plantPixels ? WG.plantPixels(it.block) : null));
+    var sprite = itemIcon16(key) || (it.shape ? itemPixels(key) : null) || (it.bed ? WG.skinCutout(B.BED_FOOT_N) : ((WG.blockKind(it.block) === "deco" || WG.blockKind(it.block) === "pane") && WG.skinCutout(it.block)) || (WG.blockKind(it.block) === "plant" && WG.plantPixels ? WG.plantPixels(it.block) : null));
     if (sprite) {
       x.drawImage(spriteCanvas(sprite), sprite.length === 1024 ? 0 : 4, sprite.length === 1024 ? 0 : 4, sprite.length === 1024 ? 48 : 40, sprite.length === 1024 ? 48 : 40);
     } else {

@@ -82,6 +82,7 @@
   #toast.on { opacity: 1; }
   /* 生き物の名前（名札）、持っている地図・コンパス・時計、望遠鏡の縁 */
   #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #labels .signtext { background: none; color: #2a1a0c; font-weight: 700; text-align: center; line-height: 1.15; white-space: pre; padding: 0; }
   #labels div { position: absolute; left: 0; top: 0; padding: 1px 6px; background: rgba(0, 0, 0, 0.42); color: #f2f0ea; font-size: 12px; border-radius: 2px; white-space: nowrap; }
   #spyView { position: absolute; inset: 0 0 28px 0; pointer-events: none; opacity: 0; transition: opacity 0.15s;
     background: radial-gradient(circle at 50% 50%, transparent 0, transparent 34vmin, #08090b 34.4vmin); }
@@ -375,6 +376,7 @@
 <script src="js/vehicles.js"></script>
 <script src="js/gear.js"></script>
 <script src="js/workblocks.js"></script>
+<script src="js/deco.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

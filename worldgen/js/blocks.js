@@ -232,6 +232,45 @@
     ['BLAST_FURNACE', '溶鉱炉', '#5a5a5e', 'solid'], ['BLAST_FURNACE_LIT', '溶鉱炉', '#6a5a4e', 'solid'], ['SMOKER', '燻製器', '#5a4a3a', 'solid'], ['SMOKER_LIT', '燻製器', '#6a5040', 'solid'],
     ['CAMPFIRE', '焚き火', '#8a5a2a', 'campfire', 1], ['ANCIENT_DEBRIS', '古代の残骸', '#5e4a46', 'solid']);
   for (var cl = 0; cl <= 8; cl++) { DEF.push(['COMPOSTER_' + cl, '堆肥箱', '#8a6a3e', 'composter']); ALIAS['COMPOSTER_' + cl] = 'COMPOSTER'; }
+
+  // ---- 第 3 回：建材・飾り・収納 ----
+  // 16 色（白・14 色・茶色）：コンクリート、コンクリートパウダー（落ちる。水に触れると固まる）、色付きガラスと板ガラス、色付きのテラコッタ
+  var COLORS16 = [['WHITE', '白色', '#e9ecec']].concat(WOOL_COLORS, [['BROWN', '茶色', '#72482a']]);
+  WG.COLORS16 = COLORS16;
+  DEF.push(['BROWN_WOOL', '茶色の羊毛', '#72482a', 'solid']);
+  COLORS16.forEach(function (c) {
+    DEF.push([c[0] + '_CONCRETE', c[1] + 'のコンクリート', c[2], 'solid'], [c[0] + '_CONCRETE_POWDER', c[1] + 'のコンクリートパウダー', c[2], 'solid'],
+      [c[0] + '_STAINED_GLASS', c[1] + 'の色付きガラス', c[2], 'solid'], [c[0] + '_TERRACOTTA', c[1] + 'のテラコッタ', c[2], 'solid'],
+      [c[0] + '_STAINED_GLASS_PANE', c[1] + 'の色付き板ガラス', c[2], 'pane']);
+    ALIAS[c[0] + '_STAINED_GLASS_PANE'] = c[0] + '_STAINED_GLASS';
+  });
+  DEF.push(['GLASS_PANE', '板ガラス', '#dfeef2', 'pane'], ['IRON_BARS', '鉄格子', '#8a8a90', 'pane']);
+  ALIAS.GLASS_PANE = 'GLASS';
+  // 塀（素材の見た目を借りる）
+  [['COBBLESTONE', '丸石'], ['MOSSY_COBBLESTONE', '苔むした丸石'], ['STONE_BRICK', '石レンガ', 'STONE_BRICKS'], ['BRICK', 'レンガ', 'BRICKS'], ['SANDSTONE', '砂岩'], ['NETHER_BRICK', 'ネザーレンガ', 'NETHER_BRICKS']].forEach(function (m) {
+    DEF.push([m[0] + '_WALL', m[1] + 'の塀', '#808080', 'wall']); ALIAS[m[0] + '_WALL'] = m[2] || m[0];
+  });
+  // トラップドア（閉じて下・閉じて上・開いて N/E/S/W の壁に立つ）と、フェンスゲート（X は東西に渡る、O は開いている）
+  WOODS.concat([['IRON', '鉄', '#c8c8c8']]).forEach(function (w) {
+    ['B', 'T', 'ON', 'OE', 'OS', 'OW'].forEach(function (st) { DEF.push([w[0] + '_TRAPDOOR_' + st, w[1] + 'のトラップドア', w[2], 'trapdoor']); ALIAS[w[0] + '_TRAPDOOR_' + st] = w[0] + '_TRAPDOOR'; });
+  });
+  WOODS.forEach(function (w) {
+    ['X', 'Z', 'XO', 'ZO'].forEach(function (st) { DEF.push([w[0] + '_FENCE_GATE_' + st, w[1] + 'のフェンスゲート', w[2], 'gate']); ALIAS[w[0] + '_FENCE_GATE_' + st] = w[0] + '_PLANKS'; });
+  });
+  // 看板（立てる・壁）、額縁、絵画（壁に掛けるマス。絵は play の側で描く）、旗（立てる・壁。布は play の側で描く）
+  DIR4.forEach(function (d) {
+    DEF.push(['SIGN_' + d, '看板', '#a5824f', 'sign'], ['WALL_SIGN_' + d, '看板', '#a5824f', 'sign'], ['ITEM_FRAME_' + d, '額縁', '#8a6a3e', 'frame'],
+      ['PAINTING_' + d, '絵画', '#a07850', 'painting'], ['BANNER_' + d, '旗', '#e9ecec', 'banner'], ['WALL_BANNER_' + d, '旗', '#e9ecec', 'banner']);
+    ALIAS['SIGN_' + d] = ALIAS['WALL_SIGN_' + d] = 'OAK_PLANKS'; ALIAS['ITEM_FRAME_' + d] = 'ITEM_FRAME'; ALIAS['PAINTING_' + d] = 'ITEM_FRAME';
+    ALIAS['BANNER_' + d] = ALIAS['WALL_BANNER_' + d] = 'OAK_PLANKS';
+  });
+  // 植木鉢と、植えた鉢
+  DEF.push(['FLOWER_POT', '植木鉢', '#9a5a40', 'pot']);
+  ['DANDELION', 'POPPY', 'RED_MUSHROOM', 'BROWN_MUSHROOM', 'CACTUS'].forEach(function (k) { DEF.push(['POTTED_' + k, '植木鉢', '#9a5a40', 'pot']); ALIAS['POTTED_' + k] = 'FLOWER_POT'; });
+  // ビーコン、機織り機、樽、貝の箱（持ち運べる箱）、つながったチェスト（どれを開けても同じ中身）
+  DEF.push(['BEACON', 'ビーコン', '#9ae0e0', 'beacon'], ['LOOM', '機織り機', '#a08a6a', 'solid'], ['BARREL', '樽', '#7a5a35', 'solid'],
+    ['SHELL_BOX', '貝の箱', '#8a6a9a', 'solid'], ['LINKED_CHEST', 'つながったチェスト', '#2a3a3a', 'solid'],
+    ['EMERALD_BLOCK', 'エメラルドブロック', '#2ab454', 'solid'], ['NETHERITE_BLOCK', 'ネザライトブロック', '#4a4246', 'solid']);
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -363,6 +402,8 @@
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
+  LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.LINKED_CHEST] = 7;
+  LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
   WG.railInfo = function (id) { return RAIL_INFO[LIST[id].key] || null; }; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
   // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
@@ -371,16 +412,17 @@
     var k = b.kind, key = b.key;
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
-      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : 0;
+      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1 };
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -408,7 +450,7 @@
     return [Math.min(P[0][0], P[1][0]), Math.min(P[0][1], P[1][1]), Math.min(P[0][2], P[1][2]), Math.max(P[0][0], P[1][0]), Math.max(P[0][1], P[1][1]), Math.max(P[0][2], P[1][2])].concat(b.slice(6));
   }
   // 7 番目は見た目を借りるブロック、8 番目は光るかどうか
-  function redstoneBoxes(id, k, key, forCollide) {
+  function redstoneBoxes(id, k, key, forCollide, nb) {
     var on = /_ON$/.test(key), f;
     if (k === 'lever') {
       f = /LEVER_([FNESW])/.exec(key)[1];
@@ -458,6 +500,38 @@
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
     // ランタン：光る胴と、上の金具
     if (k === 'portal') return /_X$/.test(key) ? [[0, 0, 6, 16, 16, 10, B.NETHER_PORTAL_X, 1]] : [[6, 0, 0, 10, 16, 16, B.NETHER_PORTAL_Z, 1]];
+    if (k === 'wall') return linkBoxes(nb, forCollide ? [4, 0, 4, 12, 24, 12] : [4, 0, 4, 12, 16, 12], forCollide ? [5, 11, 0, 24] : [5, 11, 0, 14], wallLink);
+    if (k === 'pane') {
+      var pb = linkBoxes(nb, [7, 0, 7, 9, 16, 9], [7, 9, 0, 16], wallLink);
+      return pb;
+    }
+    if (k === 'trapdoor') {
+      var ts = key.slice(key.lastIndexOf('_') + 1);
+      if (ts === 'B') return [[0, 0, 0, 16, 3, 16]];
+      if (ts === 'T') return [[0, 13, 0, 16, 16, 16]];
+      return [{ ON: [0, 0, 0, 16, 16, 3], OS: [0, 0, 13, 16, 16, 16], OE: [13, 0, 0, 16, 16, 16], OW: [0, 0, 0, 3, 16, 16] }[ts]];
+    }
+    if (k === 'gate') {
+      var gx = /_X(O)?$/.test(key), open = /O$/.test(key), gb;
+      if (forCollide) return open ? [] : gx ? [[0, 0, 6, 16, 24, 10]] : [[6, 0, 0, 10, 24, 16]];
+      gb = open ? [[0, 5, 7, 2, 16, 9], [14, 5, 7, 16, 16, 9], [0, 6, 9, 2, 9, 15], [0, 12, 9, 2, 15, 15], [14, 6, 9, 16, 9, 15], [14, 12, 9, 16, 15, 15]]
+        : [[0, 5, 7, 2, 16, 9], [14, 5, 7, 16, 16, 9], [2, 6, 7, 14, 9, 9], [2, 12, 7, 14, 15, 9], [6, 9, 7, 10, 12, 9]];
+      return gx ? gb : gb.map(function (b) { return [b[2], b[1], b[0], b[5], b[4], b[3]]; });
+    }
+    if (k === 'sign') {
+      var sd = key.slice(-1);
+      if (/^WALL_/.test(key)) return [FACE_BOX[sd]([0, 4, 16, 12], 1.5)];
+      return sd === 'N' || sd === 'S' ? [[7.25, 0, 7.25, 8.75, 9, 8.75], [0, 8, 7.25, 16, 16, 8.75]] : [[7.25, 0, 7.25, 8.75, 9, 8.75], [7.25, 8, 0, 8.75, 16, 16]];
+    }
+    if (k === 'frame') return [FACE_BOX[key.slice(-1)]([2, 2, 14, 14], 1)];
+    if (k === 'pot') {
+      var pot = [[5, 0, 5, 11, 6, 11, B.FLOWER_POT], [6, 5, 6, 10, 6.2, 10, B.DIRT]], pk2 = key.replace('POTTED_', '');
+      if (pk2 === 'DANDELION' || pk2 === 'POPPY') pot.push([7, 6, 7, 9, 10, 9, B.SHORT_GRASS], [6, 10, 6, 10, 13, 10, B[pk2]]);
+      else if (/MUSHROOM/.test(pk2)) pot.push([7, 6, 7, 9, 9, 9, B[pk2]], [5.5, 9, 5.5, 10.5, 11, 10.5, B[pk2]]);
+      else if (pk2 === 'CACTUS') pot.push([6, 6, 6, 10, 15, 10, B.CACTUS]);
+      return pot;
+    }
+    if (k === 'beacon') return [[0, 0, 0, 16, 16, 16, B.GLASS], [1, 0, 1, 15, 3, 15, B.OBSIDIAN], [3, 3, 3, 13, 13, 13, B.BEACON, 1]];
     if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];
     // 焚き火：交差した 4 本の丸太と、灰の台、上の炎
     if (k === 'campfire') return forCollide ? [[0, 0, 0, 16, 7, 16]] : [[1, 0, 0, 5, 4, 16, B.OAK_LOG], [11, 0, 0, 15, 4, 16, B.OAK_LOG], [0, 3, 1, 16, 7, 5, B.OAK_LOG], [0, 3, 11, 16, 7, 15, B.OAK_LOG],
@@ -521,11 +595,25 @@
   var LADDER = [[0, 0, 15, 16, 16, 16], [0, 0, 0, 1, 16, 16], [0, 0, 0, 16, 16, 1], [15, 0, 0, 16, 16, 16]];
   var LADDER_HIT = [[0, 0, 13, 16, 16, 16], [0, 0, 0, 3, 16, 16], [0, 0, 0, 16, 16, 3], [13, 0, 0, 16, 16, 16]];
   var FENCE_DIRS = [[0, -1, 'N'], [1, 0, 'E'], [0, 1, 'S'], [-1, 0, 'W']];
-  function fenceLink(id) { return KIND[id] === 'fence' || (KIND[id] === 'solid' && OPAQUE[id]); }
+  function fenceLink(id) { return KIND[id] === 'fence' || KIND[id] === 'gate' || (KIND[id] === 'solid' && OPAQUE[id]); }
+  function wallLink(id) { return KIND[id] === 'wall' || KIND[id] === 'pane' || KIND[id] === 'gate' || (KIND[id] === 'solid' && (OPAQUE[id] || /_STAINED_GLASS$|^GLASS$/.test(LIST[id].key))); }
+  // 塀と板ガラス・鉄格子：柱と、つながる向きへの腕
+  function linkBoxes(nb, post, arm, link) {
+    var out = [post];
+    FENCE_DIRS.forEach(function (d) {
+      if (!nb || !link(nb(d[0], d[1]))) return;
+      var x0 = d[0] > 0 ? post[3] : d[0] < 0 ? 0 : arm[0], x1 = d[0] > 0 ? 16 : d[0] < 0 ? post[0] : arm[1];
+      var z0 = d[1] > 0 ? post[5] : d[1] < 0 ? 0 : arm[0], z1 = d[1] > 0 ? 16 : d[1] < 0 ? post[2] : arm[1];
+      out.push([x0, arm[2], z0, x1, arm[3], z1]);
+    });
+    return out;
+  }
+  var FACE_BOX = { N: function (a, b) { return [a[0], a[1], 16 - b, a[2], a[3], 16]; }, S: function (a, b) { return [a[0], a[1], 0, a[2], a[3], b]; },
+    E: function (a, b) { return [0, a[1], a[0], b, a[3], a[2]]; }, W: function (a, b) { return [16 - b, a[1], a[0], 16, a[3], a[2]]; } };
   function blockBoxes(id, nb, forCollide) {
     var k = KIND[id], key = LIST[id].key, f;
     if (forCollide && NOCOLLIDE[k]) return [];
-    var rb = redstoneBoxes(id, k, key, forCollide);
+    var rb = redstoneBoxes(id, k, key, forCollide, nb);
     if (rb) return rb;
     if (k === 'farm') return [[0, 0, 0, 16, 15, 16]];
     if (k === 'slab') return /_TOP$/.test(key) ? [[0, 8, 0, 16, 16, 16]] : [[0, 0, 0, 16, 8, 16]];

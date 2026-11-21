@@ -118,6 +118,7 @@
   // アトラスの番号を引く（落ちているアイテムやひびを描くとき）
   WG.atlasTile = function (id, face) { return atlas()[id * 3 + FACE_IX[face || 'side']]; };
   WG.itemTile = function (key) { atlas(); return itemTiles[key]; };
+  WG.extraTile = function (key) { atlas(); return extraTiles[key]; };
   WG.crackTile = function (stage) { atlas(); return crackTiles[Math.max(0, Math.min(3, stage))]; };
   var PLANT_SHAPE = {
     SHORT_GRASS: ['........', '..#.....', '..#..#..', '.##..#..', '.#..##.#', '##..#..#', '.#.##.#.', '##.#..##'],

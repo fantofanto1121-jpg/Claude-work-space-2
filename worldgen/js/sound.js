@@ -136,6 +136,7 @@
       case 'portal': tone(dst, t, 1.2, 'sawtooth', 90, 140, 0.15, [3, 10], 500); burst(dst, t, 1.2, 'bandpass', 600, 2, 0.4, 0.3, 1400); break;
       case 'trade': voice(dst, t, 'VILLAGER', false); tone(dst, t + 0.2, 0.2, 'sine', 1800, null, 0.06); break;
       case 'bow': tone(dst, t, 0.12, 'triangle', 300, 180, 0.4); burst(dst, t, 0.1, 'highpass', 2000, 1, 0.002, 0.3); break;
+      case 'firework': burst(dst, t, 0.12, 'lowpass', 1200, 1, 0.002, 0.8); for (var f = 0; f < 10; f++) burst(dst, t + 0.15 + f * 0.04 + Math.random() * 0.05, 0.03, 'highpass', 4000, 1, 0.001, 0.4); break;
       case 'levelup': [523, 659, 784].forEach(function (f, n) { tone(dst, t + n * 0.08, 0.25, 'triangle', f, null, 0.2); }); break;
     }
   };

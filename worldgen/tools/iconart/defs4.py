@@ -91,3 +91,37 @@ D['NETHERITE_SCRAP'] = (LUMP, {'H': ramp_from('#5e4a46')}, {'w': '#a08a84'}, [(6
 D['NETHERITE_INGOT'] = (INGOT, {'F': R['netherite'], 'T': [R['netherite'][0], R['netherite'][2], R['netherite'][3], R['netherite'][4], '#b0a4a4'], 'S': [R['netherite'][0], R['netherite'][0], R['netherite'][1], R['netherite'][1], R['netherite'][2]]})
 D['CAMPFIRE'] = (['................', '.......f........', '......ff..f.....', '.....fyf.ff.....', '.....fyyfyf.....', '....fyyyyyff....', '....fyyyyyyf....', '...LLLfyyfLLL...',
                   '..LLLLLLLLLLLL..', '...BBBBBBBBBB...', '..LLLLLLLLLLLL..', '...LLL....LLL...'], {'L': W, 'B': ramp_from('#3a3a3e')}, {'f': '#f08a2a', 'y': '#ffd870'})
+
+# ---- 第 3 回：建材・飾り ----
+TRAP = ['................', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AA..AAAA..AAAA.', '.AA..AAAA..AAAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AA..AAAA..AAAA.',
+        '.AA..AAAA..AAAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AA..AAAA..AAAA.', '.AA..AAAA..AAAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.']
+GATE = ['................', '................', '.P............P.', '.P............P.', '.PAAAAAAAAAAAAP.', '.PAAAAAAAAAAAAP.', '.P.....AA.....P.', '.P.....AA.....P.',
+        '.PAAAAAAAAAAAAP.', '.PAAAAAAAAAAAAP.', '.P............P.', '.P............P.', '.P............P.']
+WOODC = {'OAK': '#a5824f', 'SPRUCE': '#73563a', 'ACACIA': '#aa5a32', 'BIRCH': '#c9b783', 'JUNGLE': '#a2734f'}
+for w, c in WOODC.items():
+    D[w + '_TRAPDOOR'] = (TRAP, {'A': ramp_from(c)})
+    D[w + '_FENCE_GATE'] = (GATE, {'A': ramp_from(c), 'P': ramp_from(c)})
+D['IRON_TRAPDOOR'] = ([r.replace('.', 'A') if 0 < i < 15 and r[1] == 'A' else r for i, r in enumerate(TRAP)], {'A': IR})
+D['SIGN'] = (['................', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAkkAkkkAkAA..', '..AAAAAAAAAAAA..', '..AAkkkAkkAkAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..',
+              '.......SS.......', '.......SS.......', '.......SS.......', '.......SS.......', '.......SS.......', '.......SS.......'], {'A': W, 'S': H}, {'k': '#3a2a1a'})
+D['ITEM_FRAME'] = (['................', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.',
+                   '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AABBBBBBBBBBAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.'], {'A': W, 'B': LE})
+D['PAINTING'] = (D['ITEM_FRAME'][0], {'A': W, 'B': ramp_from('#7ab0e0')}, {'g': '#5a9a48', 'm': '#e8eef4', 'r': '#8a8a96'},
+                 [(x, y, 'g') for y in range(10, 13) for x in range(3, 13)] + [(x, y, 'r') for y in range(6, 10) for x in range(4, 12) if abs(x - 7.5) < (y - 4)] + [(7, 6, 'm'), (8, 6, 'm'), (7, 7, 'm')])
+BANNER = ['....SSSSSSSS....', '...SSSSSSSSSS...', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....',
+          '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '.....AAAAAA.....', '......AAAA......', '.......SS.......', '.......SS.......']
+BCOL = dict([('WHITE', '#e9ecec')] + [(k, v) for k, v in [('ORANGE', '#e0761a'), ('MAGENTA', '#b44cb4'), ('LIGHT_BLUE', '#3aa8d8'), ('YELLOW', '#f0c434'), ('LIME', '#70ba1c'), ('PINK', '#ec8aa8'),
+        ('GRAY', '#3e4448'), ('LIGHT_GRAY', '#8e8e86'), ('CYAN', '#158a92'), ('PURPLE', '#7a2aa8'), ('BLUE', '#343c9c'), ('GREEN', '#546c1c'), ('RED', '#a42620'), ('BLACK', '#18181c'), ('BROWN', '#72482a')]])
+for k, c in BCOL.items():
+    D[k + '_BANNER'] = (BANNER, {'A': ramp_from(c), 'S': H})
+D['BROWN_DYE'] = (DYE, {'A': ramp_from('#72482a')}, {'s': ramp_from('#72482a')[4]}, [(6, 5, 's'), (9, 7, 's'), (5, 9, 's'), (10, 10, 's')])
+D['COCOA_BEANS'] = (['................', '................', '...AAA..........', '..AAAAA.........', '..AAAAA...AAA...', '..AAAAA..AAAAA..', '...AAA...AAAAA..', '.........AAAAA..',
+                     '....AAA..AAAAA..', '...AAAAA..AAA...', '...AAAAA........', '...AAAAA........', '....AAA.........'], {'A': ramp_from('#7a4a26')})
+D['NETHER_STAR'] = (['................', '.......A........', '.......A........', '......AAA.......', '..A..AAAAA..A...', '...AAAAAAAAA....', '....AAAAAAA.....', '....AAAAAAA.....',
+                     '...AAAAAAAAA....', '..A..AAAAA..A...', '......AAA.......', '.......A........', '.......A........'], {'A': ['#5a5a70', '#c8c8e0', '#eaeaf8', '#f8f8ff', '#ffffff']}, {'y': '#f0e080'}, [(7, 7, 'y')])
+D['SHELL'] = (['................', '................', '...AAAAAAAAA....', '..AAAAAAAAAAA...', '..ABABABABABA...', '..AAAAAAAAAAA...', '..ABABABABABA...', '..AAAAAAAAAAA...',
+               '...AAAAAAAAA....', '................'], {'A': ramp_from('#9a72aa'), 'B': ramp_from('#6a4a7a')})
+ROCKET = ['................', '................', '.........kk.....', '........RRRk....', '.......RRRRR....', '......RRRRR.....', '.....RRRRR......', '....RRRRR.......',
+          '.....RRR........', '....S...........', '...S............', '..S.............', '.S..............']
+D['FIREWORK_ROCKET'] = (ROCKET, {'R': ramp_from('#c8302a'), 'S': H}, {'k': '#e8e0c8'})
+D['FIREWORK_ROCKET_COLOR'] = (ROCKET, {'R': ramp_from('#c8302a'), 'S': H}, {'k': '#ffd040', 'b': '#60c0ff', 'g': '#80f070'}, [(9, 2, 'b'), (10, 2, 'g')])

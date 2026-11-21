@@ -1016,6 +1016,144 @@ def main():
     for i in range(N): cpk.set(i, 0, sc([138, 104, 62], 0.6)); cpk.set(i, 15, sc([138, 104, 62], 0.6)); cpk.set(0, i, sc([138, 104, 62], 0.6)); cpk.set(15, i, sc([138, 104, 62], 0.6))
     put('COMPOSTER', cpk)
 
+    # ---- 第 3 回：建材・飾り・収納 ----
+    C16 = [('WHITE', '#e9ecec')] + list(WOOL.items()) + [('BROWN', '#72482a')]
+    put('BROWN_WOOL', noisy(hx('#72482a'), 39, (0.8, 1.0, 1.25, 1.5), ((2, 0.5), (1, 0.5))))
+    tc_base = [152, 92, 66]
+    for k, c in C16:
+        base = hx(c)
+        dark = sum(base) < 140
+        put(k + '_CONCRETE', noisy(base, 120, (0.96, 1.0, 1.03) if not dark else (0.92, 1.0, 1.1), ((4, 0.6), (1, 0.4))))
+        pw = noisy(base, 121, (0.86, 0.95, 1.04, 1.12) if not dark else (0.8, 1.0, 1.2, 1.4), ((1, 1.0),))
+        put(k + '_CONCRETE_POWDER', specks(pw, 122, 14, [sc(base, 0.75 if not dark else 1.5)]))
+        tb = mixc(base, tc_base, 0.45)
+        put(k + '_TERRACOTTA', specks(noisy(tb, 123, (0.9, 0.96, 1.0, 1.04), ((4, 0.6), (1, 0.4))), 124, 8, [sc(tb, 0.85)]))
+        g2 = Img(alpha=True)
+        for y in range(N):
+            for x in range(N):
+                if x in (0, 15) or y in (0, 15): g2.set(x, y, sc(base, 1.15 if (x == 0 or y == 0) else 0.8))
+                elif (x + y) % 2 == 0: g2.set(x, y, sc(base, 1.0 + 0.08 * ((hsh(125, x, y) % 3) - 1)))
+        for (x, y) in [(3, 2), (2, 3), (4, 2), (2, 4), (12, 11), (11, 12)]: g2.set(x, y, mixc(base, [255, 255, 255], 0.6))
+        put(k + '_STAINED_GLASS', g2, cut=g2, all_faces=True)
+    # トラップドア（窓の穴のある板）と鉄のトラップドア、鉄格子
+    for wd_, c in [('OAK', col('OAK_PLANKS')), ('SPRUCE', col('SPRUCE_PLANKS')), ('ACACIA', col('ACACIA_PLANKS')), ('BIRCH', col('BIRCH_PLANKS')), ('JUNGLE', col('JUNGLE_PLANKS')), ('IRON', [196, 196, 200])]:
+        td = Img(alpha=True)
+        for y in range(N):
+            for x in range(N):
+                hole = 3 <= x <= 6 and 3 <= y <= 6 or 9 <= x <= 12 and 3 <= y <= 6 or 3 <= x <= 6 and 9 <= y <= 12 or 9 <= x <= 12 and 9 <= y <= 12
+                if hole and wd_ != 'IRON': continue
+                edge = x in (0, 15) or y in (0, 15)
+                k2 = 0.62 if edge else (1.06 if x % 5 == 1 else 0.94 if x % 5 == 4 else 1.0)
+                if wd_ == 'IRON': k2 = 0.7 if edge or hole and (x + y) % 2 else 1.0
+                td.set(x, y, sc(c, k2))
+        put(wd_ + '_TRAPDOOR', td, cut=td, all_faces=True)
+    bars = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            if x % 5 in (1, 2) or y in (0, 1, 14, 15): bars.set(x, y, [150, 150, 156] if x % 5 == 1 or y in (0, 14) else [96, 96, 102])
+    put('IRON_BARS', bars, cut=bars, all_faces=True)
+    fr = Img()
+    for y in range(N):
+        for x in range(N):
+            edge = x in (0, 1, 14, 15) or y in (0, 1, 14, 15)
+            fr.set(x, y, sc([150, 112, 70], 1.1 if (x == 0 or y == 0) else 0.7 if (x == 15 or y == 15) else 0.95) if edge else sc([116, 78, 48], 0.95 + 0.1 * ((hsh(126, x, y) % 3) / 2)))
+    put('ITEM_FRAME', fr)
+    fp = Img()
+    for y in range(N):
+        for x in range(N): fp.set(x, y, sc([150, 84, 60], (1.1 if y < 2 else 0.85 if y > 13 else 1.0) * (0.95 + 0.1 * ((hsh(127, x, y) % 3) / 2))))
+    put('FLOWER_POT', fp)
+    bc = Img()
+    for y in range(N):
+        for x in range(N):
+            d = max(abs(x - 7.5), abs(y - 7.5))
+            bc.set(x, y, [250, 255, 255] if d < 3 else [170, 240, 240] if d < 5 else [96, 200, 210])
+    put('BEACON', bc)
+    lm_s = planks([170, 140, 100], 128)
+    for x in range(2, 14):
+        for y in range(2, 9): lm_s.set(x, y, [220, 210, 190] if x % 2 else [190, 180, 160])
+    lm_t = planks([150, 120, 84], 129)
+    for x in range(3, 13):
+        for y in range(3, 13): lm_t.set(x, y, [200, 60, 50] if (x // 2 + y // 2) % 2 else [230, 220, 200])
+    put('LOOM', lm_s, lm_t)
+    bs = Img()
+    for y in range(N):
+        for x in range(N):
+            k2 = [0.86, 1.0, 1.06, 0.94][x % 4] * (0.95 + 0.1 * ((hsh(130, x, y) % 3) / 2))
+            bs.set(x, y, [70, 70, 74] if y in (2, 13) else sc([128, 92, 56], k2))
+    bt = Img()
+    for y in range(N):
+        for x in range(N):
+            r = max(abs(x - 7.5), abs(y - 7.5))
+            bt.set(x, y, [70, 70, 74] if r > 6.6 else sc([140, 102, 62], 0.85 if int(r) % 2 else 1.0) if r > 2 else [60, 44, 28])
+    put('BARREL', bs, bt, bt)
+    sb = Img()
+    for y in range(N):
+        for x in range(N):
+            seam = y in (7, 8)
+            sb.set(x, y, [70, 46, 82] if seam else sc([150, 110, 170], (1.12 if (x + (y // 4)) % 4 == 0 else 1.0) * (0.92 + 0.12 * ((hsh(131, x, y) % 3) / 2))))
+    put('SHELL_BOX', sb, panel([150, 110, 170], 132, 'noise'))
+    lc = obsidian([34, 48, 50], 133)
+    for y in range(5, 8):
+        for x in range(N): lc.set(x, y, [20, 30, 32])
+    for (x, y) in [(7, 6), (8, 6), (7, 7), (8, 7), (7, 8), (8, 8)]: lc.set(x, y, [90, 220, 190])
+    put('LINKED_CHEST', lc, panel([34, 48, 50], 134, 'dots'))
+    put('EMERALD_BLOCK', panel([42, 180, 84], 135, 'facet')); put('NETHERITE_BLOCK', panel([74, 66, 70], 136, 'noise'))
+    # ---- 絵画（このゲームのために描いた絵。大きさごとに 16×16 に分ける）----
+    def painting(name, w, h, fn):
+        W2, H2 = w * 16, h * 16
+        pix = [[fn(x, y, W2, H2) for x in range(W2)] for y in range(H2)]
+        for x in range(W2):
+            pix[0][x] = [96, 70, 44]; pix[H2 - 1][x] = [70, 50, 30]
+        for y in range(H2):
+            pix[y][0] = [96, 70, 44]; pix[y][W2 - 1] = [70, 50, 30]
+        for j in range(h):
+            for i in range(w):
+                tile = Img()
+                for y in range(16):
+                    for x in range(16): tile.set(x, y, pix[j * 16 + y][i * 16 + x])
+                extra['PAINT_' + name + '_' + str(j * w + i)] = tile
+    def q(c, n=24): return [int(v) // n * n for v in c]
+    def sunset(x, y, W2, H2):
+        if y > H2 * 0.62: return q([30 + 20 * ((x + y) % 3 == 0), 60, 110 + 30 * ((x * 3 + y) % 5 == 0)])
+        if math.hypot(x - W2 * 0.5, y - H2 * 0.6) < 4: return [255, 220, 120]
+        t = y / (H2 * 0.62); return q(mixc([110, 70, 140], [250, 150, 70], t))
+    def flower(x, y, W2, H2):
+        if 5 <= x <= 10 and 9 <= y <= 14: return [70, 110, 160] if x in (5, 10) or y == 14 else [100, 150, 200]
+        if x in (7, 8) and 4 <= y <= 8: return [70, 130, 50]
+        if math.hypot(x - 7.5, y - 3.5) < 2.6: return [220, 70, 80] if math.hypot(x - 7.5, y - 3.5) > 1 else [250, 210, 80]
+        return q([216, 204, 176], 12)
+    def mountains(x, y, W2, H2):
+        h1 = 9 + 4 * math.sin(x * 0.35) + 2 * math.sin(x * 0.9); h2 = 12 + 2 * math.sin(x * 0.5 + 1)
+        if y > h2: return q([80, 130, 70])
+        if y > h1: return [120, 120, 130] if y > h1 + 1.5 else [236, 240, 244]
+        return q(mixc([150, 190, 230], [220, 230, 240], y / 16))
+    def lake(x, y, W2, H2):
+        if y > 10: return [60, 110, 170] if (x + y) % 4 else [90, 140, 200]
+        if 18 <= x <= 25 and 4 <= y <= 9: return [180, 60, 50] if y < 6 and abs(x - 21.5) < (y - 3) * 1.2 else [200, 180, 140] if not (21 <= x <= 22 and y >= 7) else [80, 50, 30]
+        if y > 8: return q([90, 150, 70])
+        return q(mixc([160, 200, 240], [230, 240, 250], y / 10))
+    def tower(x, y, W2, H2):
+        if 5 <= x <= 10 and y >= 8:
+            if (x == 7 or x == 8) and y % 6 in (2, 3): return [250, 220, 120]
+            return [150, 140, 130] if (x + y // 3) % 3 else [120, 112, 104]
+        if 4 <= x <= 11 and 4 <= y < 8 and abs(x - 7.5) <= (y - 3): return [140, 60, 60]
+        if y > 28: return [70, 120, 60]
+        return q(mixc([40, 50, 110], [190, 110, 140], y / 32))
+    def forest(x, y, W2, H2):
+        if 13 <= x <= 18 and y > 18: return [170, 140, 90]
+        for tx in (4, 10, 22, 28):
+            if abs(x - tx) <= 1 and 18 <= y <= 26: return [90, 60, 36]
+            if math.hypot(x - tx, y - 14) < 5.5: return [50, 110, 50] if (x + y) % 3 else [70, 140, 60]
+        if y > 24: return q([80, 140, 60])
+        return q(mixc([170, 210, 240], [210, 230, 245], y / 24))
+    def stars(x, y, W2, H2):
+        if math.hypot(x - 22, y - 9) < 5: return [240, 236, 210] if math.hypot(x - 24, y - 8) > 3.2 else [24, 30, 60]
+        if y > 24: return [30, 50, 40] if (x // 3 + y) % 2 else [24, 40, 32]
+        if hsh(140, x, y) % 23 == 0: return [250, 250, 220]
+        return q(mixc([10, 14, 40], [40, 50, 100], y / 24), 8)
+    painting('SUNSET', 1, 1, sunset); painting('FLOWER', 1, 1, flower); painting('MOUNTAINS', 2, 1, mountains); painting('LAKE', 2, 1, lake)
+    painting('TOWER', 1, 2, tower); painting('FOREST', 2, 2, forest); painting('STARS', 2, 2, stars)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

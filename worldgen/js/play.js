@@ -24,6 +24,7 @@
   var MAX_HEALTH = 20, MAX_AIR = 300, DAY = 24000;
   // 下が空くと落ちるブロック（砂・砂利）。落ちて入れる場所は、空気・流体・草花。
   var GRAVITY = {}; GRAVITY[B.SAND] = GRAVITY[B.GRAVEL] = 1;
+  WG.GRAVITY = GRAVITY;   // 落ちるブロック（コンクリートパウダーも js/deco.js で足す）
   function canFallInto(id) { return id === B.AIR || FLUID[id] > 0 || isPlant(id); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
@@ -1061,7 +1062,7 @@
     ['BREAD', 1, 3, 8], ['APPLE', 1, 3, 6], ['WHEAT', 1, 5, 6], ['CARROT', 1, 4, 4], ['POTATO', 1, 4, 4], ['BONE', 1, 4, 6],
     ['STRING', 1, 4, 6], ['ARROW', 2, 8, 5], ['IRON_SWORD', 1, 1, 2], ['IRON_HELMET', 1, 1, 1], ['BUCKET', 1, 1, 2], ['GOLDEN_APPLE', 1, 1, 1],
     ['SLIME_BALL', 1, 3, 4], ['BOOK', 1, 3, 4], ['PAPER', 1, 5, 4], ['SUGAR_CANE', 1, 4, 3], ['GLISTERING_MELON_SLICE', 1, 2, 2], ['RABBIT_FOOT', 1, 1, 1],
-    ['SADDLE', 1, 1, 4], ['NAME_TAG', 1, 1, 3]];
+    ['SADDLE', 1, 1, 4], ['NAME_TAG', 1, 1, 3], ['COCOA_BEANS', 1, 4, 4]];
   // ネザーの要塞のチェスト（ブレイズやガストがいないので、その材料もここに入れている）
   var LOOT_NETHER = [['BLAZE_ROD', 1, 3, 10], ['NETHER_WART', 2, 6, 10], ['GHAST_TEAR', 1, 2, 6], ['MAGMA_CREAM', 1, 3, 6], ['GOLD_INGOT', 1, 5, 10],
     ['IRON_INGOT', 1, 5, 8], ['DIAMOND', 1, 3, 4], ['OBSIDIAN', 2, 6, 3], ['FLINT_AND_STEEL', 1, 1, 3], ['GLISTERING_MELON_SLICE', 1, 3, 4], ['RABBIT_FOOT', 1, 2, 3], ['SLIME_BALL', 1, 3, 3]];
@@ -1107,14 +1108,20 @@
     var w = this.walker, held = this.inv.held();
     if (!held || !w.eye) return;
     var s = this.inv.take(this.inv.sel, all ? held.n : 1), d = w.dir;
-    var e = this.spawnItem(s.key, s.n, w.eye[0], w.eye[1] - 0.3, w.eye[2], 0, 40, held.dmg);
+    var e = this.spawnItem(s.key, s.n, w.eye[0], w.eye[1] - 0.3, w.eye[2], 0, 40, held.dmg, held.ench, WG.itemExtra(held));
     e.vx = d[0] * 0.3; e.vy = d[1] * 0.3 + 0.1; e.vz = d[2] * 0.3;
   };
 
   // ---------------- 落ちているアイテムと粒 ----------------
-  Game.prototype.spawnItem = function (key, n, x, y, z, spread, delay, dmg, ench) {
+  // アイテムが持つ、key・n・dmg・ench 以外のもの（地図の場所、箱の中身、旗の模様など）。捨てて拾っても残す
+  WG.itemExtra = function (s) {
+    var o = null;
+    if (s) Object.keys(s).forEach(function (k) { if (k !== 'key' && k !== 'n' && k !== 'dmg' && k !== 'ench') (o || (o = {}))[k] = s[k]; });
+    return o;
+  };
+  Game.prototype.spawnItem = function (key, n, x, y, z, spread, delay, dmg, ench, extra) {
     var e = {
-      dmg: dmg || 0, ench: ench,
+      dmg: dmg || 0, ench: ench, extra: extra || null,
       key: key, n: n, x: x, y: y, z: z, px: x, py: y, pz: z,
       vx: (Math.random() - 0.5) * spread, vy: 0.2 * (spread > 0 ? 1 : 0), vz: (Math.random() - 0.5) * spread,
       age: Math.floor(Math.random() * 100), delay: delay, ground: false
@@ -1174,7 +1181,7 @@
       if (e.delay > 0) e.delay--;
       // 拾う（体の周り 1 ブロック、上下 0.5 ブロックの範囲）
       if (!this.dead && !this.spectator && e.delay === 0 && e.x > pb[0] - 1 && e.x < pb[3] + 1 && e.y + 0.25 > pb[1] - 0.5 && e.y < pb[4] + 0.5 && e.z > pb[2] - 1 && e.z < pb[5] + 1) {
-        var got = this.inv.add(e.key, e.n, e.dmg, e.ench);
+        var got = this.inv.add(e.key, e.n, e.dmg, e.ench, e.extra);
         e.n -= got;
         if (got && WG.Sound) WG.Sound.play('pop', e.x, e.y, e.z);
       }
@@ -1185,7 +1192,7 @@
     keep = [];
     for (i = 0; i < this.particles.length; i++) {
       var p = this.particles[i];
-      p.vy -= p.smoke ? -0.001 : 0.04; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vx *= 0.98; p.vz *= 0.98;
+      p.vy -= p.smoke ? -0.001 : p.fw ? 0.006 : 0.04; if (p.fw) { p.vx *= 0.93; p.vy *= 0.93; p.vz *= 0.93; } p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vx *= 0.98; p.vz *= 0.98;
       if (this.walker.solid(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) { p.y -= p.vy; p.vy = 0; p.vx *= 0.7; p.vz *= 0.7; }
       if (--p.life > 0) keep.push(p);
     }
@@ -1235,6 +1242,9 @@
     });
   }
   // 平らな絵（回しながら見せる）
+  // 4 隅を指定した、見た目のある 1 枚（左上・右上・右下・左下の順）。絵画・額縁・看板などに使う
+  WG.quad3d = function (bt, P, tile, c, lt) { bt.L = lt; TRI.forEach(function (k) { bt.v(P[k][0], P[k][1], P[k][2], c, 1, UV[k][0], UV[k][1], tile); }); };
+  WG.modelBox = function (bt, o, s, tf, c, lt) { bt.L = lt; modelBox(bt, o, s, tf, c); };
   function sprite(bt, cx, y, cz, s, r, tile, c, lt) {
     bt.L = lt;
     var cr = Math.cos(r) * s / 2, sr = Math.sin(r) * s / 2;
@@ -1259,7 +1269,7 @@
       }
     });
     this.particles.forEach(function (p) {
-      cube(solid, p.x, p.y, p.z, 0.08, 0, function () { return 0; }, function () { return p.c; }, w.lightLevels(p.x, p.y, p.z));
+      cube(solid, p.x, p.y, p.z, p.fw ? 0.11 : 0.08, 0, function () { return 0; }, function () { return p.c; }, p.glow ? [15, 15] : w.lightLevels(p.x, p.y, p.z));
     });
     // 落ちてくる砂・砂利（ブロックと同じ大きさ）
     this.falling.forEach(function (f) {
@@ -1414,7 +1424,7 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: this.furnaceName || 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', smith: '鍛冶台', cutter: '石切台', carto: '製図台', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: this.furnaceName || 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', box: this.boxTitle || '樽', loom: '機織り機', beacon: 'ビーコン', smith: '鍛冶台', cutter: '石切台', carto: '製図台', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
     if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp' || (WG.EXTRA_SCREENS && WG.EXTRA_SCREENS[sc])) html += this.renderExtraScreen(sc);
     if (sc === 'trade') html += this.renderTrade();
     if (sc === 'adv') html += this.renderAdvancements();
