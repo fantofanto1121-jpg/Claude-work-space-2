@@ -195,6 +195,18 @@
     ['BREWING_STAND', '醸造台', '#8a8a86', 'stand', 0.1], ['ANVIL', '金床', '#4a4a4c', 'anvil'],
     ['SUGAR_CANE', 'サトウキビ', '#8ac25a', 'cane']);
   for (var nw = 0; nw < 4; nw++) DEF.push(['NETHER_WART_' + nw, 'ネザーウォート', '#8a1a22', 'crop']);
+
+  // ---- 追加のブロック：スライムブロック（跳ねる）、干し草の俵（落ちても痛くない）、テラコッタ、なめらかな石、ランタン、色付きの羊毛 ----
+  DEF.push(['SLIME_BLOCK', 'スライムブロック', '#6cbc50', 'solid'], ['HAY_BALE', '干し草の俵', '#c8a83a', 'solid'],
+    ['TERRACOTTA', 'テラコッタ', '#9a5a40', 'solid'], ['SMOOTH_STONE', 'なめらかな石', '#a0a09c', 'solid'],
+    ['LANTERN', 'ランタン', '#5a5a5e', 'lantern']);
+  // [キーの頭, 名前, 色]（白は上の白色の羊毛）
+  var WOOL_COLORS = [['ORANGE', 'オレンジ色', '#e0761a'], ['MAGENTA', '赤紫色', '#b44cb4'], ['LIGHT_BLUE', '空色', '#3aa8d8'],
+    ['YELLOW', '黄色', '#f0c434'], ['LIME', '黄緑色', '#70ba1c'], ['PINK', '桃色', '#ec8aa8'], ['GRAY', '灰色', '#3e4448'],
+    ['LIGHT_GRAY', '薄灰色', '#8e8e86'], ['CYAN', '青緑色', '#158a92'], ['PURPLE', '紫色', '#7a2aa8'], ['BLUE', '青色', '#343c9c'],
+    ['GREEN', '緑色', '#546c1c'], ['RED', '赤色', '#a42620'], ['BLACK', '黒色', '#18181c']];
+  WOOL_COLORS.forEach(function (c) { DEF.push([c[0] + '_WOOL', c[1] + 'の羊毛', c[2], 'solid']); });
+  WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
   // 見た目（js/tex16.js の 16×16 ピクセル。なければ js/textures.js の 8×8）。ないブロックは上の単色を使う。
@@ -325,20 +337,21 @@
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
+  LIGHT_EMIT[B.LANTERN] = 15;
   // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
   var COLLIDE = new Float32Array(N);
   LIST.forEach(function (b) {
     var k = b.kind, key = b.key;
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
-      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : 0;
+      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -416,6 +429,8 @@
     if (k === 'daylight') return [[0, 0, 0, 16, 6, 16]];
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
+    // ランタン：光る胴と、上の金具
+    if (k === 'lantern') return [[5, 0, 5, 11, 7, 11, B.LANTERN, 1], [6, 7, 6, 10, 9, 10, B.LANTERN]];
     return null;
   }
   // ピストンの向き（見た目の「上」の面をどちらへ向けるか）

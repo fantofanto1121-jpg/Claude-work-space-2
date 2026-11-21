@@ -70,7 +70,7 @@
       active: function () { return !self.dead && (ui.locked() || self.invOpen); },
       status: ui.status,
       tick: function () { self.tick(); },
-      land: function (d) { self.land(d); },
+      land: function (d, below) { self.land(d, below); },
       voidDamage: function () { return self.mode === 'survival'; },
       draw: function (w, a) { self.draw(a); },
       sky: function () { return self.sky(); },
@@ -652,8 +652,9 @@
     return null;
   };
 
-  Game.prototype.land = function (fall) {
-    var d = Math.ceil(fall - 3);
+  Game.prototype.land = function (fall, below) {
+    // 干し草の俵に落ちると、落下のダメージは 2 割になる
+    var d = below === B.HAY_BALE ? Math.floor((fall - 3) * 0.2) : Math.ceil(fall - 3);
     if (d > 0) this.damage(d, true, 'fall');
     // 耕地に落ちると、落ちた高さ − 0.5 の確率で土に戻る（踏み荒らし。上の作物も取れる）
     var w = this.walker;
@@ -794,6 +795,19 @@
     var shift = w.keys.ShiftLeft || w.keys.ShiftRight;
     var mt = this.mobs.target && this.mobs.target.mob;
     if (this.useExtra(t, held, it, shift)) return;
+    // スポーンエッグ：見ている面の前に生き物を出す（スポナーなら中身を変える）
+    if (it && it.egg && t && !mt) { WG.useSpawnEgg(this, t, it); this.mouseR = this.clickR = false; return; }
+    // オオカミ：骨で飼いならす（3 回に 1 回）。飼いならしたオオカミは、骨以外で右クリックすると座る・立つ
+    if (mt && !mt.dead && mt.type === 'WOLF') {
+      if (!mt.tame && it && it.key === 'BONE' && !mt.angry) {
+        if (surv) this.inv.take(this.inv.sel, 1);
+        if (Math.random() < 1 / 3) { mt.tame = true; mt.hp = mt.maxHp = 20; mt.ai.tx = null; this.puff(mt.x, mt.y + 0.9, mt.z, [220, 60, 70], 12); }
+        else this.puff(mt.x, mt.y + 0.9, mt.z, [90, 90, 90], 6);
+        this.mouseR = this.clickR = false;
+        return;
+      }
+      if (mt.tame && !(it && it.key === 'BONE')) { mt.sit = !mt.sit; mt.vx = mt.vz = 0; this.mouseR = this.clickR = false; return; }
+    }
     if (mt && it && !mt.dead) {
       // ハサミで羊の毛を刈る（白の羊毛 1〜3 個）
       if (it.key === 'SHEARS' && mt.type === 'SHEEP' && !mt.sheared) {

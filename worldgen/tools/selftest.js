@@ -510,5 +510,67 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     'ホッパー（チェスト → かまど）、コンパレーター（チェストの 1/3 で強さ 5）、オブザーバー（2 刻みの信号）、ディスペンサー（水をまく）');
 })();
 
+// スポーンエッグ・追加の生き物・追加のブロック
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i, rnd = Math.random;
+  g.setMode('survival'); g.walker.pos = [40.5, 11, 40.5]; g.walker.prev = g.walker.pos.slice();
+  // どの生き物にも卵とアイコンがあり、使うと面の前に出て、サバイバルでは 1 個減る
+  var eggsOk = WG.MOB_ORDER.every(function (k) { return WG.ITEMS['SPAWN_EGG_' + k] && WG.ICONS['SPAWN_EGG_' + k]; });
+  g.inv.slots[0] = { key: 'SPAWN_EGG_PIG', n: 2 }; g.inv.sel = 0;
+  WG.useSpawnEgg(g, { id: B.STONE, x: 3, y: 10, z: 3, px: 3, py: 11, pz: 3 }, WG.ITEMS.SPAWN_EGG_PIG);
+  var pig = g.mobs.list.filter(function (m) { return m.type === 'PIG'; })[0];
+  w.setBlock(6, 11, 6, B.SPAWNER);
+  WG.useSpawnEgg(g, { id: B.SPAWNER, x: 6, y: 11, z: 6, px: 6, py: 12, pz: 6 }, WG.ITEMS.SPAWN_EGG_PIG);
+  check(eggsOk && pig && pig.x === 3.5 && pig.y === 11 && g.inv.slots[0] === null && w.spawners.get('6,11,6').type === 'PIG',
+    'スポーンエッグ：' + WG.MOB_ORDER.length + ' 種の生き物に卵がある。面の前に生き物が出て 1 個減り、スポナーに使うと中身が変わる');
+  g.mobs.list.length = 0;
+  // スライム：大きさ 4 を倒すと大きさ 2 の 2〜4 匹に分かれる（体力 16 → 4）
+  var sl = g.mobs.spawn('SLIME', 20.5, 11, 20.5, 4), hp4 = sl.hp;
+  g.mobs.hurt(sl, 100, null); for (i = 0; i < 25; i++) g.tick();
+  var kids = g.mobs.list.filter(function (m) { return m.type === 'SLIME' && m.size === 2; });
+  check(hp4 === 16 && kids.length >= 2 && kids.length <= 4 && kids[0].hp === 4, 'スライム：大きさ 4（体力 16）を倒すと大きさ 2 の ' + kids.length + ' 匹に分かれる');
+  g.mobs.list.length = 0;
+  // オオカミ：骨で飼いならし、近くのクモを倒す
+  g.setMode('creative');
+  var wolf = g.mobs.spawn('WOLF', 30.5, 11, 30.5), spider = g.mobs.spawn('SPIDER', 33.5, 11, 30.5);
+  g.inv.slots[0] = { key: 'BONE', n: 1 }; g.mobs.target = { mob: wolf }; Math.random = function () { return 0.1; };
+  g.use(); Math.random = rnd; g.mobs.target = null;
+  var tamed = wolf.tame;
+  for (i = 0; i < 300 && !spider.dead; i++) g.tick();
+  check(tamed && wolf.maxHp === 20 && spider.dead > 0, 'オオカミ：骨で飼いならすと体力 20 になり、近くの敵（クモ）を噛んで倒す（' + i + ' 刻み）');
+  g.mobs.list.length = 0;
+  // コウモリは落ちずに飛ぶ
+  var bat = g.mobs.spawn('BAT', 10.5, 16, 10.5), lowest = 99;
+  for (i = 0; i < 100; i++) { g.tick(); lowest = Math.min(lowest, bat.y); }
+  check(lowest > 11.2, 'コウモリ：落ちずに飛び回る（100 刻みで最も低い所 y ' + lowest.toFixed(1) + '）');
+  g.mobs.list.length = 0;
+  // スライムブロックで跳ね返り、干し草の俵では落下のダメージが 2 割になる
+  g.setMode('survival'); g.health = 20;
+  w.setBlock(50, 10, 50, B.SLIME_BLOCK); g.walker.pos = [50.5, 20, 50.5]; g.walker.prev = g.walker.pos.slice(); g.walker.vel = [0, 0, 0];
+  var landed = false, upAfter = 0;
+  for (i = 0; i < 80; i++) { g.walker.tick(); if (g.walker.pos[1] < 11.2) landed = true; if (landed) upAfter = Math.max(upAfter, g.walker.pos[1]); }
+  var hpSlime = g.health;
+  w.setBlock(60, 10, 60, B.HAY_BALE); g.walker.pos = [60.5, 33, 60.5]; g.walker.prev = g.walker.pos.slice(); g.walker.vel = [0, 0, 0]; g.health = 20;
+  for (i = 0; i < 60 && !g.walker.onGround; i++) g.walker.tick();
+  var hpHay = g.health;
+  check(upAfter > 15 && hpSlime === 20 && hpHay >= 16 && hpHay < 20,
+    'スライムブロック：10 ブロック落ちて y ' + upAfter.toFixed(1) + ' まで跳ね返り、ダメージなし。干し草の俵：22 ブロック落ちて体力 ' + hpHay + '（ダメージ 19 が 3 に）');
+  // 魔女：投げポーションで傷つける・毒・鈍化
+  g.health = 20; g.walker.pos = [70.5, 11, 70.5]; g.walker.prev = g.walker.pos.slice();
+  Object.keys(g.effects).forEach(function (k) { delete g.effects[k]; });
+  g.mobs.spawn('WITCH', 77.5, 11, 70.5);
+  for (i = 0; i < 200; i++) g.tick();
+  check(g.health < 20 || g.effects.POISON || g.effects.SLOWNESS, '魔女：離れた所から投げポーションを投げる（体力 ' + g.health + '、効果 ' + (Object.keys(g.effects).join(',') || 'なし') + '）');
+  g.mobs.list.length = 0;
+  // レシピ
+  var M = function (cells, n) { var r = WG.Craft.match(cells, n || 3); return r && r.key; };
+  var N9 = function (k) { return [k, k, k, k, k, k, k, k, k]; };
+  var NN = 'IRON_NUGGET';
+  check(M(N9('SLIME_BALL')) === 'SLIME_BLOCK' && M(N9('WHEAT')) === 'HAY_BALE' && M([NN, NN, NN, NN, 'TORCH', NN, NN, NN, NN]) === 'LANTERN' &&
+    M(['POPPY', null, null, null], 2) === 'RED_DYE' && M(['RED_DYE', 'YELLOW_DYE', null, null], 2) === 'ORANGE_DYE' && M(['BLUE_DYE', 'WHITE_WOOL', null, null], 2) === 'BLUE_WOOL' &&
+    WG.Craft.SMELT.CLAY === 'TERRACOTTA' && WG.Craft.SMELT.STONE === 'SMOOTH_STONE' && WG.Craft.SMELT.RAW_RABBIT === 'COOKED_RABBIT' && WG.LIGHT_EMIT[B.LANTERN] === 15,
+    'レシピ：スライムブロック、干し草の俵、ランタン（明るさ 15）、染料と色付きの羊毛（' + WG.WOOL_COLORS.length + ' 色）、テラコッタ、なめらかな石');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

@@ -826,6 +826,73 @@ def main():
     put('CHORUS_PLANT', noisy([108, 82, 116], 65, (0.8, 0.92, 1.04, 1.14)))
     put('CHORUS_FLOWER', panel([156, 132, 164], 66, 'dots'))
 
+    # ---- 追加のブロック ----
+    # スライムブロック：明るい外側の膜と、中の濃い芯
+    sl = Img()
+    for y in range(N):
+        for x in range(N):
+            edge = x in (0, 15) or y in (0, 15)
+            core = 3 <= x <= 12 and 3 <= y <= 12
+            k = (1.22 if (x == 0 or y == 0) else 0.86) if edge else (0.78 if core else 1.06)
+            if core and (x in (3, 12) or y in (3, 12)): k = 0.7
+            sl.set(x, y, sc([108, 188, 80], k * (0.97 + 0.06 * (hsh(70, x, y) % 3) / 2)))
+    for (x, y) in [(1, 1), (2, 1), (1, 2), (5, 5), (6, 5), (5, 6)]: sl.set(x, y, [214, 246, 190])
+    put('SLIME_BLOCK', sl)
+    # 干し草の俵：縦の藁と、赤茶の 2 本の縄。上は藁の切り口
+    hay = Img(); r = random.Random(71)
+    cols = [r.choice([0.84, 0.94, 1.0, 1.08, 1.14]) for _ in range(N)]
+    for y in range(N):
+        for x in range(N):
+            k = cols[x] * (0.9 if (hsh(72, x, y // 3) % 5 == 0) else 1.0)
+            hay.set(x, y, sc([200, 168, 58], k))
+    for y0 in (3, 11):
+        for x in range(N):
+            hay.set(x, y0, [140, 52, 30]); hay.set(x, y0 + 1, [104, 36, 22])
+    hayt = Img()
+    for y in range(N):
+        for x in range(N):
+            v = (hsh(73, x, y) % 7)
+            hayt.set(x, y, sc([210, 178, 66], [0.72, 0.86, 0.96, 1.04, 1.12, 0.92, 1.0][v]))
+    for x in range(N):
+        for y0 in (3, 11):
+            hayt.set(x, y0, [140, 52, 30])
+    put('HAY_BALE', hay, hayt)
+    # テラコッタ：焼いた粘土のむらのある赤茶
+    put('TERRACOTTA', specks(noisy([152, 92, 66], 74, (0.9, 0.96, 1.0, 1.04), ((4, 0.6), (1, 0.4))), 75, 10, [[132, 78, 56], [168, 104, 76]]))
+    # なめらかな石：明るい灰色の板。横は縁取りの線
+    sms = noisy([166, 166, 162], 76, (0.95, 1.0, 1.04), ((4, 0.5), (1, 0.5)))
+    smside = sms.copy()
+    for i in range(N):
+        smside.set(i, 0, [196, 196, 192]); smside.set(i, 15, [116, 116, 112]); smside.set(0, i, [190, 190, 186]); smside.set(15, i, [120, 120, 116])
+        smside.set(i, 7, [130, 130, 126]); smside.set(i, 8, [190, 190, 186])
+    smtop = sms.copy()
+    for i in range(N):
+        smtop.set(i, 0, [196, 196, 192]); smtop.set(0, i, [196, 196, 192]); smtop.set(i, 15, [116, 116, 112]); smtop.set(15, i, [116, 116, 112])
+    put('SMOOTH_STONE', smside, smtop)
+    # ランタン：胴（横 5〜10、縦 9〜15）に黒い鉄の枠と灯り、上の金具（縦 7〜8）。上面は中央の 6×6
+    dark, iron, glow, glow2 = [42, 42, 48], [86, 88, 96], [255, 214, 110], [246, 160, 52]
+    ls = Img(dark)
+    for y in range(N):
+        for x in range(N):
+            if y in (7, 8) and 6 <= x <= 9: ls.set(x, y, iron if y == 7 else dark)
+            elif 9 <= y <= 15 and 5 <= x <= 10:
+                if y in (9, 15) or x in (5, 10): ls.set(x, y, iron if y == 9 else dark)
+                else: ls.set(x, y, glow if (x in (7, 8) and 11 <= y <= 13) else glow2)
+    lt = Img(dark)
+    for y in range(5, 11):
+        for x in range(5, 11):
+            lt.set(x, y, iron if x in (5, 10) or y in (5, 10) else dark)
+    for (x, y) in [(7, 7), (8, 7), (7, 8), (8, 8)]: lt.set(x, y, [60, 60, 66])
+    put('LANTERN', ls, lt, lt)
+    # 色付きの羊毛（毛の粒）
+    WOOL = {'ORANGE': '#e0761a', 'MAGENTA': '#b44cb4', 'LIGHT_BLUE': '#3aa8d8', 'YELLOW': '#f0c434', 'LIME': '#70ba1c', 'PINK': '#ec8aa8',
+            'GRAY': '#3e4448', 'LIGHT_GRAY': '#8e8e86', 'CYAN': '#158a92', 'PURPLE': '#7a2aa8', 'BLUE': '#343c9c', 'GREEN': '#546c1c',
+            'RED': '#a42620', 'BLACK': '#18181c'}
+    for k, c in WOOL.items():
+        base = hx(c)
+        lv = (0.8, 0.9, 1.0, 1.1) if sum(base) > 120 else (0.8, 1.0, 1.25, 1.5)
+        put(k + '_WOOL', noisy(base, 39, lv, ((2, 0.5), (1, 0.5))))
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

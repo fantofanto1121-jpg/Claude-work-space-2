@@ -289,7 +289,7 @@
     }
     // クモの巣：動きが遅くなる（横 0.25 倍、縦 0.05 倍）
     var web = !this.flying && this.inBlock(WG.B.COBWEB);
-    var y0 = this.pos[1], wasGround = this.onGround;
+    var y0 = this.pos[1], wasGround = this.onGround, vy0 = v[1];
     var moved = web ? this.move(v[0] * 0.25, v[1] * 0.05, v[2] * 0.25) : this.move(v[0], v[1], v[2]);
     if (web) { v[0] = v[1] = v[2] = 0; this.fallDist = 0; }
     if (onLadder) { this.fallDist = 0; if (this.collidedH || k.Space) v[1] = 0.2; }
@@ -302,7 +302,10 @@
     if (fl || this.flying) this.fallDist = 0;
     else if (this.pos[1] < y0) this.fallDist += y0 - this.pos[1];
     if (this.onGround && !wasGround) {
-      if (this.hooks.land) this.hooks.land(this.fallDist);
+      var below = this.world.block(Math.floor(this.pos[0]), Math.floor(this.pos[1] - 0.05), Math.floor(this.pos[2]));
+      // スライムブロック：しゃがんでいなければ、落ちてきた速さで跳ね返り、落下のダメージを受けない
+      if (below === WG.B.SLIME_BLOCK) { if (!this.sneak && vy0 < -0.1) { v[1] = -vy0 * 0.95; this.onGround = false; } }
+      else if (this.hooks.land) this.hooks.land(this.fallDist, below);
       this.fallDist = 0;
     } else if (this.onGround) this.fallDist = 0;
 

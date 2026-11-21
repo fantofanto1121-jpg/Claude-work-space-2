@@ -313,7 +313,7 @@
     if (tt) { t += '　' + tt; $('timeNow').textContent = tt; }
     $('hover').textContent = t;
     var mt = game && game.mobs.target, r;
-    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + T.name + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + T.hp + '）'; }
+    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + T.name + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + (mt.mob.maxHp || T.hp) + '）'; }
     else r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
     setProgress(r);

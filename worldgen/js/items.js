@@ -80,6 +80,10 @@
   BLOCK_DATA.push(['REDSTONE_LAMP', 0.3, 'REDSTONE_LAMP'], ['REDSTONE_LAMP_ON', 0.3, 'REDSTONE_LAMP'], ['TNT', 0, 'TNT'],
     ['ENCHANTING_TABLE', 5, 'ENCHANTING_TABLE'], ['BOOKSHELF', 1.5, 'BOOK', 3, 3], ['BREWING_STAND', 0.5, 'BREWING_STAND'],
     ['ANVIL', 5, 'ANVIL'], ['SUGAR_CANE', 0, 'SUGAR_CANE'], ['NOTE_BLOCK', 0.8, 'NOTE_BLOCK']);
+  // 追加のブロック（硬度は Minecraft の値）
+  BLOCK_DATA.push(['SLIME_BLOCK', 0, 'SLIME_BLOCK'], ['HAY_BALE', 0.5, 'HAY_BALE'], ['TERRACOTTA', 1.25, 'TERRACOTTA'],
+    ['SMOOTH_STONE', 2, 'SMOOTH_STONE'], ['LANTERN', 3.5, 'LANTERN']);
+  WG.WOOL_COLORS.forEach(function (c) { BLOCK_DATA.push([c[0] + '_WOOL', 0.8, c[0] + '_WOOL']); });
 
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
@@ -104,6 +108,7 @@
   mine('pickaxe', 1, 'IRON_ORE DEEPSLATE_IRON_ORE COPPER_ORE DEEPSLATE_COPPER_ORE LAPIS_ORE DEEPSLATE_LAPIS_ORE IRON_BLOCK COPPER_BLOCK LAPIS_BLOCK');
   mine('pickaxe', 2, 'GOLD_ORE DEEPSLATE_GOLD_ORE DIAMOND_ORE DEEPSLATE_DIAMOND_ORE REDSTONE_ORE DEEPSLATE_REDSTONE_ORE GOLD_BLOCK DIAMOND_BLOCK');
   mine('pickaxe', 3, 'OBSIDIAN');
+  mine('pickaxe', 0, 'TERRACOTTA SMOOTH_STONE LANTERN');
   mine('shovel', 0, 'SNOW');
   mine('sword', 0, 'COBWEB');
   mine('pickaxe', 0, WG.BLOCKS.filter(function (b) { return /^(HOPPER|DISPENSER|DROPPER|OBSERVER)_/.test(b.key); }).map(function (b) { return b.key; }).join(' '));
