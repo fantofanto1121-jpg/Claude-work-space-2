@@ -1059,5 +1059,34 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(Math.hypot(p[0], p[2]) > 600 && Math.abs(p[0] - city.x) < 2, 'エンドゲートウェイに入ると、いちばん近いエンドシティ（' + city.x + ', ' + city.z + '）へ移る');
 })();
 
+// ---- レシピ本 ----
+(function () {
+  console.log('\n[レシピ本]');
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), RB = WG.recipeBook, book = RB.build();
+  var entry = function (k) { return book.filter(function (e) { return e.out === k; })[0]; };
+  var el = function (k, c) { return { dataset: { c: c || 'book', k: k } }; };
+  g.renderInventory = function () {}; g.ui.inv = { classList: { add: function () {}, remove: function () {} } };
+  g.inv.add('OAK_LOG', 2); g.inv.add('COBBLESTONE', 8); g.inv.add('STICK', 4);
+  g.openInventory('inv');
+  // インベントリ（2×2）：原木 → 板材。2 回押すと 2 回分
+  g.clickSlot(el('OAK_PLANKS'), 0, false); g.clickSlot(el('OAK_PLANKS'), 0, false);
+  var planks = g.craftResult && g.craftResult.key === 'OAK_PLANKS' && g.craft.filter(Boolean)[0].n === 2;
+  // かまど（3×3 が要る）は 2×2 では作れない
+  var furnace2 = RB.status(entry('FURNACE'), g);
+  g.closeInventory();
+  // 作業台（3×3）：丸石 8 → かまど、そのまま作れる
+  g.openInventory('table');
+  g.clickSlot(el('FURNACE'), 0, false);
+  var furnace3 = g.craftResult && g.craftResult.key === 'FURNACE';
+  g.clickSlot({ dataset: { c: 'res', i: '0' } }, 0, true);
+  var made = g.inv.slots.some(function (s) { return s && s.key === 'FURNACE'; }) && !g.inv.slots.some(function (s) { return s && s.key === 'COBBLESTONE'; });
+  // 材料が足りないレシピ（ダイヤの剣）は、枠に形を薄く出すだけで材料は動かない
+  g.clickSlot(el('DIAMOND_SWORD'), 0, false);
+  var ghost = g.ghost && g.ghost.out === 'DIAMOND_SWORD' && g.ghost.cells.filter(Boolean).length === 3 && !g.craft.some(Boolean);
+  g.closeInventory();
+  check(planks && furnace2.needTable && !furnace2.recipe && furnace3 && made && ghost && book.length > 300,
+    'レシピ本（' + book.length + ' 種）：押すと材料を並べ、もう一度で 1 回分増える。3×3 のレシピは作業台で。足りないものは形だけ薄く出す');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

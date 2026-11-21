@@ -13,7 +13,7 @@
 
   // ---------------- アイテム ----------------
   ITEMS.ENDER_EYE = { key: 'ENDER_EYE', name: '影の目', block: -1, max: 64, shape: 'lump', color: '#3a8a6a' };
-  Craft.SHAPELESS.push([['SHADOW_PEARL', 'BLAZE_POWDER'], 'ENDER_EYE', 1], [['PURPUR_BLOCK'], 'PURPUR_PILLAR', 1], [['STONE_BRICKS', 'VINE'], 'MOSSY_STONE_BRICKS', 1]);
+  Craft.SHAPELESS.push([['SHADOW_PEARL', 'BLAZE_POWDER'], 'ENDER_EYE', 1], [['PURPUR_BLOCK'], 'PURPUR_PILLAR', 1], [['STONE_BRICKS', 'MOSSY_COBBLESTONE'], 'MOSSY_STONE_BRICKS', 2]);
   Craft.SHAPED.push([['SS', 'SS'], { S: 'PRISMARINE_SHARD' }, 'PRISMARINE', 1], [['SSS', 'SSS', 'SSS'], { S: 'PRISMARINE_SHARD' }, 'PRISMARINE_BRICKS', 1],
     [['SSS', 'SBS', 'SSS'], { S: 'PRISMARINE_SHARD', B: 'BLACK_DYE' }, 'DARK_PRISMARINE', 1], [['SGS', 'GGG', 'SGS'], { S: 'PRISMARINE_SHARD', G: 'GLOWSTONE_DUST' }, 'SEA_LANTERN', 1],
     [['CC', 'CC'], { C: 'CHORUS_FRUIT' }, 'PURPUR_BLOCK', 4], [['EE', 'EE'], { E: 'END_STONE' }, 'END_STONE_BRICKS', 4], [['R', 'C'], { R: 'BLAZE_ROD', C: 'CHORUS_FRUIT' }, 'END_ROD', 4],

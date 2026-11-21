@@ -256,6 +256,30 @@
   body.is-touch .inv-help .touch { display: inline; }
   body.is-touch .keys.desk { display: none; }
   body.is-touch .keys.touch { display: grid; }
+  /* ---- レシピ本（インベントリ・作業台・かまどの左） ---- */
+  .invrow { display: flex; gap: 14px; align-items: stretch; }
+  .invmain { min-width: 0; }
+  .rbook { width: 214px; flex: none; display: flex; flex-direction: column; gap: 6px; padding-right: 12px; border-right: 1px solid var(--line); }
+  .rb-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .rb-title { font-size: 13px; font-weight: 600; color: #e6e3dc; }
+  #invBody .rb-only { padding: 2px 8px; font-size: 11.5px; width: auto; min-height: 0; background: var(--field); border: 1px solid var(--line); color: var(--muted); border-radius: 4px; cursor: pointer; }
+  #invBody .rb-only.on { border-color: var(--accent); color: #eef0ec; background: #2c302e; }
+  .rb-q { padding: 4px 7px !important; font-size: 12px !important; }
+  .rb-list { display: grid; grid-template-columns: repeat(5, 38px); gap: 2px; align-content: start; overflow-y: auto; max-height: 300px; padding-right: 2px; }
+  .slot.rb { width: 38px; height: 38px; cursor: pointer; }
+  .slot.rb img { inset: 3px; width: 30px; height: 30px; }
+  .slot.rb .n { font-size: 11px; }
+  .slot.rb.no { background: rgba(70, 30, 28, 0.55); border-color: #5a3430; }
+  .slot.rb.no img { opacity: 0.5; filter: grayscale(0.6); }
+  .slot.rb.tbl::after { content: ''; position: absolute; left: 2px; top: 2px; width: 8px; height: 8px; background: #8a6a3e; border: 1px solid #c8a46a; border-radius: 1px; }
+  .slot.rb.gh { border: 2px solid #c8a46a; }
+  .slot.rb:hover { background: rgba(70, 74, 78, 0.8); }
+  .rb-none, .rb-tip { color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+  .rb-none { grid-column: 1 / -1; padding: 6px 0; }
+  .slot img.ghost { opacity: 0.38; filter: grayscale(0.4); }
+  .slot.ghosted { background: rgba(90, 36, 32, 0.5); }
+  body.touchplay .rb-list { max-height: 46vh; }
+  @media (max-width: 720px) { .rbook { width: 172px; } .rb-list { grid-template-columns: repeat(4, 38px); } }
   .hide { display: none !important; }
   @media (max-width: 720px) {
     #app { flex-direction: column; }
@@ -464,6 +488,7 @@
 <script src="js/creatures.js"></script>
 <script src="js/terrain.js"></script>
 <script src="js/structures.js"></script>
+<script src="js/recipebook.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
