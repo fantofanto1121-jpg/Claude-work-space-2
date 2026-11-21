@@ -701,5 +701,102 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     '進捗：' + WG.ADVANCEMENTS.length + ' 個。原木・作業台・コマンドで達成し、まだのものは達成しない。セーブとロードで残る');
 })();
 
+// 第 2 回：乗り物・道具・武器・作業ブロック
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i;
+  g.setMode('creative'); g.walker.pos = [0.5, 11, -5.5]; g.walker.prev = g.walker.pos.slice();
+  var placeRail = function (x, y, z, k) { g.inv.slots[0] = { key: k || 'RAIL', n: 64 }; g.inv.sel = 0; g.walker.target = { id: w.block(x, y - 1, z), x: x, y: y - 1, z: z, px: x, py: y, pz: z, hy: 1 }; g.place(); };
+  // まっすぐ東へ 8、北へ曲がって 4、その先に坂（1 段上がる）
+  for (i = 0; i < 8; i++) placeRail(i, 11, 0);
+  for (i = 1; i <= 4; i++) placeRail(7, 11, -i);
+  var corner = WG.BLOCKS[w.block(7, 11, 0)].key;
+  w.setBlock(7, 11, -6, B.STONE); placeRail(7, 12, -6); placeRail(7, 11, -5);
+  var slope = WG.BLOCKS[w.block(7, 11, -5)].key;
+  var cart = g.mobs.spawn('MINECART', 0.5, 11, 0.5); cart.vx = 0.3;
+  var maxX = 0, minZ = 9;
+  for (i = 0; i < 200; i++) { g.tick(); maxX = Math.max(maxX, cart.x); minZ = Math.min(minZ, cart.z); }
+  check(corner === 'RAIL_NW' && slope === 'RAIL_UN' && maxX > 7.3 && maxX < 7.8 && minZ < -3,
+    'レール：つなげて置くと曲がり角（' + corner + '）と坂（' + slope + '）になる。押したトロッコが角で北へ曲がる（x 最大 ' + maxX.toFixed(2) + '、z 最小 ' + minZ.toFixed(2) + '）');
+  // パワードレール：止まったトロッコを押し出す
+  w.setBlock(0, 11, 4, B.LEVER_F_ON);
+  for (i = 0; i < 6; i++) placeRail(1 + i, 11, 4, i === 0 ? 'POWERED_RAIL' : 'RAIL');
+  w.setBlock(0, 11, 4, B.STONE); w.setBlock(1, 10, 4, B.REDSTONE_BLOCK);
+  var c2 = g.mobs.spawn('MINECART', 1.5, 11, 4.5);
+  for (i = 0; i < 40; i++) g.tick();
+  check(c2.x > 3.5, 'パワードレール：動力があると、止まっていたトロッコを押し出す（2 秒で x ' + c2.x.toFixed(1) + '）');
+  // ボート：水に浮く
+  var wf = flatWorld(function (x, y, z) { return y <= 5 ? B.STONE : y <= 10 ? B.WATER : 0; }), gw = playGame(wf);
+  var boat = gw.mobs.spawn('BOAT', 3.5, 9, 3.5);
+  for (i = 0; i < 60; i++) gw.tick();
+  check(boat.y > 10.2 && boat.y < 11.2, 'ボート：水に沈まず、水面に浮かぶ（y ' + boat.y.toFixed(2) + '）');
+  // 鞍とニンジン付きの棒で豚に乗る
+  g.mobs.list.length = 0;
+  var pig = g.mobs.spawn('PIG', 20.5, 11, 20.5);
+  g.inv.slots[0] = { key: 'SADDLE', n: 1 }; g.mobs.target = { mob: pig }; g.use(); var saddled = pig.saddled;
+  g.inv.slots[0] = { key: 'CARROT_ON_A_STICK', n: 1 }; g.use(); var riding = g.riding === pig;
+  g.walker.yaw = Math.PI / 2;   // 西を向く
+  var x0 = pig.x; for (i = 0; i < 60; i++) { g.walker.tick(); }
+  var moved = x0 - pig.x, seated = Math.abs(g.walker.pos[0] - pig.x) < 0.3;
+  g.walker.keys.ShiftLeft = true; g.walker.tick(); g.walker.keys.ShiftLeft = false;
+  check(saddled && riding && moved > 3 && seated && !g.riding, '鞍：豚に付けて乗り、ニンジン付きの棒で見ている向きへ進む（3 秒で ' + moved.toFixed(1) + ' ブロック）。Shift で降りる');
+  g.mobs.target = null; g.mobs.list.length = 0;
+  // リード：牛を引っぱる
+  var cow = g.mobs.spawn('COW', 30.5, 11, 30.5);
+  g.inv.slots[0] = { key: 'LEAD', n: 1 }; g.mobs.target = { mob: cow }; g.use(); g.mobs.target = null;
+  g.walker.pos = [40.5, 11, 30.5];
+  for (i = 0; i < 200; i++) g.tick();
+  check(cow.leash === 'player' && cow.x > 34, 'リード：つないだ牛が引っぱられて付いてくる（x 30.5 → ' + cow.x.toFixed(1) + '）');
+  g.mobs.list.length = 0;
+  // クロスボウ：装填して撃つ
+  g.setMode('survival');
+  g.inv.clear(); g.inv.slots[0] = { key: 'CROSSBOW', n: 1 }; g.inv.slots[1] = { key: 'ARROW', n: 3 }; g.inv.sel = 0;
+  g.walker.eye = [0.5, 12.6, 0.5]; g.walker.dir = [1, 0, 0];
+  g.mouseR = true; for (i = 0; i < 26; i++) g.tickBow(); g.mouseR = false; g.tickBow();
+  var loaded = g.inv.slots[0].loaded, arrows = g.inv.slots[1].n;
+  var na = g.mobs.arrows.length; g.mouseR = true; g.tickBow(); g.mouseR = false;
+  check(loaded && arrows === 2 && g.mobs.arrows.length === na + 1 && !g.inv.slots[0].loaded && g.mobs.arrows[na].dmg === 9,
+    'クロスボウ：1.25 秒で装填（矢 1 本）、右クリックで撃つ（ダメージ 9）');
+  // トライデント：投げると刺さった所に落ちる
+  g.mobs.arrows.length = 0;
+  g.inv.slots[0] = { key: 'TRIDENT', n: 1, dmg: 3 }; g.mouseR = true; for (i = 0; i < 12; i++) g.tickBow(); g.mouseR = false; g.tickBow();
+  var thrown = !g.inv.slots[0] && g.mobs.arrows.length === 1;
+  for (i = 0; i < 100; i++) g.tick();
+  var dropped = g.entities.some(function (e) { return e.key === 'TRIDENT' && e.dmg === 3; });
+  check(thrown && dropped && WG.ITEMS.TRIDENT.attack === 9, 'トライデント：叩くと 9、投げると手から離れ、刺さった所にアイテムとして落ちる（傷み具合も残る）');
+  // エリトラ：滑空して前へ進む
+  var we = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), ge = playGame(we);
+  ge.setMode('survival'); ge.armor[1] = { key: 'ELYTRA', n: 1 };
+  ge.walker.pos = [0.5, 100, 0.5]; ge.walker.prev = ge.walker.pos.slice(); ge.walker.vel = [0, -0.3, 0]; ge.walker.yaw = 0; ge.walker.pitch = -0.2; ge.walker.onGround = false;
+  ge.walker.keys.Space = true; ge.walker.tick(); ge.walker.keys.Space = false;
+  var gl = ge.gliding;
+  for (i = 0; i < 100; i++) ge.walker.tick();
+  var dist = -ge.walker.pos[2], drop = 100 - ge.walker.pos[1];
+  check(gl && dist > 40 && dist > drop * 2, 'エリトラ：落ちながらスペースで滑空し、5 秒で ' + dist.toFixed(0) + ' ブロック前へ（下がったのは ' + drop.toFixed(0) + '）');
+  // 鍛冶台・石切台・製図台
+  var smith = WG.smithResult({ key: 'DIAMOND_SWORD', n: 1, dmg: 40, ench: { SHARPNESS: 3 } }, { key: 'NETHERITE_INGOT', n: 1 });
+  var cut = WG.STONECUT.STONE.map(function (o) { return o[0] + '×' + o[1]; }).join(' ');
+  var wide = WG.cartoResult({ key: 'FILLED_MAP', n: 1, map: { x: 0, z: 0, dim: 'overworld', scale: 0 } }, { key: 'PAPER', n: 1 });
+  check(smith.key === 'NETHERITE_SWORD' && smith.dmg === 40 && smith.ench.SHARPNESS === 3 && WG.ITEMS.NETHERITE_SWORD.attack === 8 && WG.ITEMS.NETHERITE_CHESTPLATE.def === 8 &&
+    /STONE_BRICK_SLAB×2/.test(cut) && wide.map.scale === 1 && !WG.Craft.match(['NETHERITE_INGOT', 'NETHERITE_INGOT', 'NETHERITE_INGOT', null, 'STICK', null, null, 'STICK', null], 3),
+    '鍛冶台：ダイヤの剣 → ネザライトの剣（エンチャントと傷みは残る、攻撃 8）。石切台：石 → ' + cut + '。製図台：紙で地図を 2 倍に。ネザライトの道具は作業台では作れない');
+  // 溶鉱炉（鉱石だけ、2 倍の速さ）・焚き火（30 秒で焼ける）・堆肥箱（いっぱいで骨粉）
+  var wb = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), gb = playGame(wb);
+  wb.setBlock(2, 11, 2, B.BLAST_FURNACE); var bf = new WG.Craft.Furnace(); bf.slots[0] = { key: 'RAW_IRON', n: 2 }; bf.slots[1] = { key: 'COAL', n: 1 }; wb.furnaces.set('2,11,2', bf);
+  wb.setBlock(4, 11, 2, B.BLAST_FURNACE); var bf2 = new WG.Craft.Furnace(); bf2.slots[0] = { key: 'RAW_BEEF', n: 1 }; bf2.slots[1] = { key: 'COAL', n: 1 }; wb.furnaces.set('4,11,2', bf2);
+  for (i = 0; i < 101; i++) gb.tick();
+  var blastOk = bf.slots[2] && bf.slots[2].key === 'IRON_INGOT' && !bf2.slots[2];
+  wb.setBlock(6, 11, 2, B.CAMPFIRE); gb.walker.target = { id: B.CAMPFIRE, x: 6, y: 11, z: 2, px: 6, py: 12, pz: 2, hy: 1 };
+  gb.setMode('creative'); gb.inv.slots[0] = { key: 'RAW_PORKCHOP', n: 2 }; gb.inv.sel = 0; gb.use();
+  for (i = 0; i < 601; i++) gb.tick();
+  var cooked = gb.entities.some(function (e) { return e.key === 'COOKED_PORKCHOP'; });
+  wb.setBlock(8, 11, 2, B.COMPOSTER_0); gb.walker.target = { id: B.COMPOSTER_0, x: 8, y: 11, z: 2, px: 8, py: 12, pz: 2, hy: 1 };
+  gb.inv.slots[0] = { key: 'BREAD', n: 64 };
+  for (i = 0; i < 40 && WG.BLOCKS[wb.block(8, 11, 2)].key !== 'COMPOSTER_7'; i++) { gb.walker.target.id = wb.block(8, 11, 2); gb.use(); }
+  for (i = 0; i < 25; i++) gb.tick();
+  var full = wb.block(8, 11, 2) === B.COMPOSTER_8; gb.walker.target.id = wb.block(8, 11, 2); gb.use();
+  var meal = gb.entities.some(function (e) { return e.key === 'BONE_MEAL'; }) && wb.block(8, 11, 2) === B.COMPOSTER_0;
+  check(blastOk && cooked && full && meal, '溶鉱炉：粗い鉄を 5 秒で焼き（かまどの 2 倍）、肉は焼かない。焚き火：豚肉を 30 秒で焼く。堆肥箱：いっぱいになると骨粉が取れる');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

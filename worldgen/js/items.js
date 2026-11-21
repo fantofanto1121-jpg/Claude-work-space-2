@@ -86,6 +86,15 @@
   WG.WOOL_COLORS.forEach(function (c) { BLOCK_DATA.push([c[0] + '_WOOL', 0.8, c[0] + '_WOOL']); });
   BLOCK_DATA.push(['NETHER_PORTAL_X', 0, null], ['NETHER_PORTAL_Z', 0, null]);
   BLOCK_DATA.push(['PUMPKIN', 1, 'PUMPKIN'], ['CARVED_PUMPKIN', 1, 'CARVED_PUMPKIN']);
+  // 第 2 回：レール（アイテムは RAIL・POWERED_RAIL）、作業ブロック、焚き火（木炭 2 個）、堆肥箱、古代の残骸
+  WG.BLOCKS.forEach(function (b) {
+    if (/^RAIL_/.test(b.key)) BLOCK_DATA.push([b.key, 0.7, 'RAIL']);
+    else if (/^POWERED_RAIL_/.test(b.key)) BLOCK_DATA.push([b.key, 0.7, 'POWERED_RAIL']);
+    else if (/^COMPOSTER_/.test(b.key)) BLOCK_DATA.push([b.key, 0.6, 'COMPOSTER_0']);
+  });
+  BLOCK_DATA.push(['SMITHING_TABLE', 2.5, 'SMITHING_TABLE'], ['STONECUTTER', 3.5, 'STONECUTTER'], ['CARTOGRAPHY_TABLE', 2.5, 'CARTOGRAPHY_TABLE'],
+    ['BLAST_FURNACE', 3.5, 'BLAST_FURNACE'], ['BLAST_FURNACE_LIT', 3.5, 'BLAST_FURNACE'], ['SMOKER', 3.5, 'SMOKER'], ['SMOKER_LIT', 3.5, 'SMOKER'],
+    ['CAMPFIRE', 2, 'CHARCOAL', 2, 2], ['ANCIENT_DEBRIS', 30, 'ANCIENT_DEBRIS']);
 
   // 食べ物 [キー, 名前, 形, 色, 満腹度, 隠し満腹度の倍率]（Minecraft の値）
   var FOOD_DATA = [
@@ -110,7 +119,8 @@
   mine('pickaxe', 1, 'IRON_ORE DEEPSLATE_IRON_ORE COPPER_ORE DEEPSLATE_COPPER_ORE LAPIS_ORE DEEPSLATE_LAPIS_ORE IRON_BLOCK COPPER_BLOCK LAPIS_BLOCK');
   mine('pickaxe', 2, 'GOLD_ORE DEEPSLATE_GOLD_ORE DIAMOND_ORE DEEPSLATE_DIAMOND_ORE REDSTONE_ORE DEEPSLATE_REDSTONE_ORE GOLD_BLOCK DIAMOND_BLOCK');
   mine('pickaxe', 3, 'OBSIDIAN');
-  mine('pickaxe', 0, 'TERRACOTTA SMOOTH_STONE LANTERN');
+  mine('pickaxe', 0, 'TERRACOTTA SMOOTH_STONE LANTERN STONECUTTER BLAST_FURNACE BLAST_FURNACE_LIT SMOKER SMOKER_LIT');
+  mine('pickaxe', 3, 'ANCIENT_DEBRIS');
   mine('shovel', 0, 'SNOW');
   mine('sword', 0, 'COBWEB');
   mine('pickaxe', 0, WG.BLOCKS.filter(function (b) { return /^(HOPPER|DISPENSER|DROPPER|OBSERVER)_/.test(b.key); }).map(function (b) { return b.key; }).join(' '));
@@ -132,12 +142,16 @@
   var TOOL_MATS = [
     ['WOODEN', '木', 2, 0, 59, '#a5824f', 'PLANKS'], ['STONE', '石', 4, 1, 131, '#8c8c8a', 'COBBLES'],
     ['IRON', '鉄', 6, 2, 250, '#dcdcda', 'IRON_INGOT'], ['GOLDEN', '金', 12, 0, 32, '#e8c540', 'GOLD_INGOT'],
-    ['DIAMOND', 'ダイヤモンド', 8, 3, 1561, '#62c9c0', 'DIAMOND']
+    ['DIAMOND', 'ダイヤモンド', 8, 3, 1561, '#62c9c0', 'DIAMOND'],
+    // ネザライト：作業台では作れず、鍛冶台でダイヤモンドの道具とネザライトインゴットから作る（8 番目が「作れない」の印）
+    ['NETHERITE', 'ネザライト', 9, 4, 2031, '#4a4246', 'NETHERITE_INGOT', true]
   ];
   var TOOL_TYPES = [['PICKAXE', 'pickaxe', 'ツルハシ'], ['AXE', 'axe', '斧'], ['SHOVEL', 'shovel', 'シャベル'], ['SWORD', 'sword', '剣'], ['HOE', 'hoe', 'クワ']];
   // 防具：素材 [キーの頭, 名前, 耐久の倍率, 防御 [頭, 胴, 脚, 足], 防具の強さ, 修理の材料]、部位 [キーの尻, 名前, 耐久の基準]
   var ARMOR_MATS = [['LEATHER', '革の', 5, [1, 3, 2, 1], 0, 'LEATHER'], ['GOLDEN', '金の', 7, [2, 5, 3, 1], 0, 'GOLD_INGOT'],
-    ['IRON', '鉄の', 15, [2, 6, 5, 2], 0, 'IRON_INGOT'], ['DIAMOND', 'ダイヤモンドの', 33, [3, 8, 6, 3], 2, 'DIAMOND']];
+    ['IRON', '鉄の', 15, [2, 6, 5, 2], 0, 'IRON_INGOT'], ['DIAMOND', 'ダイヤモンドの', 33, [3, 8, 6, 3], 2, 'DIAMOND'],
+    // チェーン（作れない。防具鍛冶から買う）とネザライト（鍛冶台）
+    ['CHAINMAIL', 'チェーンの', 15, [2, 5, 4, 1], 0, 'IRON_INGOT'], ['NETHERITE', 'ネザライトの', 37, [3, 8, 6, 3], 3, 'NETHERITE_INGOT']];
   var ARMOR_PARTS = [['HELMET', 'ヘルメット', 11], ['CHESTPLATE', 'チェストプレート', 16], ['LEGGINGS', 'レギンス', 15], ['BOOTS', 'ブーツ', 13]];
 
   // ブロックではないアイテム [キー, 名前, 形, 色, 最大スタック数]
@@ -187,7 +201,7 @@
   });
   ITEM_DATA.forEach(function (d) { ITEMS[d[0]] = { key: d[0], name: d[1], block: -1, max: d[4] || 64, shape: d[2], color: d[3] }; });
   // 攻撃力（Minecraft の値）：素手 1、ツルハシ・斧・シャベルは素材ごと
-  var ATTACK = { pickaxe: [2, 3, 4, 2, 5], axe: [7, 9, 9, 7, 9], shovel: [2.5, 3.5, 4.5, 2.5, 5.5], sword: [4, 5, 6, 4, 7], hoe: [1, 1, 1, 1, 1] };
+  var ATTACK = { pickaxe: [2, 3, 4, 2, 5, 6], axe: [7, 9, 9, 7, 9, 10], shovel: [2.5, 3.5, 4.5, 2.5, 5.5, 6.5], sword: [4, 5, 6, 4, 7, 8], hoe: [1, 1, 1, 1, 1, 1] };
   TOOL_MATS.forEach(function (m, mi) {
     TOOL_TYPES.forEach(function (t) {
       var key = m[0] + '_' + t[0];
@@ -309,7 +323,7 @@
     var k = b.key;
     return b.id !== B.AIR && !WG.FLUID[b.id] && k !== 'FURNACE_LIT' && !/^WALL_TORCH_/.test(k) && !/^BED_/.test(k) &&
       // 向き・開け閉め・育ち具合の違うもの、置けないもの（扉・はしご・階段は別のアイテムで置く）
-      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$|^NETHER_PORTAL/.test(k);
+      !/_DOOR_|^LADDER_|_STAIRS_|_SLAB_TOP$|_SLAB_DOUBLE$|^WHEAT_|^CARROTS_|^POTATOES_|^FARMLAND|^FIRE$|^REDSTONE_WIRE_|REDSTONE_(WALL_)?TORCH|^LEVER_|_BUTTON_|_ON$|^REPEATER_|PISTON_|^NETHER_WART_|^REDSTONE_LAMP_ON$|^HOPPER_|^DISPENSER_|^DROPPER_|^OBSERVER_|^COMPARATOR_|_INV$|_PDF$|^NETHER_PORTAL|^RAIL_|^POWERED_RAIL_|^COMPOSTER_[1-8]$|_LIT$/.test(k);
   }).map(function (b) { return b.key; });
 
   // ---- インベントリ：0〜8 がホットバー、9〜35 が中身 ----

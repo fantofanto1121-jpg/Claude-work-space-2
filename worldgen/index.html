@@ -80,6 +80,19 @@
   #toast { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); padding: 6px 12px; border-radius: 4px;
     background: rgba(22, 23, 25, 0.82); color: #e8e5de; font-size: 13px; pointer-events: none; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
   #toast.on { opacity: 1; }
+  /* 生き物の名前（名札）、持っている地図・コンパス・時計、望遠鏡の縁 */
+  #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #labels div { position: absolute; left: 0; top: 0; padding: 1px 6px; background: rgba(0, 0, 0, 0.42); color: #f2f0ea; font-size: 12px; border-radius: 2px; white-space: nowrap; }
+  #spyView { position: absolute; inset: 0 0 28px 0; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    background: radial-gradient(circle at 50% 50%, transparent 0, transparent 34vmin, #08090b 34.4vmin); }
+  #spyView.on { opacity: 1; }
+  #heldView { position: absolute; right: 14px; bottom: 44px; pointer-events: none; display: none; }
+  #heldView.on { display: block; }
+  #heldView.map { width: 256px; height: 256px; padding: 10px; background: #d8c8a0; border: 3px solid #8a7048; border-radius: 3px; box-sizing: content-box; }
+  #heldView.map img { width: 256px; height: 256px; image-rendering: pixelated; display: block; }
+  #heldView.map i { position: absolute; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 13px solid #f4f0e6;
+    filter: drop-shadow(0 0 1px #000); margin: 10px; }
+  #heldView canvas { width: 96px; height: 96px; image-rendering: pixelated; }
   /* コマンドの入力欄と結果 */
   #chat { position: absolute; left: 10px; bottom: 96px; width: min(560px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 4px; }
   #chatLog { display: flex; flex-direction: column; gap: 2px; }
@@ -303,6 +316,9 @@
     <img id="shieldView" alt="">
     <div id="effects"></div>
     <div id="toast"></div>
+    <div id="labels"></div>
+    <div id="spyView"></div>
+    <div id="heldView"></div>
     <div id="chat" class="hide"><div id="chatLog"></div><input id="chatIn" autocomplete="off" spellcheck="false" placeholder="/help でコマンドの一覧（Enter で実行、Esc で閉じる）"></div>
     <div id="hud" class="hide">
       <div id="itemName"></div>
@@ -356,6 +372,9 @@
 <script src="js/modes.js"></script>
 <script src="js/advance.js"></script>
 <script src="js/commands.js"></script>
+<script src="js/vehicles.js"></script>
+<script src="js/gear.js"></script>
+<script src="js/workblocks.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

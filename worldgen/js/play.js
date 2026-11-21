@@ -71,6 +71,7 @@
       status: ui.status,
       tick: function () { self.tick(); },
       land: function (d, below) { self.land(d, below); },
+      ride: function (w, shift) { return self.rideTick ? self.rideTick(w, shift) : false; },
       voidDamage: function () { return self.mode === 'survival'; },
       draw: function (w, a) { self.draw(a); },
       sky: function () { return self.sky(); },
@@ -196,11 +197,15 @@
     wd.fluids.tick(3000);
     var self = this;
     wd.furnaces.forEach(function (f, key) {
-      if (!f.tick()) return;
-      // 燃え始め・燃え終わりで、かまどの見た目（と光）を変える
+      // 溶鉱炉と燻製器は、決まった物だけを 2 倍の速さで焼く（燃料も 2 倍の速さで減る）
       var p = key.split(',').map(Number), id = wd.block(p[0], p[1], p[2]);
-      if (id !== B.FURNACE && id !== B.FURNACE_LIT) { wd.furnaces.delete(key); return; }
-      wd.setBlock(p[0], p[1], p[2], f.burn > 0 ? B.FURNACE_LIT : B.FURNACE);
+      f.only = id === B.BLAST_FURNACE || id === B.BLAST_FURNACE_LIT ? 'ore' : id === B.SMOKER || id === B.SMOKER_LIT ? 'food' : null;
+      var ch = f.tick(); if (f.only) ch = f.tick() || ch;
+      if (!ch) return;
+      // 燃え始め・燃え終わりで、かまどの見た目（と光）を変える
+      var kind = WG.furnaceKind ? WG.furnaceKind(id) : (id === B.FURNACE || id === B.FURNACE_LIT ? 'FURNACE' : null);
+      if (!kind) { wd.furnaces.delete(key); return; }
+      wd.setBlock(p[0], p[1], p[2], f.burn > 0 ? B[kind + '_LIT'] : B[kind]);
       self.walker.remesh(p[0], p[2]);
     });
 
@@ -1055,7 +1060,8 @@
     ['LAPIS', 1, 3, 6], ['RAW_COPPER', 1, 5, 8], ['TORCH', 2, 6, 6], ['DIAMOND', 1, 2, 2], ['IRON_PICKAXE', 1, 1, 2],
     ['BREAD', 1, 3, 8], ['APPLE', 1, 3, 6], ['WHEAT', 1, 5, 6], ['CARROT', 1, 4, 4], ['POTATO', 1, 4, 4], ['BONE', 1, 4, 6],
     ['STRING', 1, 4, 6], ['ARROW', 2, 8, 5], ['IRON_SWORD', 1, 1, 2], ['IRON_HELMET', 1, 1, 1], ['BUCKET', 1, 1, 2], ['GOLDEN_APPLE', 1, 1, 1],
-    ['SLIME_BALL', 1, 3, 4], ['BOOK', 1, 3, 4], ['PAPER', 1, 5, 4], ['SUGAR_CANE', 1, 4, 3], ['GLISTERING_MELON_SLICE', 1, 2, 2], ['RABBIT_FOOT', 1, 1, 1]];
+    ['SLIME_BALL', 1, 3, 4], ['BOOK', 1, 3, 4], ['PAPER', 1, 5, 4], ['SUGAR_CANE', 1, 4, 3], ['GLISTERING_MELON_SLICE', 1, 2, 2], ['RABBIT_FOOT', 1, 1, 1],
+    ['SADDLE', 1, 1, 4], ['NAME_TAG', 1, 1, 3]];
   // ネザーの要塞のチェスト（ブレイズやガストがいないので、その材料もここに入れている）
   var LOOT_NETHER = [['BLAZE_ROD', 1, 3, 10], ['NETHER_WART', 2, 6, 10], ['GHAST_TEAR', 1, 2, 6], ['MAGMA_CREAM', 1, 3, 6], ['GOLD_INGOT', 1, 5, 10],
     ['IRON_INGOT', 1, 5, 8], ['DIAMOND', 1, 3, 4], ['OBSIDIAN', 2, 6, 3], ['FLINT_AND_STEEL', 1, 1, 3], ['GLISTERING_MELON_SLICE', 1, 3, 4], ['RABBIT_FOOT', 1, 2, 3], ['SLIME_BALL', 1, 3, 3]];
@@ -1179,7 +1185,7 @@
     keep = [];
     for (i = 0; i < this.particles.length; i++) {
       var p = this.particles[i];
-      p.vy -= 0.04; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vx *= 0.98; p.vz *= 0.98;
+      p.vy -= p.smoke ? -0.001 : 0.04; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vx *= 0.98; p.vz *= 0.98;
       if (this.walker.solid(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) { p.y -= p.vy; p.vy = 0; p.vx *= 0.7; p.vz *= 0.7; }
       if (--p.life > 0) keep.push(p);
     }
@@ -1384,7 +1390,8 @@
     var w = this.walker, self = this;
     // クラフトの枠に残ったものと、手に持ったままのものはインベントリへ戻す（入らなければ足元に落とす）。
     // クリエイティブの一覧から取ったものは消す。
-    var back = this.craft.filter(Boolean).concat(this.enchSlots.filter(Boolean), this.anvilSlots.filter(Boolean));
+    var back = this.craft.filter(Boolean).concat(this.enchSlots.filter(Boolean), this.anvilSlots.filter(Boolean), (this.workSlots || []).filter(Boolean));
+    this.workSlots = [null, null];
     this.enchSlots = [null, null]; this.anvilSlots = [null, null]; this.offers = null; this.brewKey = null;
     if (this.cursor && !(this.screen === 'creative')) back.push(this.cursor);
     back.forEach(function (s) {
@@ -1407,8 +1414,8 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
-    if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp') html += this.renderExtraScreen(sc);
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: this.furnaceName || 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', smith: '鍛冶台', cutter: '石切台', carto: '製図台', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
+    if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp' || (WG.EXTRA_SCREENS && WG.EXTRA_SCREENS[sc])) html += this.renderExtraScreen(sc);
     if (sc === 'trade') html += this.renderTrade();
     if (sc === 'adv') html += this.renderAdvancements();
     if (sc === 'creative') {

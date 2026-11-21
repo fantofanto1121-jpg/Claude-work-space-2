@@ -222,6 +222,8 @@
     if (!wantSneak && this.sneak && !this.flying && this.hits(this.box(this.pos, HEIGHT))) wantSneak = true;
     this.sneak = wantSneak;
     if (!this.canFly) this.flying = false;
+    // 乗り物に乗っている・滑空しているときは、ゲームの側が動かす
+    if (this.hooks.ride && this.hooks.ride(this, shift)) { if (this.hooks.tick) this.hooks.tick(this); return; }
 
     var f = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0), s = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
     if (!k.KeyW) this.sprintTap = false;
@@ -489,7 +491,7 @@
     var sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     var side = Math.sin(wd * Math.PI) * bob * 0.045, up = -Math.abs(Math.cos(wd * Math.PI)) * bob * 0.07;
     var eye = [p[0] + cy * side, p[1] + this.eyeH + up + bob * 0.035, p[2] - sy * side];
-    this.fovK += ((this.sprint ? 1.1 : 1) - this.fovK) * Math.min(1, dt * 8);
+    this.fovK += ((this.sprint ? 1.1 : 1) * (this.zoom || 1) - this.fovK) * Math.min(1, dt * 8);
     this.eye = eye; this.dir = [-sy * Math.cos(this.pitch), Math.sin(this.pitch), -cy * Math.cos(this.pitch)];
 
     var cp = Math.cos(this.pitch);

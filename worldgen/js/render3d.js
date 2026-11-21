@@ -364,6 +364,16 @@
               op.vert(lx + x0w, ly + 16, lz + z0w, wcol[0], wcol[1], wcol[2], wem, 0, 0, lineT);
               op.quad(v0, false);
             });
+          } else if (kind === 'rail') {
+            // レール：床から 1/16 上に貼る 1 枚（坂は上る向きへ 1 ブロック上がる）。見た目は形ごとの切り抜き
+            var ri = WG.railInfo(id), rtile = TT[id * 3 + FACE_IX.side], up = ri && ri.up;
+            if (LT) { var lv9 = LT[i]; L = light(lv9 >> 4, lv9 & 15); } else L = noLight();
+            var rf = 0.5 * jit, rcol = [c8(255 * rf * L[0]), c8(255 * rf * L[1]), c8(255 * rf * L[2])];
+            var RP = [[0, 0], [16, 0], [16, 16], [0, 16]];
+            var rh = function (x, z) { return 1 + (up === 'N' ? 16 - z : up === 'S' ? z : up === 'E' ? x : up === 'W' ? 16 - x : 0); };
+            v0 = op.nv;
+            for (var rq = 0; rq < 4; rq++) op.vert(lx + RP[rq][0], ly + rh(RP[rq][0], RP[rq][1]), lz + RP[rq][1], rcol[0], rcol[1], rcol[2], 0, RP[rq][0], RP[rq][1], rtile);
+            op.quad(v0, false);
           } else if (kind === 'crop') {
             // 作物：縦の 4 枚を井の字に（耕地の上なので 1/16 下げる）
             var ct = TT[id * 3 + FACE_IX.side];

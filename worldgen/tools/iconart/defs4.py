@@ -41,3 +41,53 @@ EM = ['#0a3a1a', '#1a8a3e', '#2ab454', '#5ad67a', '#b4f4c4']
 D['EMERALD'] = (GEM, {'H': EM, 'T': [EM[0], EM[2], EM[3], EM[4], '#ffffff']}, {'w': '#ffffff'}, [(6, 4, 'w')])
 D['SPAWN_EGG_VILLAGER'] = (EGG, {'A': ramp_from('#7a5a3a'), 'B': ramp_from('#c8a07a')}, {}, [], [(x, y, 'B') for x, y in SPOTS])
 D['SPAWN_EGG_GOLEM'] = (EGG, {'A': ramp_from('#c2beb4'), 'B': ramp_from('#5d7a48')}, {}, [], [(x, y, 'B') for x, y in SPOTS])
+
+# ---- 第 2 回：乗り物・道具・武器 ----
+from defs1 import INGOT, LUMP
+def grid(fn):
+    return [''.join(fn(x, y) for x in range(16)) for y in range(16)]
+W, H, IR, GO, LE = R['wood'], R['handle'], R['iron'], R['gold'], R['leather']
+D['BOAT'] = (['................', '................', '................', '................', '................', '.A............A.', '.AA..........AA.', '.AAAAAAAAAAAAAA.',
+              '..ABBBBBBBBBBA..', '..AAAAAAAAAAAA..', '...AAAAAAAAAA...', '....AAAAAAAA....'], {'A': W, 'B': H})
+D['MINECART'] = (['................', '................', '................', '.AAAAAAAAAAAAAA.', '.ABBBBBBBBBBBBA.', '.ABBBBBBBBBBBBA.', '.ABBBBBBBBBBBBA.', '.AAAAAAAAAAAAAA.',
+                  '..AAAAAAAAAAAA..', '...k........k...', '..kkk......kkk..', '...k........k...'], {'A': IR, 'B': ramp_from('#4a4a52')}, {'k': '#202024'})
+def railrows(rail, mid):
+    def f(x, y):
+        if x in (3, 4, 11, 12): return 'R'
+        if y % 4 in (1, 2) and 1 <= x <= 14: return 'm' if mid and x in (7, 8) else 'T'
+        return '.'
+    return grid(f)
+D['RAIL'] = (railrows(IR, False), {'R': IR, 'T': W})
+D['POWERED_RAIL'] = (railrows(GO, True), {'R': GO, 'T': W}, {'m': '#c0302a'})
+D['SADDLE'] = (['................', '................', '....AAAAAA......', '...AAAAAAAA.....', '..AAAAAAAAAA....', '..AAAAAAAAAAA...', '...AAAAAAAAAAA..', '....BB....AAAA..',
+                '....BB.....AA...', '....BB..........', '...CCC..........', '...C.C..........', '...CCC..........'], {'A': LE, 'B': ramp_from('#3a2416'), 'C': IR})
+D['CARROT_ON_A_STICK'] = (['............CC..', '...........CCCL.', '..........CCCL..', '.........S.CL...', '........S..s....', '.......S...s....', '......S....s....', '.....S.....s....',
+                           '....S...........', '...S............', '..S.............', '.S..............'], {'S': H, 'C': RR['carrot'], 'L': RR['leaf']}, {'s': '#e8e8e8'})
+D['LEAD'] = (['................', '................', '.....AAAAA......', '....A.....A.....', '...A.......A....', '...A.......A....', '...A.......A....', '....A.....A.....',
+              '.....AAAAA......', '.......AA.......', '.......AA.......', '........A.......', '........AA......', '.........A......'], {'A': RR['string'] if False else ramp_from('#b8a074')})
+D['NAME_TAG'] = (['................', '................', '..........s.....', '.........s......', '....AAAAAAA.....', '...AAAAAAAAA....', '..AAAAAAAAAAA...', '..AAoAAAAAAAA...',
+                  '..AAAAAAAAAAA...', '...AAAAAAAAA....', '....AAAAAAA.....'], {'A': ramp_from('#c8a878')}, {'o': '#3a2a1a', 's': '#e0e0e0'})
+D['CROSSBOW'] = (['................', '.BBB............', '.B..BB..........', '.B....B.........', '..B....SS.......', '...B..SSs.......', '....BSS.s.......', '.....SB..s......',
+                  '....S..B.s......', '...S....Bs......', '..S......B......', '.SS.......B.....', 'SS.........BB...', '...........BBB..'], {'B': IR, 'S': H}, {'s': '#e8e8e8'})
+D['TRIDENT'] = (['.........P.P.P..', '.........P.P.P..', '..........PPP...', '...........P....', '..........S.....', '.........S......', '........S.......', '.......S........',
+                 '......S.........', '.....S..........', '....S...........', '...S............', '..S.............', '.S..............'], {'P': ramp_from('#5ac8b8'), 'S': ramp_from('#3a8a80')})
+D['ELYTRA'] = (['................', '..AA........AA..', '.AAAA......AAAA.', '.AAAAA....AAAAA.', 'AAAAAAA..AAAAAAA', 'AAAAAAA..AAAAAAA', 'AAAAAAA..AAAAAAA', '.AAAAAA..AAAAAA.',
+               '.AAAAA....AAAAA.', '.AAAA......AAAA.', '..AAA......AAA..', '..AA........AA..', '...A........A...'], {'A': ramp_from('#8a8aa8')}, {'k': '#5a5a7a'},
+              [(3, 5, 'k'), (4, 7, 'k'), (12, 5, 'k'), (11, 7, 'k')])
+PAPER = ['................', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..',
+         '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..']
+D['MAP'] = (PAPER, {'A': RR['paper']}, {'l': '#c0b8a0'}, [(x, y, 'l') for y in (4, 7, 10) for x in range(4, 12)])
+D['FILLED_MAP'] = (PAPER, {'A': ramp_from('#d8c8a0')}, {'g': '#6a9a48', 'w': '#4a72b8', 'b': '#8a6a3e', 'r': '#c0302a'},
+                   [(x, y, 'g') for y in range(3, 13) for x in range(3, 13) if (x * 7 + y * 3) % 5 < 3] + [(x, y, 'w') for y in range(8, 13) for x in range(8, 13)] + [(5, 5, 'b'), (6, 5, 'b'), (7, 7, 'r')])
+ROUND = ['................', '................', '.....AAAAAA.....', '....AAAAAAAA....', '...AAAAAAAAAA...', '...AAAAAAAAAA...', '...AAAAAAAAAA...', '...AAAAAAAAAA...',
+         '...AAAAAAAAAA...', '...AAAAAAAAAA...', '....AAAAAAAA....', '.....AAAAAA.....']
+D['COMPASS'] = (ROUND, {'A': IR}, {'f': '#c8c0a8', 'r': '#c0302a', 'k': '#4a4a52'},
+                [(x, y, 'f') for y in range(4, 10) for x in range(5, 11)] + [(8, 4, 'r'), (8, 5, 'r'), (7, 6, 'r'), (7, 7, 'k'), (6, 8, 'k'), (6, 9, 'k')])
+D['CLOCK'] = (ROUND, {'A': GO}, {'d': '#6fa8dc', 'n': '#1c2448', 's': '#f4d060', 'm': '#e8e8f0'},
+              [(x, y, 'd') for y in range(4, 7) for x in range(5, 11)] + [(x, y, 'n') for y in range(7, 10) for x in range(5, 11)] + [(7, 5, 's'), (8, 5, 's'), (8, 8, 'm')])
+D['SPYGLASS'] = (['................', '............GG..', '...........GGGG.', '..........CCGG..', '.........CCC....', '........CCC.....', '.......CCC......', '......CCC.......',
+                  '.....CCC........', '....CCC.........', '...CCC..........', '..CCC...........', '..CC............'], {'C': RR['carrot'] if False else ramp_from('#c4714f'), 'G': RR['glass']})
+D['NETHERITE_SCRAP'] = (LUMP, {'H': ramp_from('#5e4a46')}, {'w': '#a08a84'}, [(6, 6, 'w')])
+D['NETHERITE_INGOT'] = (INGOT, {'F': R['netherite'], 'T': [R['netherite'][0], R['netherite'][2], R['netherite'][3], R['netherite'][4], '#b0a4a4'], 'S': [R['netherite'][0], R['netherite'][0], R['netherite'][1], R['netherite'][1], R['netherite'][2]]})
+D['CAMPFIRE'] = (['................', '.......f........', '......ff..f.....', '.....fyf.ff.....', '.....fyyfyf.....', '....fyyyyyff....', '....fyyyyyyf....', '...LLLfyyfLLL...',
+                  '..LLLLLLLLLLLL..', '...BBBBBBBBBB...', '..LLLLLLLLLLLL..', '...LLL....LLL...'], {'L': W, 'B': ramp_from('#3a3a3e')}, {'f': '#f08a2a', 'y': '#ffd870'})

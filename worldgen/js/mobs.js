@@ -29,7 +29,8 @@
       box(-5, 0, 3, 4, 6, 4, '#d99a95', 'L1'), box(1, 0, 3, 4, 6, 4, '#d99a95', 'L2'),
       box(-5, 0, -7, 4, 6, 4, '#d99a95', 'L2'), box(1, 0, -7, 4, 6, 4, '#d99a95', 'L1'),
       box(-5, 6, -8, 10, 8, 16, '#e5a7a1'), box(-4, 8, 7, 8, 8, 8, '#e8aca6'),
-      box(-2, 9, 15, 4, 3, 1, '#c9827d'), box(-3, 13, 15, 1, 1, 0.3, EYE), box(2, 13, 15, 1, 1, 0.3, EYE)
+      box(-2, 9, 15, 4, 3, 1, '#c9827d'), box(-3, 13, 15, 1, 1, 0.3, EYE), box(2, 13, 15, 1, 1, 0.3, EYE),
+      Object.assign(box(-5.3, 11, -3, 10.6, 3.2, 7, '#6a3e22'), { saddle: true }), Object.assign(box(-5.4, 7, -0.5, 10.8, 4, 1.2, '#3a2a1e'), { saddle: true })
     ],
     COW: [
       box(-6, 0, 4, 4, 12, 4, '#d9d1c3', 'L1'), box(2, 0, 4, 4, 12, 4, '#d9d1c3', 'L2'),
@@ -245,7 +246,7 @@
       if (m.trades && m.age % 6000 === 0) m.trades.forEach(function (t) { t.uses = 0; });   // 村人の品物は時間がたつと補充される
       var dx = p[0] - m.x, dz = p[2] - m.z, dist = Math.hypot(dx, dz), dy = p[1] - m.y;
       // 遠くの敵は消える（Minecraft と同じく 128 ブロックより遠いとすぐ、32 より遠いと少しずつ）
-      if ((T.hostile || T.despawn) && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
+      if ((T.hostile || T.despawn) && !m.name && !m.leash && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
       this.think(m, T, dist, dx, dy, dz);
       this.physics(m, T);
       // 日光で燃える（ゾンビ・スケルトン）
@@ -608,7 +609,7 @@
       if (n > 0) g.spawnItem(key, n, m.x, m.y + 0.3, m.z, 0.1, 10);
     });
     // 経験値（敵は 5、動物は 1〜3）
-    if (g.spawnOrbs && m.type !== 'BAT' && m.type !== 'SQUID' && !m.baby) g.spawnOrbs(m.x, m.y + 0.5, m.z, T.sizes ? m.size : T.hostile ? 5 : 1 + Math.floor(Math.random() * 3));
+    if (g.spawnOrbs && m.type !== 'BAT' && m.type !== 'SQUID' && !m.baby && !T.vehicle) g.spawnOrbs(m.x, m.y + 0.5, m.z, T.sizes ? m.size : T.hostile ? 5 : 1 + Math.floor(Math.random() * 3));
     if (T.rare && Math.random() < (T.rareP || 0.025)) g.spawnItem(T.rare[Math.floor(Math.random() * T.rare.length)], 1, m.x, m.y + 0.3, m.z, 0.1, 10);
     g.puff(m.x, m.y + mh(m) / 2, m.z, [220, 220, 220], 12);
   };
@@ -822,6 +823,7 @@
           if (pi === 4) { c = [214, 200, 180]; pt = { o: [-4.5, 12, -7], s: [9, 8, 14], c: c, sw: null }; }
         }
         if (pt.tame && !m.tame) return;   // 首輪は飼いならしたオオカミだけ
+        if (pt.saddle && !m.saddled) return;   // 鞍
         if (pt.prof && WG.profColor) c = WG.profColor(m, pt.prof);   // 村人の服は職業の色
         if (pt.sw === 'EYE' && m.angry && !m.tame) c = [200, 40, 30];   // 怒ったオオカミの目
         if (red) c = [c[0] + (220 - c[0]) * red, c[1] * (1 - red), c[2] * (1 - red)];
@@ -860,5 +862,6 @@
 
   WG.Mobs = Mobs;
   WG.MOB_TYPES = TYPES;
+  WG.MOB_MODELS = MODELS;
   WG.MOB_ORDER = Object.keys(TYPES);
 })(typeof window !== 'undefined' ? window : globalThis);

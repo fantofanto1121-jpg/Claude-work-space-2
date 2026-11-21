@@ -211,6 +211,27 @@
   ALIAS.NETHER_PORTAL_X = ALIAS.NETHER_PORTAL_Z = 'NETHER_PORTAL';
   // カボチャと、くり抜いたカボチャ（鉄の番人を作るのに使う）
   DEF.push(['PUMPKIN', 'カボチャ', '#d8862a', 'solid'], ['CARVED_PUMPKIN', 'くり抜いたカボチャ', '#d07a22', 'solid']);
+  // ---- 第 2 回：レール・作業ブロック ----
+  // レール：NS・EW はまっすぐ、NE などは曲がり角（2 つの出口）、UN などは北（など）へ上る坂。パワードレールはまっすぐと坂だけ
+  var RAIL_SHAPES = { NS: [[0, -1], [0, 1]], EW: [[1, 0], [-1, 0]], NE: [[0, -1], [1, 0]], NW: [[0, -1], [-1, 0]], SE: [[0, 1], [1, 0]], SW: [[0, 1], [-1, 0]],
+    UN: [[0, -1], [0, 1]], US: [[0, 1], [0, -1]], UE: [[1, 0], [-1, 0]], UW: [[-1, 0], [1, 0]] };
+  var RAIL_INFO = {};
+  Object.keys(RAIL_SHAPES).forEach(function (sh) {
+    DEF.push(['RAIL_' + sh, 'レール', '#8a7a62', 'rail']);
+    RAIL_INFO['RAIL_' + sh] = { shape: sh, exits: RAIL_SHAPES[sh], up: sh[0] === 'U' ? sh[1] : null, powered: false };
+    ALIAS['RAIL_' + sh] = sh[0] === 'U' ? (sh[1] === 'N' || sh[1] === 'S' ? 'RAIL_NS' : 'RAIL_EW') : null;
+    if (!ALIAS['RAIL_' + sh]) delete ALIAS['RAIL_' + sh];
+    if (/^(NS|EW|U.)$/.test(sh)) {
+      DEF.push(['POWERED_RAIL_' + sh, 'パワードレール', '#b08a3a', 'rail']);
+      RAIL_INFO['POWERED_RAIL_' + sh] = { shape: sh, exits: RAIL_SHAPES[sh], up: sh[0] === 'U' ? sh[1] : null, powered: true };
+      if (sh[0] === 'U') ALIAS['POWERED_RAIL_' + sh] = sh[1] === 'N' || sh[1] === 'S' ? 'POWERED_RAIL_NS' : 'POWERED_RAIL_EW';
+    }
+  });
+  WG.RAIL_SHAPES = RAIL_SHAPES;
+  DEF.push(['SMITHING_TABLE', '鍛冶台', '#3a3a44', 'solid'], ['STONECUTTER', '石切台', '#7a7a76', 'cutter'], ['CARTOGRAPHY_TABLE', '製図台', '#6a5038', 'solid'],
+    ['BLAST_FURNACE', '溶鉱炉', '#5a5a5e', 'solid'], ['BLAST_FURNACE_LIT', '溶鉱炉', '#6a5a4e', 'solid'], ['SMOKER', '燻製器', '#5a4a3a', 'solid'], ['SMOKER_LIT', '燻製器', '#6a5040', 'solid'],
+    ['CAMPFIRE', '焚き火', '#8a5a2a', 'campfire', 1], ['ANCIENT_DEBRIS', '古代の残骸', '#5e4a46', 'solid']);
+  for (var cl = 0; cl <= 8; cl++) { DEF.push(['COMPOSTER_' + cl, '堆肥箱', '#8a6a3e', 'composter']); ALIAS['COMPOSTER_' + cl] = 'COMPOSTER'; }
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -342,21 +363,22 @@
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
-  LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
+  LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
+  WG.railInfo = function (id) { return RAIL_INFO[LIST[id].key] || null; }; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
   // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
   var COLLIDE = new Float32Array(N);
   LIST.forEach(function (b) {
     var k = b.kind, key = b.key;
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
-      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : 0;
+      k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -386,7 +408,7 @@
     return [Math.min(P[0][0], P[1][0]), Math.min(P[0][1], P[1][1]), Math.min(P[0][2], P[1][2]), Math.max(P[0][0], P[1][0]), Math.max(P[0][1], P[1][1]), Math.max(P[0][2], P[1][2])].concat(b.slice(6));
   }
   // 7 番目は見た目を借りるブロック、8 番目は光るかどうか
-  function redstoneBoxes(id, k, key) {
+  function redstoneBoxes(id, k, key, forCollide) {
     var on = /_ON$/.test(key), f;
     if (k === 'lever') {
       f = /LEVER_([FNESW])/.exec(key)[1];
@@ -436,6 +458,16 @@
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
     // ランタン：光る胴と、上の金具
     if (k === 'portal') return /_X$/.test(key) ? [[0, 0, 6, 16, 16, 10, B.NETHER_PORTAL_X, 1]] : [[6, 0, 0, 10, 16, 16, B.NETHER_PORTAL_Z, 1]];
+    if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];
+    // 焚き火：交差した 4 本の丸太と、灰の台、上の炎
+    if (k === 'campfire') return forCollide ? [[0, 0, 0, 16, 7, 16]] : [[1, 0, 0, 5, 4, 16, B.OAK_LOG], [11, 0, 0, 15, 4, 16, B.OAK_LOG], [0, 3, 1, 16, 7, 5, B.OAK_LOG], [0, 3, 11, 16, 7, 15, B.OAK_LOG],
+      [5, 0, 5, 11, 1, 11, B.COAL_BLOCK], [4, 4, 4, 12, 15, 12, B.FIRE, 1]];
+    // 堆肥箱：板の箱と、中の堆肥（段階ごとに高くなる）
+    if (k === 'composter') {
+      var lvl = +key.slice(10), cb2 = [[0, 0, 0, 16, 2, 16], [0, 2, 0, 2, 16, 16], [14, 2, 0, 16, 16, 16], [2, 2, 0, 14, 16, 2], [2, 2, 14, 14, 16, 16]];
+      if (lvl > 0) cb2.push([2, 2, 2, 14, 2 + Math.min(7, lvl) * 1.75, 14, lvl >= 8 ? B.WHITE_WOOL : B.DIRT]);
+      return cb2;
+    }
     if (k === 'lantern') return [[5, 0, 5, 11, 7, 11, B.LANTERN, 1], [6, 7, 6, 10, 9, 10, B.LANTERN]];
     return null;
   }
@@ -493,7 +525,7 @@
   function blockBoxes(id, nb, forCollide) {
     var k = KIND[id], key = LIST[id].key, f;
     if (forCollide && NOCOLLIDE[k]) return [];
-    var rb = redstoneBoxes(id, k, key);
+    var rb = redstoneBoxes(id, k, key, forCollide);
     if (rb) return rb;
     if (k === 'farm') return [[0, 0, 0, 16, 15, 16]];
     if (k === 'slab') return /_TOP$/.test(key) ? [[0, 8, 0, 16, 16, 16]] : [[0, 0, 0, 16, 8, 16]];

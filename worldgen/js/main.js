@@ -265,6 +265,7 @@
     burning: function (on) { $('burnView').classList.toggle('on', !!on); },
     inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead'),
     // ポータルで次元を移る：今のゲームを止め、行き先の世界で近くのポータル（なければ新しく作る）の前に立つ
+    labels: $('labels'), heldView: $('heldView'), spyView: $('spyView'),
     travel: function (dim, x, y, z) { setTimeout(function () { travelTo(dim, x, y, z); }, 0); }
   };
   function travelTo(dim, x, y, z) {
@@ -331,7 +332,7 @@
     if (tt) { t += '　' + tt; $('timeNow').textContent = tt; }
     $('hover').textContent = t;
     var mt = game && game.mobs.target, r;
-    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + T.name + (mt.mob.prof && WG.profName ? '・' + WG.profName(mt.mob) : '') + (mt.mob.baby ? '（子ども）' : '') + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + (mt.mob.maxHp || T.hp) + '）'; }
+    if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + (mt.mob.name ? mt.mob.name + '（' + T.name + '）' : T.name) + (mt.mob.prof && WG.profName ? '・' + WG.profName(mt.mob) : '') + (mt.mob.baby ? '（子ども）' : '') + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + (mt.mob.maxHp || T.hp) + '）'; }
     else r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
     setProgress(r);
@@ -381,8 +382,12 @@
     clearTimeout(chatTimer);
     chatTimer = setTimeout(function () { if ($('chat').classList.contains('closed')) $('chat').classList.add('hide'); }, 8000);
   }
+  // 名札などで、文字を 1 行入力してもらう（Enter で cb に渡す）
+  var promptCb = null;
+  gameUI.prompt = function (label, cb) { promptCb = cb; gameUI.openChat(''); $('chatIn').placeholder = label + '（Enter で決定、Esc でやめる）'; };
   gameUI.openChat = function (prefix) {
     var c = $('chat'), inp = $('chatIn');
+    if (!promptCb) inp.placeholder = '/help でコマンドの一覧（Enter で実行、Esc で閉じる）';
     c.classList.remove('hide', 'closed');
     if (locked()) document.exitPointerLock();
     inp.value = prefix || '';
@@ -391,11 +396,12 @@
   function closeChat() { $('chat').classList.add('closed'); $('chatIn').blur(); chatTimer = setTimeout(function () { $('chat').classList.add('hide'); }, 6000); updateWalkCard(); }
   $('chatIn').addEventListener('keydown', function (e) {
     e.stopPropagation();
-    if (e.key === 'Escape') { e.preventDefault(); closeChat(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); promptCb = null; closeChat(); return; }
     if (e.key !== 'Enter') return;
     e.preventDefault();
     var t = this.value.trim();
     closeChat();
+    if (promptCb) { var cb = promptCb; promptCb = null; cb(t); if (game) lockPointer(); return; }
     if (t && game) { chatLog('> ' + t); chatLog(WG.runCommand(game, t)); syncUI(); }
     if (game) lockPointer();
   });

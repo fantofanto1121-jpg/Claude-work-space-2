@@ -42,6 +42,7 @@
   });
   // 道具：ツルハシ・斧・シャベル（素材は板材・丸石・鉄インゴット・金インゴット・ダイヤモンド）
   WG.TOOL_MATS.forEach(function (m) {
+    if (m[7]) return;   // ネザライトは鍛冶台で作る
     SHAPED.push([['###', ' S ', ' S '], { '#': m[6], S: 'STICK' }, m[0] + '_PICKAXE', 1]);
     SHAPED.push([['##', '#S', ' S'], { '#': m[6], S: 'STICK' }, m[0] + '_AXE', 1]);
     SHAPED.push([['#', 'S', 'S'], { '#': m[6], S: 'STICK' }, m[0] + '_SHOVEL', 1]);

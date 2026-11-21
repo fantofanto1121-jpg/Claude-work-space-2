@@ -34,13 +34,13 @@ def make_mirror(key, rows, ramps, extra):
                 g[y][x] = extra[y][x]
     ICONS[key] = render(["".join(r) for r in g], ramps)
 
-for mat, head in [('WOODEN', 'wood'), ('STONE', 'stone'), ('IRON', 'iron'), ('GOLDEN', 'gold'), ('DIAMOND', 'diamond')]:
+for mat, head in [('WOODEN', 'wood'), ('STONE', 'stone'), ('IRON', 'iron'), ('GOLDEN', 'gold'), ('DIAMOND', 'diamond'), ('NETHERITE', 'netherite')]:
     for k, v in defs1.tools(mat, head).items():
         if k.endswith('PICKAXE'):
             make_mirror(k, v[0], v[1], v[3])
         else:
             make(k, (v[0], v[1]))
-for mat, r in [('LEATHER', 'leather'), ('GOLDEN', 'gold'), ('IRON', 'iron'), ('DIAMOND', 'diamond')]:
+for mat, r in [('LEATHER', 'leather'), ('GOLDEN', 'gold'), ('IRON', 'iron'), ('DIAMOND', 'diamond'), ('CHAINMAIL', 'chain'), ('NETHERITE', 'netherite')]:
     for k, v in defs1.armor(mat, r).items():
         make(k, v)
 for k, v in defs1.materials().items():

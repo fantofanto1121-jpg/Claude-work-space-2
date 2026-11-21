@@ -929,6 +929,93 @@ def main():
     for x in (4, 7, 10): face.set(x, 9, hole); face.set(x, 12, glow)
     put('CARVED_PUMPKIN', face, pk_top, pk_top)
 
+    # ---- 第 2 回：レール（切り抜き）----
+    tie, tie_d, iron_c, iron_d, gold_c, gold_d = [124, 92, 58], [88, 64, 40], [196, 196, 200], [120, 120, 126], [236, 196, 64], [160, 120, 30]
+    def rail_straight(ew, powered):
+        im = Img(alpha=True)
+        for y in range(N):
+            for x in range(N):
+                u, v = (y, x) if ew else (x, y)
+                c = None
+                if v % 4 in (1, 2) and 1 <= u <= 14: c = tie if v % 4 == 1 else tie_d
+                if u in (3, 12): c = (gold_c if powered else iron_c)
+                if u in (4, 13): c = (gold_d if powered else iron_d)
+                if powered and u in (7, 8) and v % 4 in (1, 2): c = [200, 40, 30] if u == 7 else [140, 24, 20]
+                if c: im.set(x, y, c)
+        return im
+    def rail_curve(cx, cy):
+        im = Img(alpha=True)
+        for y in range(N):
+            for x in range(N):
+                dx, dy = x + 0.5 - cx, y + 0.5 - cy
+                d = math.hypot(dx, dy); th = math.degrees(math.atan2(abs(dy), abs(dx)))
+                c = None
+                if 2 < d < 15 and (th % 22.5) < 8: c = tie if (th % 22.5) < 4 else tie_d
+                if abs(d - 4.2) < 0.75 or abs(d - 12.6) < 0.75: c = iron_c
+                elif abs(d - 5.1) < 0.45 or abs(d - 13.5) < 0.45: c = iron_d
+                if c: im.set(x, y, c)
+        return im
+    for k, im in [('RAIL_NS', rail_straight(False, False)), ('RAIL_EW', rail_straight(True, False)), ('POWERED_RAIL_NS', rail_straight(False, True)),
+                  ('POWERED_RAIL_EW', rail_straight(True, True)), ('RAIL_NE', rail_curve(16, 0)), ('RAIL_NW', rail_curve(0, 0)),
+                  ('RAIL_SE', rail_curve(16, 16)), ('RAIL_SW', rail_curve(0, 16))]:
+        put(k, im, cut=im)
+    # 作業ブロック
+    stn = stone(col('STONE'), 90)
+    smt = noisy([58, 58, 68], 91, (0.85, 0.95, 1.05, 1.15))
+    for i in range(N): smt.set(i, 0, [96, 96, 110]); smt.set(0, i, [96, 96, 110]); smt.set(i, 15, [30, 30, 36]); smt.set(15, i, [30, 30, 36])
+    sms = planks([110, 76, 48], 92)
+    for x in range(N):
+        for y in range(5): sms.set(x, y, smt.get(x, y))
+    for (x, y) in [(4, 8), (5, 8), (10, 8), (11, 8), (4, 9), (11, 9)]: sms.set(x, y, [40, 40, 46])
+    put('SMITHING_TABLE', sms, smt, planks([110, 76, 48], 93))
+    sct = stn.copy()
+    for x in range(1, 15): sct.set(x, 7, [90, 90, 94]); sct.set(x, 8, [70, 70, 74])
+    scs = stn.copy()
+    for x in range(N): scs.set(x, 7, sc(col('STONE'), 0.7))
+    put('STONECUTTER', scs, sct, stn)
+    ctp = planks([120, 86, 56], 94)
+    for y in range(3, 13):
+        for x in range(3, 13): ctp.set(x, y, [226, 214, 176] if (x + y) % 5 else [196, 180, 140])
+    for (x, y) in [(5, 6), (6, 6), (7, 7), (9, 9), (10, 8), (6, 10)]: ctp.set(x, y, [90, 130, 80])
+    cts = planks([104, 74, 48], 95)
+    for x in range(2, 14): cts.set(x, 2, [226, 214, 176]); cts.set(x, 3, [210, 196, 156])
+    put('CARTOGRAPHY_TABLE', cts, ctp, planks([104, 74, 48], 96))
+    bfs = panel([120, 120, 124], 97, 'noise')
+    bff = bfs.copy()
+    for y in range(7, 14):
+        for x in range(3, 13): bff.set(x, y, [30, 30, 32] if (x % 2 == 0 or y in (7, 13)) else [64, 64, 68])
+    bfl = bff.copy()
+    for y in range(8, 13):
+        for x in range(3, 13):
+            if x % 2: bfl.set(x, y, [255, 170, 60] if y > 9 else [255, 220, 120])
+    put('BLAST_FURNACE', bff, bfs, bfs); put('BLAST_FURNACE_LIT', bfl, bfs, bfs)
+    sml = log_side([84, 62, 40], 98)
+    smf = sml.copy()
+    for y in range(7, 13):
+        for x in range(3, 13): smf.set(x, y, [24, 22, 20] if y > 7 else [60, 60, 64])
+    for x in range(3, 13, 2): smf.set(x, 9, [90, 90, 96])
+    sfl = smf.copy()
+    for y in range(10, 13):
+        for x in range(4, 12): sfl.set(x, y, [255, 160, 50] if (x + y) % 3 else [255, 214, 100])
+    smt2 = panel([70, 70, 74], 99, 'rivet')
+    put('SMOKER', smf, smt2, smt2); put('SMOKER_LIT', sfl, smt2, smt2)
+    put('CAMPFIRE', log_side(col('OAK_LOG'), 100), log_top(col('OAK_LOG'), col('OAK_PLANKS'), 100))
+    ad = Img()
+    for y in range(N):
+        for x in range(N):
+            r = math.hypot(x - 7.5, y - 4.5) if y < 8 else math.hypot(x - 4.5, y - 11.5)
+            k = 0.7 if int(r) % 3 == 0 else 1.0 if int(r) % 3 == 1 else 1.15
+            ad.set(x, y, sc([96, 74, 68], k * (0.95 + 0.1 * ((hsh(101, x, y) % 3) / 2))))
+    adt = Img()
+    for y in range(N):
+        for x in range(N):
+            r = math.hypot(x - 7.5, y - 7.5)
+            adt.set(x, y, sc([96, 74, 68], 0.7 if int(r) % 3 == 0 else 1.05))
+    put('ANCIENT_DEBRIS', ad, adt)
+    cpk = planks([138, 104, 62], 102)
+    for i in range(N): cpk.set(i, 0, sc([138, 104, 62], 0.6)); cpk.set(i, 15, sc([138, 104, 62], 0.6)); cpk.set(0, i, sc([138, 104, 62], 0.6)); cpk.set(15, i, sc([138, 104, 62], 0.6))
+    put('COMPOSTER', cpk)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):
