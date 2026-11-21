@@ -1002,5 +1002,62 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(ok && WG.blockKind(B.VINE_N) === 'vine' && WG.MOB_TYPES.PANDA.drops[0][0] === 'BAMBOO', 'スイカ・アメジストブロック・望遠鏡（アメジストのかけら）・乾燥した昆布・真紅の板材の作業台。つるは登れる。パンダは竹を落とす');
 })();
 
+// ---- 第 6 回：構造物 ----
+(function () {
+  console.log('\n[第 6 回：構造物]');
+  var W = {}, found = {};
+  [['overworld', ['stronghold', 'monument', 'jungle', 'ship', 'mansion']], ['nether', ['fortress', 'bastion']], ['end', ['city']]].forEach(function (d) {
+    var w = W[d[0]] = new WG.World(SEED, d[0]);
+    d[1].forEach(function (k) {
+      var r = WG.locateStructure(w, k, 0, 0, 8);
+      if (!r) { found[k] = null; return; }
+      // 形の一覧と、実際に生成されたチャンクのブロックが合っているか（ランダムに 300 か所）
+      var cells = [];
+      r.plan.vox.forEach(function (m, ck) { var c = ck.split(',').map(Number); m.forEach(function (id, i) { cells.push([c[0] * 16 + (i & 15), r.plan.minY + (i >> 8), c[1] * 16 + ((i >> 4) & 15), id]); }); });
+      var ok = 0, n = Math.min(300, cells.length);
+      for (var j = 0; j < n; j++) { var q = cells[Math.floor(j * cells.length / n)]; if (w.block(q[0], q[1], q[2]) === q[3]) ok++; }
+      found[k] = { r: r, match: ok / n, cells: cells };
+    });
+  });
+  var has = function (k, key) { return found[k] && found[k].cells.some(function (q) { return q[3] === B[key]; }); };
+  var count = function (k, key) { return found[k] ? found[k].cells.filter(function (q) { return q[3] === B[key]; }).length : 0; };
+  var all = Object.keys(found).every(function (k) { return found[k] && found[k].match > 0.97; });
+  check(all, '8 種類の構造物が原点の近くにあり、チャンクに正しく書き込まれる（' + Object.keys(found).map(function (k) { return k + ' ' + (found[k] ? Math.round(found[k].match * 100) + '%' : 'なし'); }).join('、') + '）');
+  check(count('stronghold', 'END_PORTAL_FRAME') + count('stronghold', 'END_PORTAL_FRAME_EYE') === 12 && has('stronghold', 'BOOKSHELF') && has('stronghold', 'SPAWNER') &&
+    count('monument', 'GOLD_BLOCK') === 8 && has('monument', 'SEA_LANTERN') && has('jungle', 'DISPENSER_N') && has('jungle', 'STONE_PRESSURE_PLATE') &&
+    has('ship', 'CHEST') && has('mansion', 'DARK_OAK_STAIRS_S') && has('mansion', 'BED_HEAD_N') + has('mansion', 'BED_HEAD_S') > 0,
+    '要塞（エンドポータルフレーム 12・図書室・スポナー）、海底神殿（金ブロック 8・シーランタン）、寺院の矢の罠、難破船のチェスト、洋館の屋根とベッド');
+  check(has('fortress', 'NETHER_BRICK_FENCE') && has('fortress', 'SPAWNER') && has('fortress', 'NETHER_WART_3') + has('fortress', 'NETHER_BRICK_STAIRS_N') + has('fortress', 'NETHER_BRICK_STAIRS_E') + has('fortress', 'NETHER_BRICK_STAIRS_S') + has('fortress', 'NETHER_BRICK_STAIRS_W') > 0 &&
+    count('bastion', 'GOLD_BLOCK') >= 20 && has('bastion', 'GILDED_BLACKSTONE') && has('city', 'PURPUR_PILLAR') && has('city', 'END_ROD') && has('city', 'ITEM_FRAME_W') && has('city', 'END_GATEWAY'),
+    'ネザー要塞（ネザーレンガの柵・スポナー・ウォート畑か階段）、ピグリンの砦（金ブロック ' + count('bastion', 'GOLD_BLOCK') + '）、エンドシティ（柱・エンドロッド・額縁・帰りのゲートウェイ）');
+  // 初めて読み込むと、スポナーの種類・額縁のエリトラ・住んでいる生き物が置かれる
+  var gn = playGame(W.nether), fp = found.fortress.r.plan, sk = Object.keys(fp.spawners)[0].split(',').map(Number);
+  gn.mobs.populate(sk[0] >> 4, sk[2] >> 4);
+  var spOK = gn.world.spawners.get(sk.join(',')) && gn.world.spawners.get(sk.join(',')).type === 'FIRE_SPIRIT';
+  var ge = playGame(W.end), cp = found.city.r.plan, fr = cp.frames[0];
+  ge.mobs.populate(fr[0] >> 4, fr[2] >> 4);
+  var frOK = ge.world.frames && ge.world.frames.get(fr[0] + ',' + fr[1] + ',' + fr[2]).key === 'ELYTRA';
+  var go = playGame(W.overworld), jp = found.jungle.r.plan, lk = Object.keys(jp.loot)[0].split(',').map(Number);
+  var loot = go.chestAt(lk[0], lk[1], lk[2]), lootOK = loot.some(function (s) { return s; }) && loot.every(function (s) { return !s || WG.STRUCTURE_LOOT.jungle.some(function (l) { return l[0] === s.key; }); });
+  check(spOK && frOK && lootOK, '要塞のスポナーは火の精、果ての船の額縁にエリトラ、寺院のチェストは寺院の中身（' + loot.filter(Boolean).map(function (s) { return s.key + '×' + s.n; }).join(' ') + '）');
+  // 影の目：要塞の方へ飛ぶ。フレームに 12 個はめるとポータルが開く
+  go.setMode('creative'); go.walker.pos = [0.5, 120, 0.5]; go.walker.target = null; go.inv.slots[0] = { key: 'ENDER_EYE', n: 3 }; go.inv.sel = 0; go.entities.length = 0;
+  go.use();
+  var eye = go.entities.filter(function (e) { return e.key === 'ENDER_EYE'; })[0], sh = WG.nearestStronghold(W.overworld.gen, 0, 0);
+  var toward = eye && (eye.vx * (sh.x - 0.5) + eye.vz * (sh.z - 0.5)) > 0;
+  var wf = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), gf = playGame(wf);
+  for (var i = -1; i <= 1; i++) [[i, -2], [i, 2], [-2, i], [2, i]].forEach(function (q) { wf.setBlock(q[0], 11, q[1], B.END_PORTAL_FRAME_EYE); });
+  wf.setBlock(2, 11, 0, B.END_PORTAL_FRAME);
+  gf.inv.slots[0] = { key: 'ENDER_EYE', n: 1 }; gf.inv.sel = 0; gf.walker.target = { id: B.END_PORTAL_FRAME, x: 2, y: 11, z: 0, px: 2, py: 12, pz: 0 };
+  gf.use();
+  var opened = 0; for (var dx = -1; dx <= 1; dx++) for (var dz = -1; dz <= 1; dz++) if (wf.block(dx, 11, dz) === B.END_PORTAL) opened++;
+  check(toward && opened === 9 && WG.Craft.match(['SHADOW_PEARL', 'BLAZE_POWDER', null, null, null, null, null, null, null], 3).key === 'ENDER_EYE',
+    '影の目（影の真珠＋ブレイズパウダー）は要塞（' + sh.x + ', ' + sh.z + '）の方へ飛び、フレーム 12 個にはめるとエンドポータルが開く');
+  // エンドゲートウェイ：入ると外側の島のエンドシティへ
+  ge.walker.pos = [70.5, 70, 0.5]; W.end.setBlock(70, 70, 0, B.END_GATEWAY); ge.gateLock = false; ge.tickExtra();
+  var p = ge.walker.pos, city = WG.nearestEndCity(W.end.gen);
+  check(Math.hypot(p[0], p[2]) > 600 && Math.abs(p[0] - city.x) < 2, 'エンドゲートウェイに入ると、いちばん近いエンドシティ（' + city.x + ', ' + city.z + '）へ移る');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

@@ -1240,6 +1240,94 @@ def main():
             elif h2 < 6: ep.set(x, y, [20, 30, 50])
     put('END_PORTAL', ep)
     put('EMERALD_BLOCK', panel([42, 180, 84], 135, 'facet')); put('NETHERITE_BLOCK', panel([74, 66, 70], 136, 'noise'))
+    # ---- 第 6 回：構造物の建材 ----
+    # 海晶（海底神殿）：色の揺れる青緑、レンガ、暗い海晶、シーランタン
+    pr = Img()
+    f6 = field(180, ((4, 0.5), (2, 0.3), (1, 0.2))); lo6, hi6 = stats(f6)
+    for y in range(N):
+        for x in range(N):
+            v = (f6[y][x] - lo6) / (hi6 - lo6)
+            pr.set(x, y, mixc([84, 150, 140], [120, 176, 150], v) if v < 0.7 else mixc([120, 176, 150], [150, 120, 170], (v - 0.7) * 1.6))
+            if hsh(181, x, y) % 13 == 0: pr.set(x, y, [70, 120, 118])
+    put('PRISMARINE', pr)
+    put('PRISMARINE_BRICKS', bricks([100, 170, 152], 182, [62, 112, 102], 4, 8))
+    dpr = Img()
+    for y in range(N):
+        for x in range(N):
+            e = x % 8 == 0 or y % 8 == 0
+            dpr.set(x, y, [30, 62, 52] if e else sc([52, 96, 80], (1.12 if (x % 8 == 1 or y % 8 == 1) else 0.9 if (x % 8 == 7 or y % 8 == 7) else 1.0) * (0.96 + 0.08 * ((hsh(183, x, y) % 3) / 2))))
+    put('DARK_PRISMARINE', dpr)
+    sl = Img()
+    for y in range(N):
+        for x in range(N):
+            if x in (0, 15) or y in (0, 15): c6 = [130, 170, 160]
+            elif x in (7, 8) or y in (7, 8): c6 = [170, 210, 200]
+            else:
+                qx, qy = (x - 1) % 7, (y - 1) % 7
+                d6 = max(abs(qx - 2.5), abs(qy - 2.5))
+                c6 = [250, 255, 250] if d6 < 1.2 else [220, 240, 232] if d6 < 2.2 else [190, 222, 212]
+            sl.set(x, y, c6)
+    put('SEA_LANTERN', sl)
+    # プルプァ（エンドシティ）：紫の小さなタイル、柱、エンドストーンレンガ、エンドロッド
+    pu = Img()
+    for y in range(N):
+        for x in range(N):
+            tx6, ty6 = x % 4, y % 4
+            k6 = 1.16 if tx6 == 0 or ty6 == 0 else 0.8 if tx6 == 3 or ty6 == 3 else 1.0
+            pu.set(x, y, sc([168, 124, 168], k6 * (0.95 + 0.1 * ((hsh(184, x // 4, y // 4) % 3) / 2))))
+    put('PURPUR_BLOCK', pu)
+    pps = Img()
+    for y in range(N):
+        for x in range(N): pps.set(x, y, sc([170, 128, 170], [0.82, 1.12, 1.0, 0.92][x % 4] * (0.96 + 0.08 * ((hsh(185, x, y) % 3) / 2))))
+    ppt = Img()
+    for y in range(N):
+        for x in range(N):
+            d6 = int(max(abs(x - 7.5), abs(y - 7.5)))
+            ppt.set(x, y, sc([170, 128, 170], 1.14 if d6 % 3 == 0 else 0.86 if d6 % 3 == 2 else 1.0))
+    put('PURPUR_PILLAR', pps, ppt)
+    put('END_STONE_BRICKS', bricks([222, 224, 168], 186, [176, 172, 122], 4, 8))
+    er = Img([236, 230, 220])
+    for y in range(N):
+        for x in range(N): er.set(x, y, sc([240, 234, 224], 1.04 if x % 4 == 1 else 0.92 if x % 4 == 3 else 1.0))
+    put('END_ROD', er)
+    # 石レンガの仲間（要塞）
+    msb = stone_bricks([122, 122, 122], 187)
+    f7 = field(188, ((4, 0.7), (1, 0.3))); lo7, hi7 = stats(f7)
+    for y in range(N):
+        for x in range(N):
+            if (f7[y][x] - lo7) / (hi7 - lo7) > 0.58: msb.set(x, y, sc([84, 116, 56], 0.85 + 0.3 * (hsh(189, x, y) % 3) / 2))
+    put('MOSSY_STONE_BRICKS', msb)
+    csb = stone_bricks([122, 122, 122], 190)
+    cx6, cy6 = 3, 2
+    for (dx6, dy6) in [(0, 0), (1, 1), (1, 2), (2, 3), (3, 3), (3, 4), (4, 5), (4, 6), (5, 7), (6, 8), (6, 9), (5, 10), (6, 11), (7, 12), (8, 13), (8, 5), (9, 4), (10, 4), (11, 3)]:
+        csb.set(cx6 + dx6, cy6 + dy6, [62, 62, 62])
+    put('CRACKED_STONE_BRICKS', csb)
+    chs = Img()
+    for y in range(N):
+        for x in range(N):
+            d6 = max(abs(x - 7.5), abs(y - 7.5))
+            k6 = 1.2 if d6 > 7 and (x == 0 or y == 0) else 0.62 if d6 > 7 else 0.7 if 5 < d6 < 6 else 1.15 if 4.5 < d6 < 5.5 else 0.72 if 2 < d6 < 3 else 1.08 if d6 < 2 else 1.0
+            chs.set(x, y, sc([124, 124, 124], k6 * (0.96 + 0.08 * ((hsh(191, x, y) % 3) / 2))))
+    put('CHISELED_STONE_BRICKS', chs)
+    # ブラックストーン（ピグリンの砦）
+    put('POLISHED_BLACKSTONE_BRICKS', stone_bricks([54, 48, 56], 192))
+    gb = speck([42, 36, 40], 193, [[24, 20, 24], [70, 62, 66]], 24, (0.85, 1.0, 1.15))
+    r6 = random.Random(194)
+    for _ in range(7):
+        x6, y6 = r6.randrange(N), r6.randrange(N)
+        for (dx6, dy6) in [(0, 0), (1, 0), (0, 1), (1, 1)][:r6.randrange(2, 5)]: gb.set(x6 + dx6, y6 + dy6, [236, 186, 60] if (dx6 + dy6) % 2 == 0 else [196, 140, 40])
+    put('GILDED_BLACKSTONE', gb)
+    # 濃いオーク（森の洋館）
+    put('DARK_OAK_PLANKS', planks([74, 48, 24], 195))
+    put('DARK_OAK_LOG', log_side([62, 48, 32], 196), log_top([62, 48, 32], [92, 66, 40], 197))
+    # 目をはめたエンドポータルフレーム
+    eyt = epf_top.copy()
+    for y in range(N):
+        for x in range(N):
+            d6 = math.hypot(x - 7.5, y - 7.5)
+            if d6 < 3.3: eyt.set(x, y, [18, 40, 30] if d6 < 1.3 else [40, 150, 110] if d6 < 2.4 else [26, 90, 66])
+    eyt.set(6, 6, [200, 255, 220])
+    put('END_PORTAL_FRAME_EYE', epf_side, eyt, es)
     # ---- 絵画（このゲームのために描いた絵。大きさごとに 16×16 に分ける）----
     def painting(name, w, h, fn):
         W2, H2 = w * 16, h * 16

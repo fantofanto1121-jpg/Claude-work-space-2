@@ -290,6 +290,23 @@
   for (var st = 0; st < 8; st++) DEF.push(['PUMPKIN_STEM_' + st, 'カボチャの茎', '#7a9a3a', 'crop'], ['MELON_STEM_' + st, 'スイカの茎', '#7a9a3a', 'crop']);
   DIR4.forEach(function (d) { DEF.push(['COCOA_' + d + '_0', 'カカオ', '#8a7a3a', 'cocoa'], ['COCOA_' + d + '_1', 'カカオ', '#a0602a', 'cocoa'], ['VINE_' + d, 'つる', '#3a7a2a', 'vine']); ALIAS['VINE_' + d] = 'VINE'; ALIAS['COCOA_' + d + '_0'] = 'COCOA_0'; ALIAS['COCOA_' + d + '_1'] = 'COCOA_1'; });
   DEF.push(['BEEHIVE', 'ハチの巣箱', '#c8a050', 'solid'], ['BEE_NEST', 'ハチの巣', '#d8b040', 'solid'], ['DARK_SKULL', '黒い頭蓋骨', '#2a2a2c', 'skull'], ['END_PORTAL', 'エンドポータル', '#0a0a14', 'endportal']);
+  // 第 6 回：構造物の建材（海晶・プルプァ・エンドストーンレンガ・石レンガの仲間・ブラックストーンレンガ・濃いオーク）と、その階段とハーフブロック
+  DEF.push(['PRISMARINE', '海晶', '#5c9c8c', 'solid'], ['PRISMARINE_BRICKS', '海晶レンガ', '#64aa98', 'solid'], ['DARK_PRISMARINE', '暗い海晶', '#345e50', 'solid'],
+    ['SEA_LANTERN', 'シーランタン', '#d8ece6', 'solid'], ['PURPUR_BLOCK', 'プルプァブロック', '#a87ca8', 'solid'], ['PURPUR_PILLAR', 'プルプァの柱', '#aa80aa', 'solid'],
+    ['END_STONE_BRICKS', 'エンドストーンレンガ', '#dee0a8', 'solid'], ['END_ROD', 'エンドロッド', '#f0eae0', 'rod'], ['MOSSY_STONE_BRICKS', '苔むした石レンガ', '#6e7a5e', 'solid'],
+    ['CRACKED_STONE_BRICKS', 'ひび割れた石レンガ', '#767676', 'solid'], ['CHISELED_STONE_BRICKS', '模様入りの石レンガ', '#7c7c7c', 'solid'],
+    ['POLISHED_BLACKSTONE_BRICKS', '磨かれたブラックストーンレンガ', '#363038', 'solid'], ['GILDED_BLACKSTONE', '金を含むブラックストーン', '#4a3a28', 'solid'],
+    ['DARK_OAK_PLANKS', '濃いオークの板材', '#4a3018', 'solid'], ['DARK_OAK_LOG', '濃いオークの原木', '#3e3020', 'solid'], ['NETHER_BRICK_FENCE', 'ネザーレンガの柵', '#2f1719', 'fence'],
+    ['END_PORTAL_FRAME_EYE', 'エンドポータルフレーム（目）', '#4f6d60', 'solid'], ['END_GATEWAY', 'エンドゲートウェイ', '#0a0a14', 'gateway']);
+  ALIAS.NETHER_BRICK_FENCE = 'NETHER_BRICKS'; ALIAS.END_GATEWAY = 'END_PORTAL';
+  var SHAPE_MATS6 = [['DARK_OAK', '濃いオークの', 'DARK_OAK_PLANKS', '#4a3018'], ['NETHER_BRICK', 'ネザーレンガの', 'NETHER_BRICKS', '#2f1719'], ['PURPUR', 'プルプァの', 'PURPUR_BLOCK', '#a87ca8'],
+    ['PRISMARINE_BRICK', '海晶レンガの', 'PRISMARINE_BRICKS', '#64aa98'], ['BLACKSTONE_BRICK', 'ブラックストーンレンガの', 'POLISHED_BLACKSTONE_BRICKS', '#363038'], ['END_STONE_BRICK', 'エンドストーンレンガの', 'END_STONE_BRICKS', '#dee0a8']];
+  SHAPE_MATS6.forEach(function (m) {
+    DIR4.forEach(function (d) { ['', '_T'].forEach(function (t) { DEF.push([m[0] + '_STAIRS_' + d + t, m[1] + '階段', m[3], 'stairs']); ALIAS[m[0] + '_STAIRS_' + d + t] = m[2]; }); });
+    DEF.push([m[0] + '_SLAB', m[1] + 'ハーフブロック', m[3], 'slab'], [m[0] + '_SLAB_TOP', m[1] + 'ハーフブロック', m[3], 'slab'], [m[0] + '_SLAB_DOUBLE', m[1] + 'ハーフブロック（2 段）', m[3], 'solid']);
+    ALIAS[m[0] + '_SLAB'] = ALIAS[m[0] + '_SLAB_TOP'] = ALIAS[m[0] + '_SLAB_DOUBLE'] = m[2];
+    SHAPE_MATS.push(m);
+  });
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -425,6 +442,7 @@
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
   LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.END_PORTAL] = 15; LIGHT_EMIT[B.SHROOMLIGHT] = 15; LIGHT_EMIT[B.AMETHYST_CLUSTER] = 5;
+  LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
@@ -443,9 +461,9 @@
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1 };
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -565,6 +583,8 @@
     }
     if (k === 'vine') return [LADDER[FACE_OF[key.slice(-1)]]];
     if (k === 'endportal') return [[0, 0, 0, 16, 12, 16, B.END_PORTAL, 1]];
+    if (k === 'gateway') return [[0, 0, 0, 16, 16, 16, B.END_PORTAL, 1]];
+    if (k === 'rod') return [[6, 0, 6, 10, 1, 10, B.PURPUR_BLOCK], [7, 1, 7, 9, 16, 9, B.END_ROD, 1]];
     if (k === 'beacon') return [[0, 0, 0, 16, 16, 16, B.GLASS], [1, 0, 1, 15, 3, 15, B.OBSIDIAN], [3, 3, 3, 13, 13, 13, B.BEACON, 1]];
     if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];
     // 焚き火：交差した 4 本の丸太と、灰の台、上の炎
