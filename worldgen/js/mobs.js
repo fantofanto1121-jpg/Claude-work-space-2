@@ -43,7 +43,7 @@
     SHEEP: [
       box(-6, 0, 4, 4, 12, 4, '#c8bca9', 'L1'), box(2, 0, 4, 4, 12, 4, '#c8bca9', 'L2'),
       box(-6, 0, -8, 4, 12, 4, '#c8bca9', 'L2'), box(2, 0, -8, 4, 12, 4, '#c8bca9', 'L1'),
-      box(-6, 11, -8, 12, 10, 16, '#eceae4'), box(-3, 16, 6, 6, 6, 8, '#b19f8b'), box(-3.5, 21, 6.5, 7, 2, 6, '#eceae4'),
+      Object.assign(box(-6, 11, -8, 12, 10, 16, '#eceae4'), { wool: true }), box(-3, 16, 6, 6, 6, 8, '#b19f8b'), Object.assign(box(-3.5, 21, 6.5, 7, 2, 6, '#eceae4'), { wool: true }),
       box(-2, 19, 14, 1, 1, 0.3, EYE), box(1, 19, 14, 1, 1, 0.3, EYE)
     ],
     CHICKEN: [
@@ -246,7 +246,7 @@
       if (m.trades && m.age % 6000 === 0) m.trades.forEach(function (t) { t.uses = 0; });   // 村人の品物は時間がたつと補充される
       var dx = p[0] - m.x, dz = p[2] - m.z, dist = Math.hypot(dx, dz), dy = p[1] - m.y;
       // 遠くの敵は消える（Minecraft と同じく 128 ブロックより遠いとすぐ、32 より遠いと少しずつ）
-      if ((T.hostile || T.despawn) && !m.name && !m.leash && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
+      if ((T.hostile || T.despawn) && !T.boss && !m.name && !m.leash && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
       this.think(m, T, dist, dx, dy, dz);
       this.physics(m, T);
       // 日光で燃える（ゾンビ・スケルトン）
@@ -605,7 +605,8 @@
     if (dropOk) T.drops.forEach(function (d) {
       if (m.sheared && d[0] === 'WHITE_WOOL') return;   // 毛を刈った羊は羊毛を落とさない
       var n = d[1] + Math.floor(Math.random() * (d[2] - d[1] + 1 + (m.looting || 0)));   // ドロップ増加で最大が増える
-      var key = m.fire > 0 && WG.Craft.SMELT[d[0]] ? WG.Craft.SMELT[d[0]] : d[0];   // 燃えながら倒れた動物は焼けた肉を落とす
+      var key = m.fire > 0 && WG.Craft.SMELT[d[0]] ? WG.Craft.SMELT[d[0]] : d[0];
+      if (key === 'WHITE_WOOL' && m.color) key = m.color + '_WOOL';   // 燃えながら倒れた動物は焼けた肉を落とす
       if (n > 0) g.spawnItem(key, n, m.x, m.y + 0.3, m.z, 0.1, 10);
     });
     // 経験値（敵は 5、動物は 1〜3）
@@ -824,6 +825,9 @@
         }
         if (pt.tame && !m.tame) return;   // 首輪は飼いならしたオオカミだけ
         if (pt.saddle && !m.saddled) return;   // 鞍
+        if (pt.wool && m.color && WG.woolRGB) c = WG.woolRGB(m.color);   // 羊毛の色
+        if (pt.only && !pt.only(m)) return;   // 種類ごとの出し分け（js/creatures.js）
+        if (pt.tint && m.tint) c = m.tint;
         if (pt.prof && WG.profColor) c = WG.profColor(m, pt.prof);   // 村人の服は職業の色
         if (pt.sw === 'EYE' && m.angry && !m.tame) c = [200, 40, 30];   // 怒ったオオカミの目
         if (red) c = [c[0] + (220 - c[0]) * red, c[1] * (1 - red), c[2] * (1 - red)];

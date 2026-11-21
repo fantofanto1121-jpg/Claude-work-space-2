@@ -827,7 +827,7 @@
       // ハサミで羊の毛を刈る（白の羊毛 1〜3 個）
       if (it.key === 'SHEARS' && mt.type === 'SHEEP' && !mt.sheared) {
         mt.sheared = true;
-        this.spawnItem('WHITE_WOOL', 1 + Math.floor(Math.random() * 3), mt.x, mt.y + 1, mt.z, 0.15, 10);
+        this.spawnItem((mt.color || 'WHITE') + '_WOOL', 1 + Math.floor(Math.random() * 3), mt.x, mt.y + 1, mt.z, 0.15, 10);
         if (surv) this.wearTool(1);
         this.mouseR = this.clickR = false;
         return;

@@ -271,6 +271,8 @@
   DEF.push(['BEACON', 'ビーコン', '#9ae0e0', 'beacon'], ['LOOM', '機織り機', '#a08a6a', 'solid'], ['BARREL', '樽', '#7a5a35', 'solid'],
     ['SHELL_BOX', '貝の箱', '#8a6a9a', 'solid'], ['LINKED_CHEST', 'つながったチェスト', '#2a3a3a', 'solid'],
     ['EMERALD_BLOCK', 'エメラルドブロック', '#2ab454', 'solid'], ['NETHERITE_BLOCK', 'ネザライトブロック', '#4a4246', 'solid']);
+  // ---- 第 4 回：ハチの巣、黒い頭蓋骨（三つ首の骸を呼ぶ）、帰りの門（エンドポータル）----
+  DEF.push(['BEEHIVE', 'ハチの巣箱', '#c8a050', 'solid'], ['BEE_NEST', 'ハチの巣', '#d8b040', 'solid'], ['DARK_SKULL', '黒い頭蓋骨', '#2a2a2c', 'skull'], ['END_PORTAL', 'エンドポータル', '#0a0a14', 'endportal']);
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -402,7 +404,7 @@
   LIGHT_EMIT[B.FIRE] = 15; EMIT[B.FIRE] = 1;
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
-  LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.LINKED_CHEST] = 7;
+  LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.END_PORTAL] = 15; LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
   WG.railInfo = function (id) { return RAIL_INFO[LIST[id].key] || null; }; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
@@ -413,16 +415,16 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1 };
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -531,6 +533,8 @@
       else if (pk2 === 'CACTUS') pot.push([6, 6, 6, 10, 15, 10, B.CACTUS]);
       return pot;
     }
+    if (k === 'skull') return [[4, 0, 4, 12, 8, 12]];
+    if (k === 'endportal') return [[0, 0, 0, 16, 12, 16, B.END_PORTAL, 1]];
     if (k === 'beacon') return [[0, 0, 0, 16, 16, 16, B.GLASS], [1, 0, 1, 15, 3, 15, B.OBSIDIAN], [3, 3, 3, 13, 13, 13, B.BEACON, 1]];
     if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];
     // 焚き火：交差した 4 本の丸太と、灰の台、上の炎

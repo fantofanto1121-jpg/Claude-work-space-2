@@ -82,6 +82,10 @@
   #toast.on { opacity: 1; }
   /* 生き物の名前（名札）、持っている地図・コンパス・時計、望遠鏡の縁 */
   #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #bossbar { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); width: min(420px, 70%); text-align: center; pointer-events: none; }
+  #bossbar b { display: block; color: #f2eee6; font-size: 13px; font-weight: 600; text-shadow: 1px 1px 0 #000; margin-bottom: 3px; }
+  #bossbar span { display: block; height: 8px; background: #2a1a2e; border: 1px solid #0c080e; }
+  #bossbar i { display: block; height: 100%; width: 100%; background: linear-gradient(#e070f0, #a030c0); }
   #labels .signtext { background: none; color: #2a1a0c; font-weight: 700; text-align: center; line-height: 1.15; white-space: pre; padding: 0; }
   #labels div { position: absolute; left: 0; top: 0; padding: 1px 6px; background: rgba(0, 0, 0, 0.42); color: #f2f0ea; font-size: 12px; border-radius: 2px; white-space: nowrap; }
   #spyView { position: absolute; inset: 0 0 28px 0; pointer-events: none; opacity: 0; transition: opacity 0.15s;
@@ -318,6 +322,7 @@
     <div id="effects"></div>
     <div id="toast"></div>
     <div id="labels"></div>
+    <div id="bossbar" class="hide"><b></b><span><i></i></span></div>
     <div id="spyView"></div>
     <div id="heldView"></div>
     <div id="chat" class="hide"><div id="chatLog"></div><input id="chatIn" autocomplete="off" spellcheck="false" placeholder="/help でコマンドの一覧（Enter で実行、Esc で閉じる）"></div>
@@ -377,6 +382,7 @@
 <script src="js/gear.js"></script>
 <script src="js/workblocks.js"></script>
 <script src="js/deco.js"></script>
+<script src="js/creatures.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

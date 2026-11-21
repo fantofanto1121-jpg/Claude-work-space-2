@@ -125,3 +125,22 @@ ROCKET = ['................', '................', '.........kk.....', '........R
           '.....RRR........', '....S...........', '...S............', '..S.............', '.S..............']
 D['FIREWORK_ROCKET'] = (ROCKET, {'R': ramp_from('#c8302a'), 'S': H}, {'k': '#e8e0c8'})
 D['FIREWORK_ROCKET_COLOR'] = (ROCKET, {'R': ramp_from('#c8302a'), 'S': H}, {'k': '#ffd040', 'b': '#60c0ff', 'g': '#80f070'}, [(9, 2, 'b'), (10, 2, 'g')])
+
+# ---- 第 4 回：生き物の卵と、新しいアイテム ----
+EGGS4 = {'HORSE': ('#8a5a32', '#e8d8b0'), 'DONKEY': ('#8a7a6a', '#4a3e34'), 'CAMEL': ('#d0ac72', '#8a6a3a'), 'CAT': ('#e8c890', '#8a6a4a'), 'FOX': ('#e07a30', '#f0e8e0'),
+         'GOAT': ('#e8e4d8', '#8a8070'), 'TURTLE': ('#3a6a3a', '#a8d0a0'), 'BEE': ('#f0c030', '#2a2418'), 'FISH': ('#a49476', '#e8a050'), 'PARROT': ('#d83a2a', '#3a6ad8'),
+         'PANDA': ('#f2f2ee', '#202020'), 'POLAR_BEAR': ('#f2f2ec', '#b8b8b0'), 'DROWNED': ('#5a8a8a', '#8ac0b8'), 'HUSK': ('#8a7650', '#c8b07a'), 'PILLAGER': ('#4a4a52', '#a89a8a'),
+         'NIGHT_RAY': ('#3a4a7a', '#80f080'), 'EYE_FISH': ('#5a9a8a', '#e8a050'), 'DEEP_WARDEN': ('#203840', '#60f0f0'), 'PIGLIN': ('#e8a898', '#e8c040'), 'HOGLIN': ('#9a6a4a', '#f0e8d0'),
+         'STRIDER': ('#b04a3a', '#5a2a24'), 'FIRE_SPIRIT': ('#f0c040', '#e8901a'), 'WAILER': ('#eceae6', '#b8d8e8'), 'DARK_SKELETON': ('#262628', '#5a5a60'), 'SHADOW': ('#181818', '#c060e8'),
+         'SHELL_GUARD': ('#9a7aaa', '#e8e0a0'), 'END_DRAGON': ('#1c1c22', '#c060f0'), 'SKULL_BOSS': ('#262628', '#e0e0f0')}
+for k, (a, b) in EGGS4.items():
+    D['SPAWN_EGG_' + k] = (EGG, {'A': ramp_from(a), 'B': ramp_from(b)}, {}, [], [(x, y, 'B') for x, y in SPOTS])
+D['HONEY_BOTTLE'] = (['................', '.......NN.......', '.......NN.......', '......GGGG......', '......GHHG......', '.....GHHHHG.....', '....GHHHHHHG....', '...GHHHHHHHHG...',
+                      '...GHHHHHHHHG...', '...GHHHHHHHHG...', '....GHHHHHHG....', '.....GGGGGG.....'], {'G': RR['glass'], 'H': ramp_from('#e8a020'), 'N': W})
+D['HONEYCOMB'] = (['................', '................', '.....AAAAA......', '....AABAABA.....', '...AABAAABAA....', '...ABAAABAAAA...', '...AAABAAABAA...', '...AABAAABAA....',
+                   '....AAABAAA.....', '.....AAAAA......'], {'A': ramp_from('#e8a828'), 'B': ramp_from('#b07818')})
+D['PHANTOM_MEMBRANE'] = (['................', '................', '..AA........AA..', '..AAAA....AAAA..', '...AAAAAAAAAA...', '....AAAAAAAA....', '....AAAAAAAA....', '...AAAAAAAAAA...',
+                          '..AAAA....AAAA..', '..AA........AA..'], {'A': ramp_from('#c8c0b0')})
+D['PRISMARINE_SHARD'] = (['................', '..........AA....', '.........AAAA...', '........AAAA....', '.......AAAA.....', '......AAAA......', '.....AAAA.......', '....AAAA........',
+                          '...AAAA.........', '...AAA..........', '....A...........'], {'A': ramp_from('#5aa898')})
+D['SHADOW_PEARL'] = (SLIMEBALL if 'SLIMEBALL' in dir() else ROUND, {'A': ramp_from('#2a6a62')}, {'w': '#a8f0e0', 'k': '#0a2a28'}, [(5, 5, 'w'), (6, 4, 'w'), (9, 8, 'k'), (8, 9, 'k')])

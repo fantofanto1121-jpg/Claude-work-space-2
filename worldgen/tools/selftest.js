@@ -865,5 +865,94 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(up > 20 && np > 60 && g.rockets.length === 0, '花火：' + Math.round(up - 11) + ' ブロック上がってから、' + np + ' 粒の色の花火が開く');
 })();
 
+// 第 4 回：動物・敵・ボス
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.GRASS : 0; }), g = playGame(w), i, rnd = Math.random;
+  g.setMode('survival'); g.walker.pos = [0.5, 11, 0.5]; g.walker.prev = g.walker.pos.slice();
+  var hold = function (k, n) { g.inv.slots[0] = k ? { key: k, n: n || 1 } : null; g.inv.sel = 0; };
+  // 馬：何度か乗るとなつき、鞍を付けると W で走る
+  var horse = g.mobs.spawn('HORSE', 5.5, 11, 0.5); horse.rideK = 0.3;
+  hold(null); g.mobs.target = { mob: horse }; Math.random = function () { return 0.1; }; g.use();
+  for (i = 0; i < 45 && !horse.tame; i++) g.walker.tick();
+  Math.random = rnd;
+  var tamed = horse.tame;
+  if (g.riding) { g.walker.keys.ShiftLeft = true; g.walker.tick(); g.walker.keys.ShiftLeft = false; }
+  hold('SADDLE'); g.mobs.target = { mob: horse }; g.use(); hold(null); g.use();
+  g.walker.yaw = -Math.PI / 2; g.walker.keys.KeyW = true; var x0 = horse.x;
+  for (i = 0; i < 40; i++) g.walker.tick();
+  g.walker.keys.KeyW = false;
+  var ran = horse.x - x0;
+  g.walker.keys.ShiftLeft = true; g.walker.tick(); g.walker.keys.ShiftLeft = false; g.mobs.target = null;
+  check(tamed && horse.saddled && ran > 5, '馬：乗って暴れるのをなつけ、鞍を付けて W で走る（2 秒で ' + ran.toFixed(1) + ' ブロック）');
+  // 羊の色：染めて、刈ると色の羊毛
+  var sheep = g.mobs.spawn('SHEEP', 0.5, 11, 5.5); sheep.color = null;
+  hold('BLUE_DYE'); g.mobs.target = { mob: sheep }; g.use(); hold('SHEARS'); g.use(); g.mobs.target = null;
+  var blueWool = g.entities.some(function (e) { return e.key === 'BLUE_WOOL'; });
+  var colored = 0; for (i = 0; i < 2000; i++) { var sp = g.mobs.spawn('SHEEP', 50, 11, 50); if (sp.color) colored++; }
+  g.mobs.list.length = 0;
+  check(sheep.color === 'BLUE' && blueWool && colored > 280 && colored < 450, '羊：染料で青に染まり、刈ると青の羊毛。生まれる羊の ' + (colored / 20).toFixed(1) + '% が白以外（本家は 18%）');
+  // 敵が撃つもの：略奪者の矢、火の精の火の玉、泣き霊の爆発する火の玉、貝の番人の弾（浮遊）、黒い骸骨（衰弱）
+  var shots = {};
+  ['PILLAGER', 'FIRE_SPIRIT', 'WAILER', 'SHELL_GUARD'].forEach(function (t) {
+    g.mobs.list.length = 0; g.mobs.arrows.length = 0; g.mobs.shots = []; g.mobs.fired = 0; g.dead = false; g.health = 20;
+    var m = g.mobs.spawn(t, 8.5, t === 'WAILER' ? 20 : 11, 0.5); m.ai.cd = 0;
+    for (i = 0; i < 40; i++) g.tick();
+    shots[t] = g.mobs.fired;
+  });
+  g.mobs.list.length = 0; g.mobs.shots = []; g.dead = false; g.health = 20; Object.keys(g.effects).forEach(function (k) { delete g.effects[k]; });
+  g.walker.pos = [0.5, 11, 0.5]; g.walker.prev = g.walker.pos.slice(); g.walker.vel = [0, 0, 0];
+  var ds = g.mobs.spawn('DARK_SKELETON', 1.5, 11, 0.5); ds.ai.cd = 0;
+  for (i = 0; i < 30; i++) g.tick();
+  check(shots.PILLAGER > 0 && shots.FIRE_SPIRIT > 0 && shots.WAILER > 0 && shots.SHELL_GUARD > 0 && g.effects.WITHER,
+    '敵：2 秒の間に、略奪者（矢 ' + shots.PILLAGER + '）・火の精（火の玉 ' + shots.FIRE_SPIRIT + '）・泣き霊（' + shots.WAILER + '）・貝の番人（' + shots.SHELL_GUARD + '）が撃ち、黒い骸骨に叩かれると衰弱');
+  g.mobs.list.length = 0; g.mobs.shots = []; g.health = 20; Object.keys(g.effects).forEach(function (k) { delete g.effects[k]; });
+  // 影の長足：頭を見つめると怒る
+  var sh = g.mobs.spawn('SHADOW', 0.5, 11, -8.5);
+  g.walker.eye = [0.5, 12.6, 0.5]; var hd = [0, sh.y + 2.6 - 12.6, -9], hl = Math.hypot(hd[0], hd[1], hd[2]); g.walker.dir = [hd[0] / hl, hd[1] / hl, hd[2] / hl];
+  g.mobs.think(sh, WG.MOB_TYPES.SHADOW, 9, 0, 0, 9);
+  var angry = sh.angry;
+  g.mobs.list.length = 0;
+  // 豚人：金の防具なら襲わず、金インゴットで取引する
+  g.armor[0] = { key: 'GOLDEN_HELMET', n: 1 };
+  var pg = g.mobs.spawn('PIGLIN', 1.8, 11, 0.5); g.health = 20;
+  for (i = 0; i < 40; i++) g.tick();
+  var friendly = g.health === 20;
+  hold('GOLD_INGOT'); g.mobs.target = { mob: pg }; g.use(); g.mobs.target = null;
+  var n0 = g.entities.length; for (i = 0; i < 125; i++) g.tick();
+  var bartered = g.entities.length > n0;
+  g.armor[0] = null; g.mobs.list.length = 0;
+  check(angry && friendly && bartered, '影の長足は頭を見つめると怒る。豚人は金の防具を着ていると襲わず、金インゴットと何かを交換する');
+  // 三つ首の骸：ソウルサンドの T と黒い頭蓋骨 3 つで呼び、倒すとネザースター
+  w.setBlock(20, 11, 0, B.SOUL_SAND); [19, 20, 21].forEach(function (x) { w.setBlock(x, 12, 0, B.SOUL_SAND); w.setBlock(x, 13, 0, B.DARK_SKULL); });
+  var made = g.trySkullBoss(21, 13, 0), boss = g.mobs.list.filter(function (m) { return m.type === 'SKULL_BOSS'; })[0];
+  g.mobs.hurt(boss, 1000, null); for (i = 0; i < 25; i++) g.tick();
+  var star = g.entities.some(function (e) { return e.key === 'NETHER_STAR'; });
+  check(made && boss && boss.maxHp === 300 && star && w.block(20, 12, 0) === B.AIR, '三つ首の骸：ソウルサンドの T の上に黒い頭蓋骨 3 つで現れ（体力 300）、倒すとネザースターを落とす');
+  // 果ての竜：エンドに入ると現れ、倒すと帰りの門
+  var we = flatWorld(function (x, y, z) { return y <= 60 ? B.END_STONE : 0; }); we.dimKey = 'end';
+  var ge = playGame(we); ge.mobs.spawnTick = WG.Mobs.prototype.spawnTick; ge.walker.pos = [10.5, 61, 0.5]; ge.sky = function () { return null; };
+  for (i = 0; i < 50; i++) ge.tick();
+  var dragon = ge.mobs.list.filter(function (m) { return m.type === 'END_DRAGON'; })[0];
+  if (dragon) { ge.mobs.hurt(dragon, 1000, null); for (i = 0; i < 25; i++) ge.tick(); }
+  check(dragon && dragon.maxHp === 200 && we.dragonDead && we.block(0, 61, 0) === B.END_PORTAL, '果ての竜：エンドに入ると現れ（体力 200）、倒すと島の中心に帰りの門（エンドポータル）ができる');
+  // ハチの巣：はちみつがたまると瓶ではちみつ、ハチは怒る。猫は魚でなつく。魚は群れで泳ぐ
+  g.mobs.list.length = 0;
+  w.setBlock(30, 11, 0, B.BEEHIVE); w.hives = new Map([['30,11,0', { honey: 5 }]]); var bee = g.mobs.spawn('BEE', 30.5, 13, 2.5);
+  hold('GLASS_BOTTLE'); g.walker.target = { id: B.BEEHIVE, x: 30, y: 11, z: 0, px: 30, py: 11, pz: -1 }; g.use();
+  var honey = g.inv.slots.some(function (s) { return s && s.key === 'HONEY_BOTTLE'; }) && bee.angry;
+  var cat = g.mobs.spawn('CAT', 2.5, 11, 2.5); hold('COD', 10); g.mobs.target = { mob: cat };
+  for (i = 0; i < 10 && !cat.tame; i++) g.use();
+  g.mobs.target = null;
+  var wwf = flatWorld(function (x, y, z) { return y <= 2 ? B.STONE : y <= 20 ? B.WATER : 0; }), gw = playGame(wwf); gw.mobs.spawnTick = WG.Mobs.prototype.spawnTick; gw.walker.pos = [0.5, 21, 0.5]; gw.sky = function () { return { dark: 0 }; };
+  for (i = 0; i < 300; i++) gw.tick();
+  var fish = gw.mobs.list.filter(function (m) { return m.type === 'FISH'; }), led = fish.filter(function (m) { return m.lead; }).length;
+  check(honey && cat.tame && fish.length >= 3 && led >= 2, 'ハチの巣箱から瓶ではちみつ（ハチが怒る）、猫は生のタラでなつく、魚は群れで泳ぐ（' + fish.length + ' 匹、うち ' + led + ' 匹が先頭について行く）');
+  // 深淵の番人：近くで歩く音を聞きつけて、強く叩く
+  g.mobs.list.length = 0; g.health = 20; g.walker.pos = [0.5, 11, 0.5]; g.walker.vel = [0.1, 0, 0]; g.walker.sneak = false;
+  var wd2 = g.mobs.spawn('DEEP_WARDEN', 1.8, 11, 0.5);
+  for (i = 0; i < 30; i++) { g.walker.vel = [0.1, 0, 0]; g.tick(); }
+  check(wd2.ai.heard > 0 && g.health <= 0 || g.dead, '深淵の番人：歩く音を聞きつけ、叩かれると 30 のダメージ（体力 20 では倒れる）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

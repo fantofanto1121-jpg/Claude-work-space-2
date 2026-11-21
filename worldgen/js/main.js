@@ -265,16 +265,31 @@
     burning: function (on) { $('burnView').classList.toggle('on', !!on); },
     inv: $('inv'), invTitle: $('invTitle'), invBody: $('invBody'), cursor: $('cursorItem'), dead: $('dead'),
     // ポータルで次元を移る：今のゲームを止め、行き先の世界で近くのポータル（なければ新しく作る）の前に立つ
-    labels: $('labels'), heldView: $('heldView'), spyView: $('spyView'),
-    travel: function (dim, x, y, z) { setTimeout(function () { travelTo(dim, x, y, z); }, 0); }
+    labels: $('labels'), heldView: $('heldView'), spyView: $('spyView'), bossbar: $('bossbar'),
+    travel: function (dim, x, y, z, kind) { setTimeout(function () { travelTo(dim, x, y, z, kind); }, 0); }
   };
-  function travelTo(dim, x, y, z) {
+  function travelTo(dim, x, y, z, kind) {
     if (!game) return;
     var mode = game.gameMode || game.mode;
     stopWalk();
     state.dim = dim; state.cx = Math.round(x); state.cz = Math.round(z);
     $('cx').value = state.cx; $('cz').value = state.cz;
-    var a = WG.portalArrival(world(), x, z, y);
+    // エンドポータル：エンドへは黒曜石の足場（100, 49, 0）、地上へは世界の出発点
+    var a;
+    if (kind === 'end' && dim === 'end') {
+      var we = world();
+      for (var px = 98; px <= 102; px++) for (var pz = -2; pz <= 2; pz++) { we.setBlock(px, 48, pz, WG.B.OBSIDIAN); for (var py = 49; py <= 51; py++) we.setBlock(px, py, pz, WG.B.AIR); }
+      a = { pos: [100.5, 49, 0.5], yaw: Math.PI / 2 };
+    } else if (kind === 'end') {
+      var sp = world().spawn || [0, 0, 0];
+      a = { pos: null, yaw: 0, cx: sp[0], cz: sp[2] };
+    } else a = WG.portalArrival(world(), x, z, y);
+    if (!a.pos) {
+      state.cx = Math.round(a.cx); state.cz = Math.round(a.cz); $('cx').value = state.cx; $('cz').value = state.cz;
+      gameMode = mode; startWalk(); if (game) game.portalLock = true; syncUI();
+      if (gameUI.toast) gameUI.toast(WG.DIMS[dim].name + 'へ戻りました');
+      return;
+    }
     state.cx = Math.round(a.pos[0]); state.cz = Math.round(a.pos[2]);
     gameMode = mode;
     startWalk();

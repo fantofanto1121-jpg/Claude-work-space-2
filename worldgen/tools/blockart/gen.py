@@ -1097,6 +1097,34 @@ def main():
         for x in range(N): lc.set(x, y, [20, 30, 32])
     for (x, y) in [(7, 6), (8, 6), (7, 7), (8, 7), (7, 8), (8, 8)]: lc.set(x, y, [90, 220, 190])
     put('LINKED_CHEST', lc, panel([34, 48, 50], 134, 'dots'))
+    # 第 4 回：ハチの巣箱・ハチの巣・黒い頭蓋骨・エンドポータル
+    hv_s = planks([196, 156, 84], 140); hv_f = hv_s.copy()
+    for y in range(8, 12):
+        for x in range(5, 11): hv_f.set(x, y, [60, 40, 20] if y > 8 else [140, 100, 50])
+    hv_t = Img()
+    for y in range(N):
+        for x in range(N): hv_t.set(x, y, [236, 190, 70] if (x + 2 * (y % 2)) % 4 else [200, 150, 50])
+    put('BEEHIVE', hv_f, hv_t, planks([196, 156, 84], 141))
+    bn = Img()
+    for y in range(N):
+        for x in range(N):
+            k2 = 1.1 if (x // 3 + y // 2) % 3 == 0 else 0.92
+            bn.set(x, y, sc([216, 176, 64], k2 * (0.95 + 0.1 * ((hsh(142, x, y) % 3) / 2))))
+    for (x, y) in [(4, 5), (5, 5), (10, 9), (11, 9), (6, 11), (7, 11)]: bn.set(x, y, [70, 46, 20])
+    put('BEE_NEST', bn)
+    sk = Img()
+    for y in range(N):
+        for x in range(N): sk.set(x, y, sc([46, 46, 50], 0.9 + 0.2 * ((hsh(143, x, y) % 3) / 2)))
+    for (x, y) in [(4, 6), (5, 6), (4, 7), (5, 7), (10, 6), (11, 6), (10, 7), (11, 7), (7, 10), (8, 10), (5, 12), (7, 12), (9, 12), (11, 12)]: sk.set(x, y, [12, 12, 14])
+    put('DARK_SKULL', sk, noisy([46, 46, 50], 144, (0.9, 1.0, 1.1)))
+    ep = Img([8, 8, 18])
+    for y in range(N):
+        for x in range(N):
+            h2 = hsh(145, x, y) % 29
+            if h2 == 0: ep.set(x, y, [200, 240, 230])
+            elif h2 < 3: ep.set(x, y, [40, 90, 90])
+            elif h2 < 6: ep.set(x, y, [20, 30, 50])
+    put('END_PORTAL', ep)
     put('EMERALD_BLOCK', panel([42, 180, 84], 135, 'facet')); put('NETHERITE_BLOCK', panel([74, 66, 70], 136, 'noise'))
     # ---- 絵画（このゲームのために描いた絵。大きさごとに 16×16 に分ける）----
     def painting(name, w, h, fn):
