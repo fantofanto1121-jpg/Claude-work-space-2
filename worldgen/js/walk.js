@@ -506,7 +506,7 @@
     var far = RADIUS * 16, fp = { eye: eye, yaw: this.yaw, pitch: this.pitch, fov: FOV * this.fovK, far: far + 32, fogNear: far * 0.55, fogFar: far - 4 };
     // 昼と夜（空の色、空の光の弱まり、太陽・月・星）
     var sky = this.hooks.sky ? this.hooks.sky(dt) : null;
-    if (sky) { fp.skyTop = sky.top; fp.skyLow = sky.low; fp.skyFog = sky.fog; fp.skyDark = sky.dark; fp.skyTint = sky.tint; fp.celestial = sky.celestial; }
+    if (sky) { fp.skyTop = sky.top; fp.skyLow = sky.low; fp.skyFog = sky.fog; fp.skyDark = sky.dark; fp.skyTint = sky.tint; fp.celestial = sky.celestial; if (sky.fogK) { fp.fogNear *= sky.fogK; fp.fogFar *= 0.55 + 0.45 * sky.fogK; } }
     this.view.ambient = this.nightVision ? 0.9 : WG.AMBIENT[this.world.dimKey] || 0;   // 暗視：暗い所もよく見える
     if (WG.isWater(eyeId)) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
     else if (WG.isLava(eyeId)) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }

@@ -239,3 +239,10 @@ DISC = ['................', '.....AAAAAA.....', '...AAAAAAAAAA...', '..AAAAAAAAA
         '.AAAALLkkLLAAAA.', '.AAAALLLLLLAAAA.', '.AAAAALLLLAAAAA.', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '...AAAAAAAAAA...', '.....AAAAAA.....']
 for dk, lc in [('MEADOW', '#7ac850'), ('DRIP', '#4a8ad8'), ('FORGE', '#e0602a'), ('STARS', '#b878e8'), ('MARKET', '#e8c040')]:
     D['MUSIC_DISC_' + dk] = (DISC, {'A': ramp_from('#26262c'), 'L': ramp_from(lc)}, {'k': '#0a0a0c', 'g': '#4a4a56'}, [(4, 3, 'g'), (3, 4, 'g'), (11, 12, 'g'), (12, 11, 'g')])
+
+# ---- 第 A3 回：大釜・避雷針 ----
+D['CAULDRON'] = (['................', '................', '.AAAAAAAAAAAAAA.', '.AkkkkkkkkkkkkA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.',
+                  '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '..AAAAAAAAAAAA..', '..AAA......AAA..', '..AA........AA..', '..AA........AA..'], {'A': ramp_from('#4a4a52')}, {'k': '#141418', 'r': '#8a8a94'},
+                [(3, 6, 'r'), (12, 6, 'r'), (3, 9, 'r'), (12, 9, 'r')])
+D['LIGHTNING_ROD'] = (['................', '......AAAA......', '......AAAA......', '......AAAA......', '......AAAA......', '.......AA.......', '.......AA.......', '.......AA.......',
+                       '.......AA.......', '.......AA.......', '.......AA.......', '.......AA.......', '.......AA.......', '.......AA.......', '.......AA.......'], {'A': ramp_from('#c8744e')}, {'w': '#ffd8b8'}, [(6, 1, 'w')])

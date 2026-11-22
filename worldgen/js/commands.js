@@ -60,7 +60,7 @@
     '/gamemode <survival|creative|adventure|spectator>', '/time set <day|noon|night|midnight|数> ・ /time add <数>', '/tp <x> <y> <z>',
     '/give <アイテム> [個数]', '/summon <生き物> [x y z]', '/kill [@e|@e[type=生き物]]', '/effect give <効果> [秒] [強さ] ・ /effect clear',
     '/xp add <数> [levels|points]', '/clear [アイテム] [個数]', '/setblock <x> <y> <z> <ブロック>', '/fill <x1> <y1> <z1> <x2> <y2> <z2> <ブロック>',
-    '/locate <village|stronghold|monument|jungle_pyramid|shipwreck|mansion|desert_pyramid|fortress|bastion|end_city>', '/seed',
+    '/weather <clear|rain|thunder> [秒]', '/locate <village|stronghold|monument|jungle_pyramid|shipwreck|mansion|desert_pyramid|fortress|bastion|end_city>', '/seed',
     '（@s・@p は書いても書かなくても同じです）'
   ];
 

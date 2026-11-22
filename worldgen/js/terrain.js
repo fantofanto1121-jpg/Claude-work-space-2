@@ -121,6 +121,19 @@
     if ((mb === 'plains' || mb === 'forest' || mb === 'taiga' || mb === 'savanna') && R(200) < 1 / 30) {
       for (k = 0; k < 12; k++) { var px = 3 + Math.floor(R(201 + k) * 10), pz = 3 + Math.floor(R(220 + k) * 10), ph = grassTop(px, pz); if (ph != null) set(px, ph + 1, pz, B.PUMPKIN); }
     }
+    // 花の種類をバイオームごとに（タンポポ・ポピーの一部を置きかえる）、タイガとジャングルのシダ、砂漠の枯れ木
+    var FLOWERS = { plains: ['OXEYE_DAISY', 'AZURE_BLUET', 'CORNFLOWER', 'RED_TULIP', 'ORANGE_TULIP', 'WHITE_TULIP', 'PINK_TULIP'], forest: ['LILY_OF_THE_VALLEY', 'ALLIUM', 'CORNFLOWER', 'OXEYE_DAISY'],
+      swamp: ['BLUE_ORCHID', 'BLUE_ORCHID', 'BLUE_ORCHID'], taiga: ['CORNFLOWER', 'LILY_OF_THE_VALLEY'], savanna: ['AZURE_BLUET', 'OXEYE_DAISY'], jungle: ['ALLIUM'] };
+    for (i = 0; i < 256; i++) {
+      var fh = hmap[i] + 1, fid = bl[idx(i, fh)], fb = bkey(biome[i]), fr = rnd(seed, x0 + (i & 15), fh, z0 + (i >> 4), 778);
+      if (fh >= MINY + H) continue;
+      if ((fid === B.DANDELION || fid === B.POPPY) && FLOWERS[fb] && fr < 0.6) {
+        var fl = FLOWERS[fb], pick = fl[Math.floor(rnd(seed, x0 + (i & 15), 3, z0 + (i >> 4), 779) * fl.length)];
+        if (/TULIP/.test(pick)) pick = ['RED_TULIP', 'ORANGE_TULIP', 'WHITE_TULIP', 'PINK_TULIP'][Math.floor(rnd(seed, cx, 5, cz, 780) * 4)];   // チューリップは区画ごとに色をそろえる
+        bl[idx(i, fh)] = B[pick];
+      } else if (fid === B.SHORT_GRASS && (fb === 'taiga' || fb === 'jungle') && fr < 0.35) bl[idx(i, fh)] = B.FERN;
+      else if (fid === B.AIR && fb === 'desert' && bl[idx(i, fh - 1)] === B.SAND && fr < 0.012) bl[idx(i, fh)] = B.DEAD_BUSH;
+    }
     // スイートベリーの茂み（タイガ）
     if (mb === 'taiga' && R(204) < 1 / 5) {
       for (k = 0; k < 6; k++) { px = 2 + Math.floor(R(205 + k) * 12); pz = 2 + Math.floor(R(212 + k) * 12); ph = grassTop(px, pz); if (ph != null) set(px, ph + 1, pz, B['SWEET_BERRY_BUSH_' + (2 + Math.floor(R(230 + k) * 2))]); }

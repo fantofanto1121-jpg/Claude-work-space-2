@@ -412,6 +412,7 @@
     this.exhaust += 0.1;
   };
 
+  WG.RANDOM_TICK = WG.RANDOM_TICK || {};
   // ---------------- 作物と耕地、火 ----------------
   var CROP_N = { WHEAT: 8, CARROTS: 4, POTATOES: 4, NETHER_WART: 4 };
   function cropInfo(id) {
@@ -435,6 +436,7 @@
           }
           else if (k === 'farm') this.tickFarmland(x, y, z);
           else if (k === 'plant' && WG.onPlantTick) WG.onPlantTick(this, x, y, z, id);   // スイートベリーの茂み（js/items2.js）
+          else if (WG.RANDOM_TICK[id]) WG.RANDOM_TICK[id](this, x, y, z, id);           // 銅の酸化・雨をためる大釜（js/weather.js）
         }
       }
     }

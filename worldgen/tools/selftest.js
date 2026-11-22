@@ -1307,5 +1307,61 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(juke && bundleOK && standOK && g.orbs.length > o0, 'ジュークボックス（鳴っている間は動力 15、コンパレーターはレコードの番号）、バンドル（重さ 64 まで）、防具立てに防具を着せる、エンチャントの瓶で経験値');
 })();
 
+// ---- 天気と自然（第 3 回） ----
+(function () {
+  console.log('\n[天気と自然]');
+  var PLAINS = WG.BIOMES.map(function (b) { return b.key; }).indexOf('plains'), SNOWY = WG.BIOMES.map(function (b) { return b.key; }).indexOf('snowy_plains');
+  function fresh(bio) { var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); w.biomeAt = function () { return bio; }; w.maxY = 255; g.walker.pos = [40.5, 11, 40.5]; g.renderInventory = function () {}; g.mode = 'survival'; return [w, g]; }
+  function run(g, n) { for (var i = 0; i < n; i++) g.tick(); }
+  // 1) 雷と避雷針
+  var a = fresh(PLAINS), w = a[0], g = a[1];
+  g.setWeather('thunder', 0);
+  var dark = g.sky ? g.sky() : null;
+  w.setBlock(0, 11, 0, B.OXIDIZED_COPPER); w.setBlock(0, 12, 0, B.LIGHTNING_ROD); w.rods = new Set(['0,12,0']); w.setBlock(1, 12, 0, B.REDSTONE_LAMP); run(g, 2);
+  g.walker.pos = [4.5, 11, 4.5]; var R1 = Math.random; Math.random = function () { return 0.5; }; g.lightningNear(); Math.random = R1; g.walker.pos = [40.5, 11, 40.5];
+  var rodHit = w.block(0, 12, 0) === B.LIGHTNING_ROD_ON;
+  run(g, 3); var lampOn = w.block(1, 12, 0) === B.REDSTONE_LAMP_ON, copperOK = w.block(0, 11, 0) === B.COPPER_BLOCK, noFire = !Array.from(w.fires ? w.fires.keys() : []).length;
+  run(g, 20); var rodOff = w.block(0, 12, 0) === B.LIGHTNING_ROD && w.block(1, 12, 0) === B.REDSTONE_LAMP;
+  check(rodHit && lampOn && copperOK && noFire && rodOff && g.rainLv === 1 && dark && dark.dark >= 5,
+    '雷雨にすると空が暗くなり、近くの雷は避雷針に落ちる（動力 15 でランプが点き、下の銅の錆が落ち、火は出ない）');
+  // 2) 地面に落ちると火が付き、近くのプレイヤーは傷つく。雨は火を消す
+  a = fresh(PLAINS); w = a[0]; g = a[1]; g.setWeather('thunder', 0);
+  g.walker.pos = [20.5, 11, 20.5]; var h0 = g.health; g.strike(21, 11, 20);
+  var fired = w.block(21, 11, 20) === B.FIRE, hurt = g.health < h0;
+  g.setWeather('rain', 0); g.walker.pos = [60.5, 11, 60.5];
+  for (var i = 0; i < 400 && w.block(21, 11, 20) === B.FIRE; i++) g.tick();
+  check(fired && hurt && w.block(21, 11, 20) !== B.FIRE, '地面への雷は火を付け、近くのプレイヤーを傷つける。雨が火を消す');
+  // 3) 雪のバイオームでは雪が積もり、水が凍る
+  a = fresh(SNOWY); w = a[0]; g = a[1]; g.setWeather('rain', 0);
+  for (var x = 30; x < 52; x++) for (var z = 30; z < 52; z++) if ((x + z) % 7 === 0) w.setBlock(x, 10, z, B.WATER);
+  run(g, 1500);
+  var snowN = 0, iceN = 0; for (x = 8; x < 73; x++) for (z = 8; z < 73; z++) { if (w.block(x, 11, z) === B.SNOW_LAYER) snowN++; if (w.block(x, 10, z) === B.ICE) iceN++; }
+  check(snowN > 20 && iceN > 0 && WG.precipAt(w, 0, 0) === 'snow', '雪のバイオームでは雪が積もり（' + snowN + ' か所）、水が凍る（' + iceN + ' か所）');
+  // 4) 大釜：水を入れる・瓶でくむ・コンパレーター。銅の酸化・斧で削る・ロウ引き
+  a = fresh(PLAINS); w = a[0]; g = a[1];
+  w.setBlock(5, 11, 5, B.CAULDRON); g.inv.slots[0] = { key: 'WATER_BUCKET', n: 1 }; g.inv.sel = 0;
+  g.walker.target = { id: B.CAULDRON, x: 5, y: 11, z: 5, px: 5, py: 12, pz: 5 }; g.use();
+  var full = w.block(5, 11, 5) === B.CAULDRON_3 && g.inv.slots[0].key === 'BUCKET';
+  g.inv.slots[0] = { key: 'GLASS_BOTTLE', n: 1 }; g.walker.target.id = B.CAULDRON_3; g.use();
+  var caul = full && w.block(5, 11, 5) === B.CAULDRON_2 && g.inv.slots[0].key === 'POTION_WATER' && g.containerSignal(5, 11, 5) === 2;
+  w.setBlock(8, 11, 8, B.COPPER_BLOCK); var rt = WG.RANDOM_TICK[B.COPPER_BLOCK], R0 = Math.random; Math.random = function () { return 0; };
+  rt(g, 8, 11, 8); WG.RANDOM_TICK[B.EXPOSED_COPPER](g, 8, 11, 8); Math.random = R0;
+  var ox = w.block(8, 11, 8) === B.WEATHERED_COPPER;
+  g.inv.slots[0] = { key: 'IRON_AXE', n: 1 }; g.walker.target = { id: B.WEATHERED_COPPER, x: 8, y: 11, z: 8, px: 8, py: 12, pz: 8 }; g.use();
+  var scraped = w.block(8, 11, 8) === B.EXPOSED_COPPER;
+  g.inv.slots[0] = { key: 'HONEYCOMB', n: 2 }; g.walker.target.id = B.EXPOSED_COPPER; g.use();
+  var waxed = w.block(8, 11, 8) === B.WAXED_EXPOSED_COPPER && !WG.RANDOM_TICK[B.WAXED_EXPOSED_COPPER];
+  check(caul && ox && scraped && waxed, '大釜（バケツで満たし、瓶でくむ、コンパレーター 2）、銅は錆びていき、斧で削れ、ハチの巣のかけらでロウ引き（もう錆びない）');
+  // 5) 花：バイオームで種類が違う（生成）、染料になる
+  var flowers = {}, gen = new WG.World('7', 'overworld');
+  for (var cx = -12; cx < 12; cx++) for (var cz = -12; cz < 12; cz++) {
+    var ch = gen.chunk(cx, cz), bl = ch.blocks || ch;
+    if (!bl || !bl.length) continue;
+    for (var k = 0; k < bl.length; k++) { var key = WG.BLOCKS[bl[k]] && WG.BLOCKS[bl[k]].key; if (/TULIP|CORNFLOWER|ALLIUM|AZURE|OXEYE|ORCHID|LILY_OF|^FERN$|DEAD_BUSH/.test(key)) flowers[key] = (flowers[key] || 0) + 1; }
+  }
+  var dye = WG.Craft.match(['CORNFLOWER'], 2);
+  check(Object.keys(flowers).length >= 5 && dye && dye.key === 'BLUE_DYE', '花・シダ・枯れ木が生える（' + Object.keys(flowers).join(' ') + '）、ヤグルマギクから青の染料');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

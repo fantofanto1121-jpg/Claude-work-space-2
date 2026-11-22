@@ -41,7 +41,7 @@
       brewing: mapToArr(wd.brewing).map(function (e) { return [e[0], { slots: e[1].slots, fuel: e[1].fuel, time: e[1].time }]; }),
       spawners: mapToArr(wd.spawners), fires: mapToArr(wd.fires), spawn: wd.spawn || null, campfires: mapToArr(wd.campfires),
       signs: mapToArr(wd.signs), frames: mapToArr(wd.frames), paintings: mapToArr(wd.paintings), banners: mapToArr(wd.banners), beacons: mapToArr(wd.beacons),
-      boxes: mapToArr(wd.boxes), trapClosed: mapToArr(wd.trapClosed), hives: mapToArr(wd.hives), jukeboxes: mapToArr(wd.jukeboxes), dragonDead: !!wd.dragonDead,
+      boxes: mapToArr(wd.boxes), trapClosed: mapToArr(wd.trapClosed), hives: mapToArr(wd.hives), jukeboxes: mapToArr(wd.jukeboxes), weather: wd.weather || null, rods: wd.rods ? Array.from(wd.rods) : [], rodPow: mapToArr(wd.rodPow), dragonDead: !!wd.dragonDead,
       // 毎刻動かすものの場所（ホッパー・コンパレーター・日照センサー）、点火した TNT、堆肥の出来上がり待ち
       hoppers: wd.hoppers ? Array.from(wd.hoppers) : [], comparators: wd.comparators ? Array.from(wd.comparators) : [], daylights: wd.daylights ? Array.from(wd.daylights) : [],
       tnts: (wd.tnts || []).map(function (t) { return { x: t.x, y: t.y, z: t.z, fuse: t.fuse }; }), compostReady: mapToArr(wd.compostReady), populated: wd.populated ? Array.from(wd.populated) : [], portals: wd.portals || [],
@@ -63,7 +63,8 @@
     wd.furnaces = new Map((s.furnaces || []).map(function (e) { return [e[0], Object.assign(new WG.Craft.Furnace(), e[1])]; }));
     wd.brewing = new Map((s.brewing || []).map(function (e) { return [e[0], Object.assign(new WG.BrewingStand(), e[1])]; }));
     wd.spawners = new Map(s.spawners || []); wd.fires = new Map(s.fires || []); if (s.spawn) wd.spawn = s.spawn; wd.campfires = new Map(s.campfires || []); wd.dragonDead = !!s.dragonDead;
-    ['signs', 'frames', 'paintings', 'banners', 'beacons', 'boxes', 'trapClosed', 'hives', 'jukeboxes'].forEach(function (k) { wd[k] = new Map(s[k] || []); });
+    ['signs', 'frames', 'paintings', 'banners', 'beacons', 'boxes', 'trapClosed', 'hives', 'jukeboxes', 'rodPow'].forEach(function (k) { wd[k] = new Map(s[k] || []); });
+    if (s.weather) wd.weather = s.weather; wd.rods = new Set(s.rods || []);
     ['hoppers', 'comparators', 'daylights'].forEach(function (k) { wd[k] = new Set(s[k] || []); });
     wd.tnts = (s.tnts || []).map(function (t) { return { x: t.x, y: t.y, z: t.z, py: t.y, vy: 0, fuse: t.fuse }; });
     if (s.compostReady) wd.compostReady = new Map(s.compostReady); wd.populated = new Set(s.populated || []); wd.portals = s.portals || [];

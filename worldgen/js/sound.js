@@ -140,6 +140,11 @@
       case 'bow': tone(dst, t, 0.12, 'triangle', 300, 180, 0.4); burst(dst, t, 0.1, 'highpass', 2000, 1, 0.002, 0.3); break;
       case 'firework': burst(dst, t, 0.12, 'lowpass', 1200, 1, 0.002, 0.8); for (var f = 0; f < 10; f++) burst(dst, t + 0.15 + f * 0.04 + Math.random() * 0.05, 0.03, 'highpass', 4000, 1, 0.001, 0.4); break;
       case 'levelup': [523, 659, 784].forEach(function (f, n) { tone(dst, t + n * 0.08, 0.25, 'triangle', f, null, 0.2); }); break;
+      // 雷：近いと鋭く裂ける音、遠いと低くうなる音
+      case 'thunder':
+        var near = arg == null ? 1 : arg;
+        if (near > 0.5) burst(dst, t, 0.35, 'highpass', 1800, 0.7, 0.002, 1.1 * near);
+        burst(dst, t + 0.05, 3.2, 'lowpass', 420 + near * 500, 0.8, 0.08, 1.3, 60); burst(dst, t + 0.6, 2.6, 'lowpass', 260, 0.9, 0.3, 0.9, 50); tone(dst, t, 2.4, 'sine', 52, 34, 0.6); break;
       // ヤギの角笛：低い 2 本の音が揺れながら長く響く
       case 'horn': tone(dst, t, 2.4, 'sawtooth', 196, 185, 0.45, [4.5, 5], 820); tone(dst, t + 0.04, 2.3, 'sawtooth', 294, 277, 0.22, [4.5, 6], 1100); tone(dst, t, 2.4, 'sine', 98, 92, 0.3); break;
       // 不死のトーテム：きらめく上がり音と、ふわっとした息
@@ -147,6 +152,22 @@
     }
   };
 
+  // ---- 雨の音（ずっと鳴る雑音。屋根の下ではこもった音） ----
+  var rainNode = null;
+  S.setRain = function (level, muffled) {
+    if (!S.enabled || typeof window === 'undefined') level = 0;
+    if (!rainNode && level <= 0) return;
+    var c = ac(); if (!c) return;
+    if (!rainNode) {
+      var src = c.createBufferSource(), hp = c.createBiquadFilter(), lp = c.createBiquadFilter(), g = c.createGain();
+      src.buffer = noise; src.loop = true; hp.type = 'highpass'; hp.frequency.value = 400; lp.type = 'lowpass'; lp.frequency.value = 6000; g.gain.value = 0;
+      src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(master); src.start();
+      rainNode = { g: g, lp: lp };
+    }
+    var now = c.currentTime;
+    rainNode.g.gain.setTargetAtTime(Math.max(0, level) * (muffled ? 0.16 : 0.24), now, 0.4);
+    rainNode.lp.frequency.setTargetAtTime(muffled ? 900 : 6000, now, 0.4);
+  };
   // ---- ジュークボックスの曲（このゲームのために作った旋律） ----
   // 音階の度数（0 が主音、音階の長さを超えると 1 オクターブ上）:拍。'-' は休み。bass は小節ごとの根音の度数。
   var SONGS = {
