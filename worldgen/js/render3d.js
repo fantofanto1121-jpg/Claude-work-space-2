@@ -335,7 +335,8 @@
             var wr = Math.min(255, (pf * 0.6 + (pw > 0 ? 0.4 : 0.3)) * 255), wg2 = Math.max(0, pf * pf * 0.7 - 0.5) * 255, wb = Math.max(0, pf * pf * 0.6 - 0.7) * 255;
             if (LT) { var lv8 = LT[i]; L = light(lv8 >> 4, lv8 & 15); } else L = noLight();
             var conn = WG.wireConnections(function (dx, dy, dz) { return v[i + dx + dz * sx + dy * sxz]; });
-            var wf = 0.5 * (0.85 + 0.15 * pf), wcol = [c8(wr * wf * L[0]), c8(wg2 * wf * L[1]), c8(wb * wf * L[2])], wem = pw > 0 ? 90 : 0;
+            // 強さが分かりやすいように：強いほど明るく、光り方も強く（0 は暗い赤）
+            var wf = 0.62 + 0.38 * pf, wcol = [c8(wr * wf * L[0]), c8(wg2 * wf * L[1]), c8(wb * wf * L[2])], wem = pw > 0 ? Math.round(50 + 150 * pf) : 0;
             var dotT = extraTiles.WIRE_DOT, lineT = extraTiles.WIRE_LINE, yy = ly + 1;
             var quad = function (ax, az, bx, bz, tile, rot) {
               v0 = op.nv;

@@ -353,7 +353,7 @@
     $('hover').textContent = t;
     var mt = game && game.mobs.target, r;
     if (mt) { var T = WG.MOB_TYPES[mt.mob.type]; r = '照準: ' + (mt.mob.name ? mt.mob.name + '（' + T.name + '）' : T.name) + (mt.mob.prof && WG.profName ? '・' + WG.profName(mt.mob) : '') + (mt.mob.baby ? '（子ども）' : '') + '（体力 ' + Math.max(0, Math.ceil(mt.mob.hp)) + ' / ' + (mt.mob.maxHp || T.hp) + '）'; }
-    else r = w.ready ? (w.target ? '照準: ' + WG.blockName(w.target.id) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
+    else r = w.ready ? (w.target ? '照準: ' + (WG.blockStatus ? WG.blockStatus(game, w.target) : WG.blockName(w.target.id)) + '（' + w.target.x + ', ' + w.target.y + ', ' + w.target.z + '）' : '') : '読み込み中';
     if (pending) r += (r ? '　' : '') + '残り ' + pending + ' チャンク';
     setProgress(r);
     if (!w.ready !== walkLoading) { walkLoading = !w.ready; updateWalkCard(); }

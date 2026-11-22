@@ -1328,6 +1328,97 @@ def main():
             if d6 < 3.3: eyt.set(x, y, [18, 40, 30] if d6 < 1.3 else [40, 150, 110] if d6 < 2.4 else [26, 90, 66])
     eyt.set(6, 6, [200, 255, 220])
     put('END_PORTAL_FRAME_EYE', epf_side, eyt, es)
+    # ---- レッドストーンの見直し：ターゲット・トラップチェスト・スカルクセンサー・銅の電球・クラフター・ハチミツ・干し草・レール ----
+    hay_side = Img()
+    for y in range(N):
+        for x in range(N):
+            band = y in (3, 4, 11, 12)
+            base = [176, 140, 40] if band else [214, 180, 64]
+            hay_side.set(x, y, sc(base, (1.12 if (x + hsh(200, y)) % 3 == 0 else 0.92 if (x + hsh(201, y)) % 5 == 0 else 1.0) * (0.94 if band and x % 2 else 1.0)))
+    hay_top = Img()
+    for y in range(N):
+        for x in range(N):
+            d6 = int(max(abs(x - 7.5), abs(y - 7.5)))
+            hay_top.set(x, y, sc([206, 170, 56], (1.1 if (d6 + hsh(202, x, y) % 2) % 3 == 0 else 0.9) if d6 < 7 else 0.78))
+    put('HAY_BLOCK', hay_side, hay_top)
+    tg = Img()
+    for y in range(N):
+        for x in range(N):
+            d6 = math.hypot(x - 7.5, y - 7.5)
+            c6 = [214, 46, 40] if d6 < 1.6 or 3.2 <= d6 < 4.8 or 6.4 <= d6 < 7.6 else [236, 228, 214]
+            tg.set(x, y, sc(c6, 0.94 + 0.08 * ((hsh(203, x, y) % 3) / 2)))
+    put('TARGET', tg, hay_top)
+    tch = planks(sc(col('CHEST'), 1.0), 204)
+    for x in range(N):
+        tch.set(x, 0, sc(col('CHEST'), 0.6)); tch.set(x, 15, sc(col('CHEST'), 0.6)); tch.set(x, 5, sc(col('CHEST'), 0.5)); tch.set(x, 6, sc(col('CHEST'), 0.5))
+    for y in range(4, 9):
+        for x in range(7, 9): tch.set(x, y, [200, 200, 200] if y != 8 else [120, 120, 120])
+    for y in range(0, 16, 15):
+        for x in range(2, 14, 4): tch.set(x, y, [190, 40, 30])
+    for y in range(1, 15):
+        tch.set(0, y, [150, 30, 24]); tch.set(15, y, [150, 30, 24])
+    put('TRAPPED_CHEST', tch, framed(col('CHEST'), 205, planks(col('CHEST'), 206)))
+    def sculk(on):
+        im = Img()
+        for y in range(N):
+            for x in range(N):
+                v6 = hsh(207, x, y) % 11
+                im.set(x, y, [18, 44, 52] if v6 > 2 else [12, 30, 36])
+        for (x, y) in [(3, 3), (11, 4), (6, 9), (12, 12), (2, 12), (8, 2)]:
+            c6 = [120, 250, 250] if on else [40, 140, 150]
+            im.set(x, y, c6); im.set(x + 1, y, c6)
+        return im
+    s_side = sculk(False)
+    for x in range(N):
+        for y in range(9, 16): s_side.set(x, y, sc([40, 36, 30], 0.9 + 0.2 * ((hsh(208, x, y) % 3) / 2)))
+    put('SCULK_SENSOR', s_side, sculk(False))
+    s_side2 = sculk(True)
+    for x in range(N):
+        for y in range(9, 16): s_side2.set(x, y, sc([40, 36, 30], 0.9 + 0.2 * ((hsh(208, x, y) % 3) / 2)))
+    put('SCULK_SENSOR_ON', s_side2, sculk(True))
+    def bulb(lit):
+        im = Img()
+        for y in range(N):
+            for x in range(N):
+                edge = x in (0, 15) or y in (0, 15) or x in (1, 14) or y in (1, 14)
+                if edge: c6 = sc([186, 104, 70], 1.15 if (x in (0, 1) or y in (0, 1)) else 0.8)
+                else:
+                    d6 = math.hypot(x - 7.5, y - 7.5)
+                    if lit: c6 = [255, 236, 170] if d6 < 2.5 else [250, 196, 110] if d6 < 4.5 else [226, 150, 80]
+                    else: c6 = [120, 70, 52] if d6 < 2.5 else [96, 58, 44] if d6 < 4.5 else [80, 48, 38]
+                    if x in (4, 11) or y in (4, 11): c6 = sc([186, 104, 70], 0.9)
+                im.set(x, y, c6)
+        return im
+    put('COPPER_BULB', bulb(False)); put('COPPER_BULB_LIT', bulb(True))
+    hon = Img()
+    for y in range(N):
+        for x in range(N):
+            edge = x in (0, 15) or y in (0, 15)
+            d6 = max(abs(x - 7.5), abs(y - 7.5))
+            hon.set(x, y, [200, 120, 20] if edge else sc([242, 170, 44], 1.12 if d6 < 4 and (x + y) % 4 == 0 else 1.0 if d6 < 6 else 0.9))
+    put('HONEY_BLOCK', hon)
+    cf = frame.copy()
+    for y in range(3, 13):
+        for x in range(3, 13): cf.set(x, y, [44, 44, 48] if (x - 3) % 4 == 3 or (y - 3) % 4 == 3 else [86, 76, 60] if (x + y) % 2 else [100, 88, 70])
+    for x in range(3, 13): cf.set(x, 2, [180, 60, 40]); cf.set(x, 13, [180, 60, 40])
+    put('CRAFTER', frame, cf, frame)
+    def rail_special(ew, act):
+        im = Img(alpha=True)
+        for y in range(N):
+            for x in range(N):
+                u, v = (y, x) if ew else (x, y)
+                c = None
+                if v % 4 in (1, 2) and 1 <= u <= 14: c = tie if v % 4 == 1 else tie_d
+                if u in (3, 12): c = [150, 60, 50] if act else iron_c
+                if u in (4, 13): c = [100, 36, 30] if act else iron_d
+                if not act and 6 <= u <= 9 and 5 <= v <= 10: c = [120, 120, 124] if (u + v) % 2 else [96, 96, 100]
+                if not act and 7 <= u <= 8 and 7 <= v <= 8: c = [210, 50, 40]
+                if act and u in (7, 8) and v % 4 in (1, 2): c = [200, 40, 30] if u == 7 else [140, 24, 20]
+                if c: im.set(x, y, c)
+        return im
+    for k, im in [('DETECTOR_RAIL_NS', rail_special(False, False)), ('DETECTOR_RAIL_EW', rail_special(True, False)),
+                  ('ACTIVATOR_RAIL_NS', rail_special(False, True)), ('ACTIVATOR_RAIL_EW', rail_special(True, True))]:
+        put(k, im, cut=im)
     # ---- 絵画（このゲームのために描いた絵。大きさごとに 16×16 に分ける）----
     def painting(name, w, h, fn):
         W2, H2 = w * 16, h * 16

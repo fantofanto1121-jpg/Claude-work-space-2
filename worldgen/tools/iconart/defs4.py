@@ -163,3 +163,10 @@ D['DRIED_KELP'] = (['................', '................', '............AA..', 
 # ---- 第 6 回：影の目 ----
 D['ENDER_EYE'] = (['................', '................', '.....AAAAAA.....', '....AAAAAAAA....', '...AAABBBBAAA...', '..AAABBCCBBAAA..', '..AABBCkkCBBAA..', '..AABBCkkCBBAA..',
                    '..AAABBCCBBAAA..', '...AAABBBBAAA...', '....AAAAAAAA....', '.....AAAAAA.....'], {'A': ramp_from('#2a6a5a'), 'B': ramp_from('#5aa868'), 'C': ramp_from('#c8e8a0')}, {'k': '#0a1a14', 'w': '#f0fff0'}, [(5, 4, 'w')])
+
+# ---- レッドストーンの見直し ----
+D['DETECTOR_RAIL'] = (railrows(IR, True), {'R': IR, 'T': W}, {'m': '#8a8a90'})
+D['ACTIVATOR_RAIL'] = (railrows(ramp_from('#a8443a'), True), {'R': ramp_from('#a8443a'), 'T': W}, {'m': '#d03a2a'})
+D['TRIPWIRE_HOOK'] = (['................', '................', '.......AA.......', '......A..A......', '......A..A......', '.......AA.......', '........B.......', '........B.......',
+                       '........B.......', '.......WWW......', '.......WWW......', '.......WWW......', '.......WWW......', '.......WWW......', '................'],
+                      {'A': ramp_from('#b8b8c0'), 'B': ramp_from('#8a8a90'), 'W': W})

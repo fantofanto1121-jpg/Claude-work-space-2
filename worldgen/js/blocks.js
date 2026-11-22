@@ -307,6 +307,28 @@
     ALIAS[m[0] + '_SLAB'] = ALIAS[m[0] + '_SLAB_TOP'] = ALIAS[m[0] + '_SLAB_DOUBLE'] = m[2];
     SHAPE_MATS.push(m);
   });
+  // レッドストーンの見直し：ターゲット・トラップチェスト・トリップワイヤー・重さを量る感圧板・ディテクター／アクティベーターレール・
+  // スカルクセンサー・クラフター・銅の電球・スライムブロック・ハチミツブロック・干し草の俵
+  DEF.push(['TARGET', 'ターゲット', '#e8d8c8', 'solid'], ['TRAPPED_CHEST', 'トラップチェスト', '#9a6a32', 'solid'],
+    ['TRIPWIRE', 'トリップワイヤー', '#e8e8e8', 'tripwire'], ['TRIPWIRE_ON', 'トリップワイヤー', '#e8e8e8', 'tripwire'],
+    ['LIGHT_WEIGHTED_PRESSURE_PLATE', '軽量用感圧板', '#e8c040', 'plate'], ['LIGHT_WEIGHTED_PRESSURE_PLATE_ON', '軽量用感圧板', '#e8c040', 'plate'],
+    ['HEAVY_WEIGHTED_PRESSURE_PLATE', '重量用感圧板', '#c8c8cc', 'plate'], ['HEAVY_WEIGHTED_PRESSURE_PLATE_ON', '重量用感圧板', '#c8c8cc', 'plate'],
+    ['SCULK_SENSOR', 'スカルクセンサー', '#1a4a50', 'sculk'], ['SCULK_SENSOR_ON', 'スカルクセンサー', '#2a7a80', 'sculk'],
+    ['COPPER_BULB', '銅の電球', '#b06a48', 'solid'], ['COPPER_BULB_LIT', '銅の電球（点灯）', '#e8a060', 'solid'],
+    ['SLIME_BLOCK', 'スライムブロック', '#78c060', 'solid'], ['MOVING_PISTON', '動いているブロック', '#000000', 'moving'], ['HONEY_BLOCK', 'ハチミツブロック', '#e8a030', 'solid'], ['HAY_BLOCK', '干し草の俵', '#c8a830', 'solid']);
+  DIR4.forEach(function (d) { ['', '_ON'].forEach(function (o) { DEF.push(['TRIPWIRE_HOOK_' + d + o, 'トリップワイヤーフック', '#8a8a8a', 'hook']); ALIAS['TRIPWIRE_HOOK_' + d + o] = 'OAK_PLANKS'; }); });
+  ['N', 'E', 'S', 'W', 'U', 'D'].forEach(function (f) { DEF.push(['CRAFTER_' + f, 'クラフター', '#6a6a70', 'solid']); });
+  ALIAS.TRIPWIRE = ALIAS.TRIPWIRE_ON = 'WHITE_WOOL'; ALIAS.MOVING_PISTON = 'STONE';
+  ALIAS.LIGHT_WEIGHTED_PRESSURE_PLATE = ALIAS.LIGHT_WEIGHTED_PRESSURE_PLATE_ON = 'GOLD_BLOCK';
+  ALIAS.HEAVY_WEIGHTED_PRESSURE_PLATE = ALIAS.HEAVY_WEIGHTED_PRESSURE_PLATE_ON = 'IRON_BLOCK';
+  // ディテクターレール（トロッコが乗るとオン）・アクティベーターレール（動力でトロッコの乗り手を降ろす）：まっすぐと坂だけ
+  ['DETECTOR_RAIL', 'ACTIVATOR_RAIL'].forEach(function (base) {
+    ['NS', 'EW', 'UN', 'US', 'UE', 'UW'].forEach(function (sh) {
+      DEF.push([base + '_' + sh, base === 'DETECTOR_RAIL' ? 'ディテクターレール' : 'アクティベーターレール', base === 'DETECTOR_RAIL' ? '#8a6a5a' : '#8a3a30', 'rail']);
+      RAIL_INFO[base + '_' + sh] = { shape: sh, exits: RAIL_SHAPES[sh], up: sh[0] === 'U' ? sh[1] : null, powered: false, kind: base };
+      if (sh[0] === 'U') ALIAS[base + '_' + sh] = base + '_' + (sh[1] === 'N' || sh[1] === 'S' ? 'NS' : 'EW');
+    });
+  });
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -347,7 +369,7 @@
     if (m) return TEX[m[1] + '_DOOR_' + m[2]];
     if (/^LADDER_/.test(key)) return TEX.LADDER;
     if (/^REPEATER_/.test(key)) return TEX.REPEATER_BASE;
-    var om = /^(DISPENSER|DROPPER|OBSERVER)_[NESWUD](_ON)?$/.exec(key);
+    var om = /^(DISPENSER|DROPPER|OBSERVER|CRAFTER)_[NESWUD](_ON)?$/.exec(key);
     if (om) return TEX[om[1] + (om[2] || '')];
     if (/^REDSTONE_WALL_TORCH_/.test(key)) return /_OFF$/.test(key) ? TEX.REDSTONE_TORCH_OFF : TEX.REDSTONE_TORCH;
     return /^WATER_/.test(key) ? TEX.WATER : /^LAVA_/.test(key) ? TEX.LAVA : /^WALL_TORCH_/.test(key) ? TEX.TORCH : /^BED_/.test(key) ? TEX.BED : null;
@@ -442,6 +464,7 @@
   LIGHT_EMIT[B.REDSTONE_LAMP_ON] = 15; EMIT[B.REDSTONE_LAMP_ON] = 0.6; LIGHT_EMIT[B.ENCHANTING_TABLE] = 7; LIGHT_EMIT[B.BREWING_STAND] = 1;
   LIST.forEach(function (b) { if (b.kind === 'rtorch' && !/_OFF$/.test(b.key)) LIGHT_EMIT[b.id] = 7; });
   LIGHT_EMIT[B.BEACON] = 15; LIGHT_EMIT[B.END_PORTAL] = 15; LIGHT_EMIT[B.SHROOMLIGHT] = 15; LIGHT_EMIT[B.AMETHYST_CLUSTER] = 5;
+  LIGHT_EMIT[B.COPPER_BULB_LIT] = 15; LIGHT_EMIT[B.SCULK_SENSOR] = 1; LIGHT_EMIT[B.SCULK_SENSOR_ON] = 6; LIGHT_BLOCK[B.TRIPWIRE] = LIGHT_BLOCK[B.TRIPWIRE_ON] = LIGHT_BLOCK[B.MOVING_PISTON] = 0;
   LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
@@ -454,16 +477,16 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1 };
+  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -506,12 +529,21 @@
       return [rotE([0, 6, 5, h, 10, 11, mat], f)];
     }
     if (k === 'plate') {
-      var pm = /^OAK/.test(key) ? B.OAK_PLANKS : B.STONE;
+      var pm = /^OAK/.test(key) ? B.OAK_PLANKS : /^LIGHT_W/.test(key) ? B.GOLD_BLOCK : /^HEAVY_W/.test(key) ? B.IRON_BLOCK : B.STONE;
       return [on ? [2, 0, 2, 14, 1, 14, pm] : [1, 0, 1, 15, 1, 15, pm]];
     }
     if (k === 'repeater') {
       var m = /REPEATER_([NESW])(\d)/.exec(key), dl = +m[2], tip = on ? B.REDSTONE_BLOCK : B.NETHER_BRICKS, out = [[0, 0, 0, 16, 2, 16]];
-      [2, 4 + dl * 2].forEach(function (z) { out.push([7, 2, z, 9, 5, z + 2, B.OAK_PLANKS], [7, 5, z, 9, 7, z + 2, tip, on ? 1 : 0]); });
+      // 横からオンのリピーター・コンパレーターに押さえられているとロック（本家と同じく、動く方のトーチの所に棒）
+      var lockv = { N: [[1, 0], [-1, 0]], S: [[1, 0], [-1, 0]], E: [[0, 1], [0, -1]], W: [[0, 1], [0, -1]] }[m[1]], locked = false;
+      if (nb) lockv.forEach(function (q) {
+        var sid = nb(q[0], q[1]), sk = LIST[sid] && LIST[sid].key, sm = sk && /^(?:REPEATER_([NESW])\d|COMPARATOR_([NESW])[CS])_ON$/.exec(sk);
+        if (sm) { var sf = sm[1] || sm[2], sv = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[sf]; if (q[0] + sv[0] === 0 && q[1] + sv[1] === 0) locked = true; }
+      });
+      [2, 4 + dl * 2].forEach(function (z, ti) {
+        if (ti === 1 && locked) { out.push([2, 2, z, 14, 4, z + 2, B.BEDROCK]); return; }
+        out.push([7, 2, z, 9, 5, z + 2, B.OAK_PLANKS], [7, 5, z, 9, 7, z + 2, tip, on ? 1 : 0]);
+      });
       return out.map(function (b) { return rotN(b, m[1]); });
     }
     if (k === 'piston') {
@@ -584,6 +616,24 @@
     if (k === 'vine') return [LADDER[FACE_OF[key.slice(-1)]]];
     if (k === 'endportal') return [[0, 0, 0, 16, 12, 16, B.END_PORTAL, 1]];
     if (k === 'gateway') return [[0, 0, 0, 16, 16, 16, B.END_PORTAL, 1]];
+    if (k === 'moving') return forCollide ? [[0, 0, 0, 16, 16, 16]] : [];   // ピストンで動いている途中（絵は別に描く）
+    if (k === 'hook') {
+      var hf = /HOOK_([NESW])/.exec(key)[1], hon = /_ON$/.test(key);
+      return [rotE([0, 1, 6, 2, 11, 10, B.OAK_PLANKS], hf), rotE(hon ? [2, 3, 7, 8, 5, 9, B.IRON_BLOCK] : [2, 5, 7, 8, 7, 9, B.IRON_BLOCK], hf), rotE([7, hon ? 3 : 5, 6, 9, hon ? 5 : 7, 10, B.IRON_BLOCK], hf)];
+    }
+    if (k === 'tripwire') {
+      // 糸：となりの糸かフックの方へ張る（どちらもなければ十字）
+      var tw = function (dx, dz) { var n = nb ? nb(dx, dz) : 0, nk = KIND[n]; return nk === 'tripwire' || nk === 'hook'; };
+      var tx = tw(1, 0) || tw(-1, 0), tz = tw(0, 1) || tw(0, -1), ty = /_ON$/.test(key) ? 0.6 : 1.4, tb = [];
+      if (tx || !tz) tb.push([0, ty, 7.6, 16, ty + 0.5, 8.4]);
+      if (tz || !tx) tb.push([7.6, ty, 0, 8.4, ty + 0.5, 16]);
+      return tb;
+    }
+    if (k === 'sculk') {
+      var son = /_ON$/.test(key), sb = [[0, 0, 0, 16, 8, 16]];
+      [[3, 3], [11, 3], [3, 11], [11, 11]].forEach(function (q) { sb.push([q[0], 8, q[1], q[0] + 2, 16, q[1] + 2, son ? B.SCULK_SENSOR_ON : B.SCULK_SENSOR, son ? 1 : 0]); });
+      return sb;
+    }
     if (k === 'rod') return [[6, 0, 6, 10, 1, 10, B.PURPUR_BLOCK], [7, 1, 7, 9, 16, 9, B.END_ROD, 1]];
     if (k === 'beacon') return [[0, 0, 0, 16, 16, 16, B.GLASS], [1, 0, 1, 15, 3, 15, B.OBSIDIAN], [3, 3, 3, 13, 13, 13, B.BEACON, 1]];
     if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];
@@ -604,7 +654,7 @@
   LIST.forEach(function (b) {
     var m = /PISTON_(?:HEAD_)?([NESWUD])(_X)?$/.exec(b.key);
     if (m && (b.kind === 'piston' || b.kind === 'phead')) ORIENT[b.id] = m[1];
-    m = /^(?:DISPENSER|DROPPER|OBSERVER)_([NESWUD])(_ON)?$/.exec(b.key);
+    m = /^(?:DISPENSER|DROPPER|OBSERVER|CRAFTER)_([NESWUD])(_ON)?$/.exec(b.key);
     if (m) ORIENT[b.id] = m[1];   // 「上」の見た目を前（口・顔）に向ける
   });
   WG.ORIENT = ORIENT;
@@ -701,7 +751,7 @@
   LIST.forEach(function (b) {
     var k = b.key, m;
     if (b.kind === 'wire' || b.kind === 'plate' || b.kind === 'repeater' || k === 'REDSTONE_TORCH' || k === 'REDSTONE_TORCH_OFF' || /_F(_ON)?$/.test(k) && (b.kind === 'lever' || b.kind === 'button')) SUPPORT[b.id] = [0, -1, 0];
-    else if ((m = /_([NESW])(_ON|_OFF)?$/.exec(k)) && (b.kind === 'lever' || b.kind === 'button' || b.kind === 'rtorch')) {
+    else if ((m = /_([NESW])(_ON|_OFF)?$/.exec(k)) && (b.kind === 'lever' || b.kind === 'button' || b.kind === 'rtorch' || b.kind === 'hook')) {
       var v = { N: [0, 1], E: [-1, 0], S: [0, -1], W: [1, 0] }[m[1]];
       SUPPORT[b.id] = [v[0], 0, v[1]];
     }
@@ -725,6 +775,7 @@
   WG.FLUID_LEVEL = FLUID_LEVEL;
   WG.fluidId = function (type, level) { return FLUID_ID[type][level]; };
   WG.isWater = function (id) { return FLUID[id] === 1; };
+  WG.isChest = function (id) { return id === B.CHEST || id === B.TRAPPED_CHEST; };
   WG.isLava = function (id) { return FLUID[id] === 2; };
   WG.LIGHT_EMIT = LIGHT_EMIT;
   WG.LIGHT_BLOCK = LIGHT_BLOCK;

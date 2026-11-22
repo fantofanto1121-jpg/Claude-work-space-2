@@ -127,6 +127,8 @@
       case 'hurt': tone(dst, t, 0.18, 'sawtooth', 210, 140, 0.35, null, 900); burst(dst, t, 0.1, 'lowpass', 700, 1, 0.002, 0.6); break;
       case 'explode': burst(dst, t, 1.4, 'lowpass', 900, 0.8, 0.005, 1.2, 80); tone(dst, t, 0.6, 'sine', 70, 35, 0.9); break;
       case 'door': burst(dst, t, 0.18, 'bandpass', 320, 4, 0.01, 0.9); tone(dst, t + 0.12, 0.06, 'triangle', 160, 120, 0.3); break;
+      case 'piston': burst(dst, t, 0.12, 'bandpass', 520, 3, 0.005, 0.8); tone(dst, t, 0.08, 'square', 110, 70, 0.18); break;
+      case 'click': tone(dst, t, 0.03, 'square', 900, 600, 0.15); break;
       case 'pop': tone(dst, t, 0.08, 'sine', rr(700, 900), rr(1300, 1600), 0.2); break;
       case 'orb': tone(dst, t, 0.25, 'sine', rr(1400, 2200), null, 0.08); break;
       case 'eat': for (var i = 0; i < 3; i++) burst(dst, t + i * 0.09, 0.06, 'bandpass', rr(900, 1600), 2, 0.003, 0.5); break;

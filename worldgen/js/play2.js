@@ -293,7 +293,7 @@
       if (k === 'comparator') { this.rs.toggleComparator(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
       if (k === 'daylight') { wd.setBlock(t.x, t.y, t.z, t.id === B.DAYLIGHT_DETECTOR ? B.DAYLIGHT_DETECTOR_INV : B.DAYLIGHT_DETECTOR); this.walker.remesh(t.x, t.z); this.updateDaylight(t.x + ',' + t.y + ',' + t.z); this.mouseR = this.clickR = false; return true; }
       if (t.id === B.NOTE_BLOCK) { var nk = t.x + ',' + t.y + ',' + t.z; wd.notes.set(nk, ((wd.notes.get(nk) || 0) + 1) % 25); this.playNote(t.x, t.y, t.z); this.mouseR = this.clickR = false; return true; }
-      if (/^(HOPPER|DISPENSER|DROPPER)_/.test(keyOf(t.id))) {
+      if (/^(HOPPER|DISPENSER|DROPPER|CRAFTER)_/.test(keyOf(t.id))) {
         this.mouseR = this.clickR = false;
         this.contKey = t.x + ',' + t.y + ',' + t.z; this.container(t.x, t.y, t.z);
         this.openInventory(/^HOPPER/.test(keyOf(t.id)) ? 'hopper' : 'disp');
@@ -546,13 +546,13 @@
   };
 
   // ---------------- 入れ物（チェスト・かまど・醸造台・ホッパー・ディスペンサー・ドロッパー） ----------------
-  var CSIZE = { HOPPER: 5, DISPENSER: 9, DROPPER: 9 };
+  var CSIZE = { HOPPER: 5, DISPENSER: 9, DROPPER: 9, CRAFTER: 9 };
   Game.prototype.container = function (x, y, z) {
     var wd = this.world, id = wd.block(x, y, z), key = x + ',' + y + ',' + z, m;
-    if (id === B.CHEST) return { slots: this.chestAt(x, y, z), type: 'chest' };
+    if (WG.isChest(id)) return { slots: this.chestAt(x, y, z), type: 'chest' };
     if (id === B.FURNACE || id === B.FURNACE_LIT) { if (!wd.furnaces.has(key)) wd.furnaces.set(key, new WG.Craft.Furnace()); return { slots: wd.furnaces.get(key).slots, type: 'furnace' }; }
     if (id === B.BREWING_STAND) { if (!wd.brewing.has(key)) wd.brewing.set(key, new WG.BrewingStand()); return { slots: wd.brewing.get(key).slots, type: 'brew' }; }
-    if ((m = /^(HOPPER|DISPENSER|DROPPER)_/.exec(keyOf(id)))) {
+    if ((m = /^(HOPPER|DISPENSER|DROPPER|CRAFTER)_/.exec(keyOf(id)))) {
       if (!wd.containers.has(key)) wd.containers.set(key, new Array(CSIZE[m[1]]).fill(null));
       return { slots: wd.containers.get(key), type: m[1].toLowerCase() };
     }
@@ -577,7 +577,7 @@
   // 比べる強さ：中身の量（Minecraft の式：1 + 満たされた割合 × 14、空なら 0）。入れ物でなければ −1
   Game.prototype.containerSignal = function (x, y, z) {
     var id = this.world.block(x, y, z);
-    if (id !== B.CHEST && id !== B.FURNACE && id !== B.FURNACE_LIT && id !== B.BREWING_STAND && !/^(HOPPER|DISPENSER|DROPPER)_/.test(keyOf(id))) return -1;
+    if (!WG.isChest(id) && id !== B.FURNACE && id !== B.FURNACE_LIT && id !== B.BREWING_STAND && !/^(HOPPER|DISPENSER|DROPPER|CRAFTER)_/.test(keyOf(id))) return -1;
     var c = this.container(x, y, z), f = 0, any = false;
     c.slots.forEach(function (s) { if (s) { f += s.n / ITEMS[s.key].max; any = true; } });
     return any ? Math.floor(1 + f / c.slots.length * 14) : 0;

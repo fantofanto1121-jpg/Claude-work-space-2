@@ -362,7 +362,7 @@
     // 金のリンゴとミルクは、おなかがいっぱいでも口にできる（Minecraft と同じ）
     var canEat = this.mode === 'survival' && it && (it.food || it.milk || (it.potion && !it.splash)) && (this.food < 20 || it.regen || it.milk || it.potion) && !this.invOpen;
     var tid = w.target ? w.target.id : -1;
-    var aimUse = w.target && (tid === B.CRAFTING_TABLE || tid === B.FURNACE || tid === B.FURNACE_LIT || tid === B.CHEST || WG.blockKind(tid) === 'bed' || isDoor(tid) ||
+    var aimUse = w.target && (tid === B.CRAFTING_TABLE || tid === B.FURNACE || tid === B.FURNACE_LIT || WG.isChest(tid) || WG.blockKind(tid) === 'bed' || isDoor(tid) ||
       // 耕地に向けたニンジン・ジャガイモは植える
       (it && it.plant && (tid === B.FARMLAND || tid === B.FARMLAND_MOIST) && w.target.py === w.target.y + 1));
     if (this.mobs.target && it && (it.key === 'BUCKET' || it.key === 'SHEARS')) aimUse = true;
@@ -710,7 +710,7 @@
     if (id === B.AIR || FLUID[id]) return;
     if (surv) this.exhaust += 0.005;   // ブロックを壊すと少しおなかが減る（本家と同じ）
     // チェストの中身は、その場に落ちる（まだ開けていない地下のチェストも）
-    if (id === B.CHEST) {
+    if (WG.isChest(id)) {
       this.chestAt(x, y, z).forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10, s.dmg, s.ench); });
       wd.chests.delete(x + ',' + y + ',' + z);
       if (this.chestKey === x + ',' + y + ',' + z) this.closeInventory();
@@ -847,7 +847,7 @@
       if (isDoor(t.id)) { this.mouseR = this.clickR = false; this.toggleDoor(t.x, t.y, t.z); return; }
       if (isBed(t.id)) { this.mouseR = this.clickR = false; this.useBed(t.x, t.y, t.z); return; }
       if (t.id === B.CRAFTING_TABLE) { this.mouseR = this.clickR = false; this.openInventory('table'); return; }
-      if (t.id === B.CHEST) {
+      if (WG.isChest(t.id)) {
         this.mouseR = this.clickR = false;
         this.chestAt(t.x, t.y, t.z);
         this.chestKey = t.x + ',' + t.y + ',' + t.z;
@@ -1427,7 +1427,7 @@
 
   Game.prototype.renderInventory = function () {
     var ui = this.ui, s = this.inv.slots, i, html = '', sc = this.screen;
-    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: this.furnaceName || 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', box: this.boxTitle || '樽', loom: '機織り機', beacon: 'ビーコン', smith: '鍛冶台', cutter: '石切台', carto: '製図台', hopper: 'ホッパー', disp: /^DROPPER/.test(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) ? 'ドロッパー' : 'ディスペンサー' }[sc];
+    ui.invTitle.textContent = { creative: 'クリエイティブ', inv: 'インベントリ', table: '作業台', furnace: this.furnaceName || 'かまど', chest: 'チェスト', etable: 'エンチャント', brew: '醸造台', anvil: '金床', trade: '取引', adv: '進捗', box: this.boxTitle || '樽', loom: '機織り機', beacon: 'ビーコン', smith: '鍛冶台', cutter: '石切台', carto: '製図台', hopper: 'ホッパー', disp: (function (k) { return /^DROPPER/.test(k) ? 'ドロッパー' : /^CRAFTER/.test(k) ? 'クラフター' : 'ディスペンサー'; })(WG.BLOCKS[this.world.block.apply(this.world, (this.contKey || '0,0,0').split(',').map(Number))].key) }[sc];
     if (sc === 'etable' || sc === 'brew' || sc === 'anvil' || sc === 'hopper' || sc === 'disp' || (WG.EXTRA_SCREENS && WG.EXTRA_SCREENS[sc])) html += this.renderExtraScreen(sc);
     if (sc === 'trade') html += this.renderTrade();
     if (sc === 'adv') html += this.renderAdvancements();

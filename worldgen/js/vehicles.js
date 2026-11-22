@@ -68,7 +68,7 @@
     return facing === 'N' || facing === 'S' ? 'NS' : 'EW';
   }
   function setRail(wd, x, y, z, base, shape) {
-    if (base === 'POWERED_RAIL' && !/^(NS|EW|U.)$/.test(shape)) shape = shape[0] === 'N' || shape[0] === 'S' ? 'NS' : 'EW';
+    if (base !== 'RAIL' && !/^(NS|EW|U.)$/.test(shape)) shape = shape[0] === 'N' || shape[0] === 'S' ? 'NS' : 'EW';   // パワード・ディテクター・アクティベーターはまっすぐと坂だけ
     wd.setBlock(x, y, z, B[base + '_' + shape]);
   }
   // 1 方向にしかつながっていない隣のレールを、新しいレールへ向け直す
@@ -81,7 +81,8 @@
         if (!ri) return;
         var n = ri.exits.filter(function (e) { return linked(wd, nx, ny, nz, e); }).length;
         if (n >= 2) return;
-        setRail(wd, nx, ny, nz, ri.powered ? 'POWERED_RAIL' : 'RAIL', shapeFor(wd, nx, ny, nz, ri.powered, k));
+        var rb = ri.kind || (ri.powered ? 'POWERED_RAIL' : 'RAIL');
+        setRail(wd, nx, ny, nz, rb, shapeFor(wd, nx, ny, nz, rb !== 'RAIL', k));
         game.walker.remesh(nx, nz);
       });
     });
@@ -94,7 +95,7 @@
     if (t && it && it.rail) {
       var x = t.px, y = t.py, z = t.pz;
       if (wd.block(x, y, z) !== B.AIR || WG.COLLIDE[wd.block(x, y - 1, z)] < 1) return;
-      setRail(wd, x, y, z, it.rail, shapeFor(wd, x, y, z, it.rail === 'POWERED_RAIL', this.facing()));
+      setRail(wd, x, y, z, it.rail, shapeFor(wd, x, y, z, it.rail !== 'RAIL', this.facing()));
       relinkNeighbors(this, x, y, z);
       w.remesh(x, z);
       if (surv) this.inv.take(this.inv.sel, 1);
@@ -232,6 +233,13 @@
     var info = r.info, rv = m.rv || 0, d = m.rdir;
     // 坂：上りは遅く、下りは速く
     if (info.up) { var u = DIRS[info.up]; rv += (u[0] === d[0] && u[1] === d[1]) ? -0.0078 : 0.0078; }
+    // ディテクターレール：トロッコが乗っている間（と 1 秒後まで）動力を出す。アクティベーターレール：動力があれば乗っている人を降ろす
+    if (info.kind === 'DETECTOR_RAIL') {
+      var dk = cx + ',' + r.y + ',' + cz, dm = wd.detect || (wd.detect = new Map());
+      if (!dm.has(dk) && g.rs) { g.rs.dirty.push([cx, r.y, cz]); g.rs.dirty.push([cx, r.y - 1, cz]); }
+      dm.set(dk, 20);
+    }
+    if (info.kind === 'ACTIVATOR_RAIL' && g.rs && g.rs.powered(cx, r.y, cz) && m.rider && g.riding === m) g.dismount();
     // パワードレール：動力があれば加速（止まっていれば押し出す）、なければブレーキ
     if (info.powered) {
       if (g.rs && g.rs.powered(cx, r.y, cz)) {

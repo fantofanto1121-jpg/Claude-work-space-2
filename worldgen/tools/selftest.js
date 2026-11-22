@@ -503,11 +503,11 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   w.setBlock(5, 11, 0, B.COMPARATOR_EC); w.setBlock(6, 11, 0, B.REDSTONE_WIRE_0);
   for (i = 0; i < 12; i++) g.tick();
   w.setBlock(10, 11, 0, B.OBSERVER_W); w.setBlock(11, 11, 0, B.REDSTONE_LAMP); for (i = 0; i < 3; i++) g.tick();
-  w.setBlock(9, 11, 0, B.STONE); var lit = 0; for (i = 0; i < 6; i++) { g.tick(); if (w.block(11, 11, 0) === B.REDSTONE_LAMP_ON) lit++; }
+  w.setBlock(9, 11, 0, B.STONE); var lit = 0; for (i = 0; i < 12; i++) { g.tick(); if (w.block(11, 11, 0) === B.REDSTONE_LAMP_ON) lit++; }
   w.setBlock(0, 11, 6, B.LEVER_F); w.setBlock(1, 11, 6, B.DISPENSER_E); g.container(1, 11, 6).slots[0] = { key: 'WATER_BUCKET', n: 1 };
   for (i = 0; i < 3; i++) g.tick(); g.rs.toggleLever(0, 11, 6); for (i = 0; i < 8; i++) g.tick();
-  check(moved && w.compOut.get('5,11,0') === 5 && lit === 2 && w.block(2, 11, 6) === B.WATER,
-    'ホッパー（チェスト → かまど）、コンパレーター（チェストの 1/3 で強さ 5）、オブザーバー（2 刻みの信号）、ディスペンサー（水をまく）');
+  check(moved && w.compOut.get('5,11,0') === 5 && lit === 6 && w.block(11, 11, 0) === B.REDSTONE_LAMP && w.block(2, 11, 6) === B.WATER,
+    'ホッパー（チェスト → かまど）、コンパレーター（チェストの 1/3 で強さ 5）、オブザーバー（2 刻みの信号。ランプは消えるのが 4 刻み遅れる）、ディスペンサー（水をまく）');
 })();
 
 // スポーンエッグ・追加の生き物・追加のブロック
@@ -1095,7 +1095,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   var wn = flatWorld(function (x, y, z) { return y <= 60 ? B.NETHER_BRICKS : 0; }); wn.dimKey = 'nether';
   var gn = playGame(wn); gn.mobs.spawnTick = WG.Mobs.prototype.spawnTick; gn.walker.pos = [0.5, 61, 0.5];
   wn.setBlock(4, 61, 0, B.SPAWNER); wn.spawners = new Map([['4,61,0', { x: 4, y: 61, z: 0, timer: 5, type: 'FIRE_SPIRIT' }]]);
-  for (var i = 0; i < 40; i++) gn.mobs.spawnTick();
+  for (var i = 0; i < 8; i++) { wn.spawners.get('4,61,0').timer = 1; gn.mobs.spawnTick(); }
   var blaze = gn.mobs.list.filter(function (m) { return m.type === 'FIRE_SPIRIT'; }).length;
   // 中身のある額縁を叩くと、中身だけ落ちて額縁は残る
   var wf = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), gf = playGame(wf);
@@ -1157,6 +1157,86 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   var burned = !g.entities.some(function (e) { return e.key === 'DIAMOND'; }) && g.entities.some(function (e) { return e.key === 'NETHERITE_INGOT'; });
   var ex0 = g.exhaust; w.setBlock(5, 11, 0, B.DIRT); g.breakBlock(5, 11, 0, true);
   check(surf && burned && g.exhaust > ex0, '始める場所が木の下の洞窟にならない（' + wk.pos.map(Math.round).join(', ') + '）、溶岩に落ちたダイヤは燃える（ネザライトは残る）、ブロックを壊すとおなかが減る');
+})();
+
+// ---- レッドストーンの見直し ----
+(function () {
+  console.log('\n[レッドストーンの見直し]');
+  function fresh() { var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); g.walker.pos = [40.5, 11, 40.5]; g.renderInventory = function () {}; g.ui.inv = { classList: { add: function () {}, remove: function () {} } }; return [w, g]; }
+  function run(g, n) { for (var i = 0; i < n; i++) g.tick(); }
+  // 1) トーチとリピーターの時計：遅れ 4 なら回り続け、遅れ 1 だと焼き切れる
+  function clock(delay) {
+    var a = fresh(), w = a[0], g = a[1], offs = 0, prev = null;
+    w.setBlock(0, 11, 0, B.STONE); w.setBlock(1, 11, 0, B.REDSTONE_WALL_TORCH_E);
+    [[2, 11, 0], [2, 11, 1], [2, 11, 2], [1, 11, 2], [0, 11, 2]].forEach(function (c) { w.setBlock(c[0], c[1], c[2], B.REDSTONE_WIRE_0); });
+    w.setBlock(0, 11, 1, B['REPEATER_N' + delay]);
+    g.rs.dirty.push([1, 11, 0]);
+    for (var i = 0; i < 200; i++) { g.tick(); var lit = !!WG.LIGHT_EMIT[w.block(1, 11, 0)]; if (prev && !lit) offs++; prev = lit; }
+    return { offs: offs, burnt: !!(w.torchBurnt && w.torchBurnt.size) };
+  }
+  var c4 = clock(4), c1 = clock(1);
+  check(c4.offs >= 6 && !c4.burnt && c1.burnt, 'トーチとリピーターの時計：遅れ 4 は回り続け（200 刻みで ' + c4.offs + ' 回）、遅れ 1 はトーチが焼き切れる');
+  // 2) 銅の電球（T フリップフロップ）・リピーターのロック・準接続・トラップドア
+  var a = fresh(), w = a[0], g = a[1];
+  w.setBlock(0, 11, 0, B.COPPER_BULB); w.setBlock(1, 11, 0, B.STONE_BUTTON_W); g.rs.dirty.push([0, 11, 0]); run(g, 2);
+  var states = [];
+  for (var k = 0; k < 3; k++) { g.rs.pressButton(1, 11, 0); run(g, 30); states.push(w.block(0, 11, 0) === B.COPPER_BULB_LIT); }
+  var bulbOK = states[0] && !states[1] && states[2];
+  w.setBlock(5, 11, 4, B.LEVER_F); w.setBlock(5, 11, 5, B.REPEATER_S1); w.setBlock(5, 11, 6, B.REDSTONE_LAMP);
+  w.setBlock(7, 11, 5, B.LEVER_F); w.setBlock(6, 11, 5, B.REPEATER_W1); run(g, 2);
+  g.rs.toggleLever(7, 11, 5); run(g, 6);   // 横のリピーターをオン → ロック
+  g.rs.toggleLever(5, 11, 4); run(g, 8);   // 後ろに動力が来ても変わらない
+  var lockOK = w.block(5, 11, 5) === B.REPEATER_S1 && w.block(5, 11, 6) === B.REDSTONE_LAMP && WG.repLocked(g.rs, 5, 11, 5);
+  g.rs.toggleLever(7, 11, 5); run(g, 10);  // ロックが外れると伝わる
+  lockOK = lockOK && w.block(5, 11, 6) === B.REDSTONE_LAMP_ON;
+  w.setBlock(10, 11, 0, B.PISTON_E); w.setBlock(11, 11, 0, B.STONE); w.setBlock(11, 12, 0, B.LEVER_F); run(g, 2);
+  w.setBlock(10, 12, 0, B.AIR); g.rs.toggleLever(11, 12, 0); run(g, 6);
+  var qcOK = w.block(10, 11, 0) === B.PISTON_E_X && w.block(12, 11, 0) === B.STONE;   // レバーは斜め上：準接続で伸びる
+  w.setBlock(14, 11, 4, B.IRON_TRAPDOOR_B); w.setBlock(15, 11, 4, B.LEVER_F); run(g, 2); g.rs.toggleLever(15, 11, 4); run(g, 3);
+  var tdOK = /_TRAPDOOR_O/.test(WG.BLOCKS[w.block(14, 11, 4)].key);
+  // 入力のないリピーターは点かない（以前は 0 と false の比べ方の誤りで勝手に点いていた）。台が導体でないトーチも消えたままにならない
+  w.setBlock(20, 11, 8, B.REPEATER_N2); var repStay = true; for (var r2 = 0; r2 < 20; r2++) { g.tick(); if (w.block(20, 11, 8) !== B.REPEATER_N2) repStay = false; }
+  lockOK = lockOK && repStay;
+  check(bulbOK && lockOK && qcOK && tdOK, '銅の電球はボタンを押すたびに点く・消える、リピーターのロック（入力のないリピーターは点かない）、ピストンの準接続（斜め上のレバー）、鉄のトラップドアが動力で開く');
+  // 3) ピストン：スライムにくっついたブロックも一緒に動き、粘着ピストンで引き戻せる
+  a = fresh(); w = a[0]; g = a[1];
+  // 床から浮かせて置く（床に触れているとスライムが床ごと動かそうとして、12 個を超えて動かない：本家と同じ）
+  w.setBlock(0, 15, 0, B.STICKY_PISTON_E); w.setBlock(1, 15, 0, B.SLIME_BLOCK); w.setBlock(1, 15, 1, B.GOLD_BLOCK); w.setBlock(1, 16, 0, B.DIAMOND_BLOCK);
+  w.setBlock(-1, 15, 0, B.REDSTONE_LAMP); run(g, 2); w.setBlock(-1, 15, 0, B.REDSTONE_BLOCK); g.rs.dirty.push([-1, 15, 0]); run(g, 6);
+  var pushed = w.block(2, 15, 0) === B.SLIME_BLOCK && w.block(2, 15, 1) === B.GOLD_BLOCK && w.block(2, 16, 0) === B.DIAMOND_BLOCK && w.block(1, 15, 0) === B.STICKY_PISTON_HEAD_E;
+  w.setBlock(-1, 15, 0, B.AIR); g.rs.dirty.push([-1, 15, 0]); run(g, 6);
+  var pulled = w.block(1, 15, 0) === B.SLIME_BLOCK && w.block(1, 15, 1) === B.GOLD_BLOCK && w.block(1, 16, 0) === B.DIAMOND_BLOCK && w.block(2, 15, 0) === B.AIR;
+  check(pushed && pulled, '粘着ピストンがスライムブロックとくっついた金・ダイヤごと押し、引き戻す（動く途中の絵あり）');
+  // 4) ターゲット・トリップワイヤー・重さの感圧板・スカルクセンサー・トラップチェスト
+  a = fresh(); w = a[0]; g = a[1];
+  w.setBlock(0, 11, 0, B.TARGET); w.setBlock(1, 11, 0, B.REDSTONE_WIRE_0);
+  g.mobs.arrows.push({ x: -3, y: 12.2, z: 0.5, vx: 0.6, vy: 0, vz: 0, px: -3, py: 12.2, pz: 0.5, life: 0, player: true, dmg: 2 });
+  run(g, 10); var tgt = WG.wirePower(w.block(1, 11, 0));
+  w.setBlock(4, 11, 4, B.STONE); w.setBlock(5, 11, 4, B.TRIPWIRE_HOOK_E); w.setBlock(6, 11, 4, B.TRIPWIRE); w.setBlock(7, 11, 4, B.TRIPWIRE); w.setBlock(8, 11, 4, B.TRIPWIRE_HOOK_W); w.setBlock(9, 11, 4, B.STONE);
+  w.setBlock(3, 11, 4, B.REDSTONE_LAMP); run(g, 2);
+  g.walker.pos = [6.5, 11, 4.5]; g.walker.prev = g.walker.pos.slice(); run(g, 4);
+  var trip = w.block(5, 11, 4) === B.TRIPWIRE_HOOK_E_ON && w.block(3, 11, 4) === B.REDSTONE_LAMP_ON;
+  g.walker.pos = [40.5, 11, 40.5]; g.walker.prev = g.walker.pos.slice(); run(g, 10);
+  trip = trip && w.block(5, 11, 4) === B.TRIPWIRE_HOOK_E;
+  w.setBlock(12, 11, 0, B.LIGHT_WEIGHTED_PRESSURE_PLATE); w.setBlock(13, 11, 0, B.REDSTONE_WIRE_0);
+  g.entities.length = 0; for (k = 0; k < 3; k++) g.spawnItem('DIRT', 1, 12.5, 11.05, 0.5, 0, 9999);
+  run(g, 3); var plate = WG.wirePower(w.block(13, 11, 0));
+  w.setBlock(20, 11, 0, B.SCULK_SENSOR); w.setBlock(21, 11, 0, B.REDSTONE_WIRE_0); w.setBlock(24, 11, 0, B.DIRT); run(g, 2);
+  g.breakBlock(24, 11, 0, true); run(g, 2); var sculk = w.block(20, 11, 0) === B.SCULK_SENSOR_ON && WG.wirePower(w.block(21, 11, 0)) > 0;
+  run(g, 40); sculk = sculk && w.block(20, 11, 0) === B.SCULK_SENSOR;
+  w.setBlock(30, 11, 0, B.TRAPPED_CHEST); w.setBlock(31, 11, 0, B.REDSTONE_LAMP); run(g, 2);
+  g.walker.target = { id: B.TRAPPED_CHEST, x: 30, y: 11, z: 0, px: 30, py: 12, pz: 0 }; g.use(); run(g, 3);
+  var chestOn = g.invOpen && g.screen === 'chest' && w.block(31, 11, 0) === B.REDSTONE_LAMP_ON;
+  g.closeInventory(); run(g, 8); chestOn = chestOn && w.block(31, 11, 0) === B.REDSTONE_LAMP;
+  check(tgt > 0 && trip && plate === 3 && sculk && chestOn, 'ターゲット（矢で強さ ' + tgt + '）、トリップワイヤー（通るとフックがオン、離れるとオフ）、軽量用感圧板（アイテム 3 つで強さ ' + plate + '）、スカルクセンサー（壊した振動）、トラップチェスト（開けている間オン）');
+  // 5) クラフター：板材 4 つを並べて動力を入れると作業台ができる。スライムに落ちるとはねる
+  a = fresh(); w = a[0]; g = a[1];
+  w.setBlock(0, 11, 0, B.CRAFTER_E); var cs = g.container(0, 11, 0).slots; [0, 1, 3, 4].forEach(function (i) { cs[i] = { key: 'OAK_PLANKS', n: 1 }; });
+  w.setBlock(-1, 11, 0, B.LEVER_F); run(g, 2); g.entities.length = 0; g.rs.toggleLever(-1, 11, 0); run(g, 8);
+  var crafted = g.entities.some(function (e) { return e.key === 'CRAFTING_TABLE'; }) && !cs.some(Boolean);
+  w.setBlock(10, 10, 10, B.SLIME_BLOCK); g.walker.pos = [10.5, 20, 10.5]; g.walker.prev = g.walker.pos.slice(); g.walker.vel = [0, 0, 0];
+  var up = false; for (var i2 = 0; i2 < 60; i2++) { g.walker.tick(); g.tick(); if (g.walker.vel[1] > 0.3) up = true; }
+  check(crafted && up && g.health === 20, 'クラフター（板材 4 つ → 動力で作業台）、スライムブロックに落ちるとはね、痛くない');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
