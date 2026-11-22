@@ -348,6 +348,12 @@
   DEF.push(['DEEPSLATE_BRICKS', '深層岩レンガ', '#4a4a50', 'solid'], ['CRACKED_DEEPSLATE_BRICKS', 'ひび割れた深層岩レンガ', '#46464c', 'solid'], ['DEEPSLATE_TILES', '深層岩タイル', '#36363c', 'solid'],
     ['CHISELED_DEEPSLATE', '模様入りの深層岩', '#3e3e44', 'solid'], ['SCULK', 'スカルク', '#0e2a32', 'solid'], ['SCULK_SHRIEKER', 'スカルクシュリーカー', '#1a3a40', 'solid'],
     ['SOUL_LANTERN', '魂のランタン', '#3a5a60', 'lantern'], ['CRYING_OBSIDIAN', '泣く黒曜石', '#2a1040', 'solid'], ['MAGMA_BLOCK', 'マグマブロック', '#8a3a10', 'solid']);
+  // 追加：考古学（怪しい砂・砂利は掘り出し具合 0〜3）、飾り壺、試練の間、コンジット
+  for (var sus = 0; sus < 4; sus++) DEF.push(['SUSPICIOUS_SAND_' + sus, '怪しい砂', '#d8c890', 'solid'], ['SUSPICIOUS_GRAVEL_' + sus, '怪しい砂利', '#8a8480', 'solid']);
+  DEF.push(['DECORATED_POT', '飾り壺', '#9a5a3a', 'dpot'], ['TUFF_BRICKS', '凝灰岩レンガ', '#6a6c64', 'solid'], ['POLISHED_TUFF', '磨かれた凝灰岩', '#646660', 'solid'], ['CHISELED_TUFF', '模様入りの凝灰岩', '#5e605a', 'solid'],
+    ['COPPER_GRATE', '銅の格子', '#c06f52', 'solid'], ['TRIAL_SPAWNER', '試練のスポナー', '#2a2e34', 'solid'], ['TRIAL_SPAWNER_ACTIVE', '試練のスポナー', '#3a3e44', 'solid'],
+    ['VAULT', '宝庫', '#3a3e44', 'solid'], ['VAULT_OPEN', '宝庫', '#2a2e34', 'solid'], ['CONDUIT', 'コンジット', '#c8a870', 'conduit']);
+  ALIAS.TRIAL_SPAWNER_ACTIVE = 'TRIAL_SPAWNER';
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -487,6 +493,7 @@
   LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
+  LIGHT_EMIT[B.TRIAL_SPAWNER] = 4; LIGHT_EMIT[B.TRIAL_SPAWNER_ACTIVE] = 8; LIGHT_EMIT[B.VAULT] = 6; LIGHT_EMIT[B.CONDUIT] = 15;
   LIGHT_EMIT[B.SOUL_LANTERN] = 10; LIGHT_EMIT[B.CRYING_OBSIDIAN] = 10; LIGHT_EMIT[B.MAGMA_BLOCK] = 3; LIGHT_EMIT[B.SCULK_SHRIEKER] = 1;
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
   WG.railInfo = function (id) { return RAIL_INFO[LIST[id].key] || null; }; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
@@ -497,14 +504,14 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -644,6 +651,8 @@
       if (lv && !forCollide) cb.push([2, 4, 2, 14, 6 + lv * 3, 14, B.WATER]);   // 中の水
       return cb;
     }
+    if (k === 'dpot') return [[1, 0, 1, 15, 13, 15, B.DECORATED_POT], [4, 13, 4, 12, 14, 12, B.DECORATED_POT], [3, 14, 3, 13, 16, 13, B.DECORATED_POT]];
+    if (k === 'conduit') return [[5, 5, 5, 11, 11, 11, B.CONDUIT, 1]];
     if (k === 'lrod') return [[7, 0, 7, 9, 12, 9, B.LIGHTNING_ROD], [6, 12, 6, 10, 16, 10, B.LIGHTNING_ROD, key === 'LIGHTNING_ROD_ON' ? 1 : 0]];
     if (k === 'cake') { var bites = +key.slice(5); return [[1 + bites * 2, 0, 1, 15, 8, 15, B.CAKE_0]]; }   // 食べた分だけ欠ける   // ピストンで動いている途中（絵は別に描く）
     if (k === 'hook') {

@@ -24,10 +24,12 @@
   Craft.SHAPED.push([['BB', 'BB'], { B: 'POLISHED_DEEPSLATE' }, 'DEEPSLATE_BRICKS', 4], [['TT', 'TT'], { T: 'DEEPSLATE_BRICKS' }, 'DEEPSLATE_TILES', 4],
     [['NNN', 'NTN', 'NNN'], { N: 'IRON_NUGGET', T: 'SOUL_TORCH' }, 'SOUL_LANTERN', 1], [['MM', 'MM'], { M: 'MAGMA_CREAM' }, 'MAGMA_BLOCK', 1],
     [['EEE', 'ECE', 'EEE'], { E: 'ECHO_SHARD', C: 'COMPASS' }, 'RECOVERY_COMPASS', 1]);
-  Craft.SHAPED = Craft.SHAPED.filter(function (r) { return Object.keys(r[1]).every(function (k) { return ITEMS[r[1][k]] || (Craft.GROUPS && Craft.GROUPS[r[1][k]]); }); });
-  // リカバリーコンパスは、本家と同じこだまの欠片のレシピに（アメジストのレシピは外す）
-  Craft.SHAPED = Craft.SHAPED.filter(function (r) { return !(r[2] === 'RECOVERY_COMPASS' && r[1].A === 'AMETHYST_SHARD'); });
-  WG.Craft.SHAPED = Craft.SHAPED;
+  // 材料のないレシピと、リカバリーコンパスのアメジストのレシピ（本家と同じこだまの欠片にする）を外す。
+  // match は配列そのものを見ているので、作り直さずにその場で取り除く
+  for (var ri = Craft.SHAPED.length - 1; ri >= 0; ri--) {
+    var rc = Craft.SHAPED[ri];
+    if (!Object.keys(rc[1]).every(function (k) { return ITEMS[rc[1][k]] || (Craft.GROUPS && Craft.GROUPS[rc[1][k]]); }) || (rc[2] === 'RECOVERY_COMPASS' && rc[1].A === 'AMETHYST_SHARD')) Craft.SHAPED.splice(ri, 1);
+  }
   Craft.SMELT.DEEPSLATE_BRICKS = 'CRACKED_DEEPSLATE_BRICKS';
 
   // ---------------- 生き物：見た目 ----------------

@@ -2,6 +2,7 @@
 # 使い方: python3 tools/blockart/gen.py [見本の PNG]
 # 色は今までの見た目（PDF の図）の平均色を土台にし、素材ごとの模様（石の粒・板目・年輪・レンガ・鉱石の結晶など）を
 # 決まった乱数で描く。明るさは 4〜6 段に揃えて、ドット絵らしい、はっきりした色の段にしている。
+import math
 import os, sys, json, math, random, base64, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..', '..')
@@ -1676,6 +1677,79 @@ def main():
     for (x0, y0, l) in [(1, 2, 6), (8, 5, 6), (3, 10, 8), (11, 12, 4)]:
         for i in range(l): mg.set(x0 + i, y0 + (i // 3) % 2, [255, 150, 40] if i % 3 else [255, 210, 90])
     put('MAGMA_BLOCK', mg)
+
+    # ---- 追加：考古学・飾り壺・試練の間・コンジット ----
+    for kind, base in [('SAND', T['SAND']['side']), ('GRAVEL', T['GRAVEL']['side'])]:
+        for st in range(4):
+            im = base.copy()
+            # 怪しい所：細かい斑と、掘るほど広がる、くぼんだ跡と中に見える物の色
+            for y in range(N):
+                for x in range(N):
+                    if hsh(261, x, y) % 9 == 0: im.set(x, y, sc(base.get(x, y), 0.8))
+            r = 1.5 + st * 1.6
+            for y in range(N):
+                for x in range(N):
+                    d = math.hypot(x - 7.5, y - 8.5)
+                    if st and d < r: im.set(x, y, sc(base.get(x, y), 0.72 + 0.1 * (d / r)))
+                    if st >= 2 and d < r - 1.6 and (x + y) % 2 == 0: im.set(x, y, [176, 92, 60] if (x * 3 + y) % 5 else [210, 150, 90])
+            put('SUSPICIOUS_' + kind + '_' + str(st), im)
+    pot_c = [154, 84, 56]
+    dp = noisy(pot_c, 271, (0.86, 0.95, 1.05))
+    for x in range(N):
+        dp.set(x, 2, sc(pot_c, 0.7)); dp.set(x, 13, sc(pot_c, 0.7))
+    for (x, y) in [(4, 5), (5, 6), (6, 7), (7, 6), (8, 5), (9, 6), (10, 7), (11, 6), (5, 9), (7, 10), (9, 9), (11, 10)]: dp.set(x, y, [70, 36, 24])
+    put('DECORATED_POT', dp, noisy(sc(pot_c, 0.9), 272, (0.9, 1.0)))
+    tf = [102, 104, 96]
+    put('TUFF_BRICKS', bricks(tf, 273, [70, 72, 66], 4, 8))
+    pt = noisy(sc(tf, 0.96), 274, (0.92, 0.98, 1.04))
+    for i in range(N): pt.set(i, 0, sc(tf, 1.2)); pt.set(0, i, sc(tf, 1.15)); pt.set(i, 15, sc(tf, 0.75)); pt.set(15, i, sc(tf, 0.75))
+    put('POLISHED_TUFF', pt)
+    ct = pt.copy()
+    for y in range(3, 13):
+        for x in range(3, 13):
+            if x in (3, 12) or y in (3, 12) or (x + y) % 4 == 0 and 5 <= x <= 10 and 5 <= y <= 10: ct.set(x, y, sc(tf, 0.7))
+    put('CHISELED_TUFF', ct)
+    cg = Img(alpha=False)
+    copc = [192, 111, 82]
+    for y in range(N):
+        for x in range(N):
+            hole = (x % 4 in (1, 2)) and (y % 4 in (1, 2))
+            cg.set(x, y, [28, 20, 18] if hole else sc(copc, 0.9 + 0.2 * ((x + y) % 3 == 0)))
+    put('COPPER_GRATE', cg)
+    def spawner(active):
+        im = Img([30, 33, 38])
+        glow = [255, 170, 60] if active else [120, 90, 70]
+        for y in range(N):
+            for x in range(N):
+                edge = x in (0, 15) or y in (0, 15)
+                bar = x % 5 == 0 or y % 5 == 0
+                if edge: im.set(x, y, [70, 76, 84])
+                elif bar: im.set(x, y, [52, 56, 64])
+                else:
+                    d = math.hypot(x - 7.5, y - 7.5)
+                    im.set(x, y, mixc(glow, [20, 18, 18], min(1, d / (6 if active else 4))))
+        return im
+    put('TRIAL_SPAWNER', spawner(False), spawner(False))
+    put('TRIAL_SPAWNER_ACTIVE', spawner(True), spawner(True))
+    def vault(open_):
+        im = Img([46, 50, 58])
+        for y in range(N):
+            for x in range(N):
+                if x in (0, 15) or y in (0, 15): im.set(x, y, [90, 96, 104])
+                elif x in (2, 13) or y in (2, 13): im.set(x, y, [176, 128, 60])
+        for y in range(4, 12):
+            for x in range(4, 12): im.set(x, y, [24, 26, 30] if open_ else ([240, 200, 110] if (x + y) % 3 else [255, 236, 170]) if 5 <= x <= 10 and 5 <= y <= 10 else [70, 74, 82])
+        if not open_:
+            for (x, y) in [(7, 6), (8, 6), (7, 7), (8, 7), (7, 8), (7, 9), (8, 9)]: im.set(x, y, [40, 32, 20])
+        return im
+    put('VAULT', vault(False), noisy([60, 64, 72], 275, (0.9, 1.0)))
+    put('VAULT_OPEN', vault(True), noisy([60, 64, 72], 275, (0.9, 1.0)))
+    cd2 = Img()
+    for y in range(N):
+        for x in range(N):
+            d = max(abs(x - 7.5), abs(y - 7.5))
+            cd2.set(x, y, [200, 168, 112] if d > 5 else [110, 220, 230] if d < 2.5 else [60, 110, 140] if (x + y) % 2 else [80, 140, 170])
+    put('CONDUIT', cd2)
 
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():

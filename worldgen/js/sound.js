@@ -151,6 +151,9 @@
       // スカルクシュリーカー：かすれた高い叫び。エヴォーカーの牙：かみ合う音
       case 'shriek': burst(dst, t, 1.2, 'bandpass', 2400, 6, 0.08, 0.8, 1200); tone(dst, t, 1.1, 'sawtooth', 880, 620, 0.12, [9, 30], 2600); break;
       case 'fangs': burst(dst, t, 0.08, 'bandpass', 900, 3, 0.002, 0.8); tone(dst, t, 0.1, 'square', 220, 120, 0.15, null, 800); break;
+      // 襲撃の角笛（低く長い 3 音）、風の弾
+      case 'raidhorn': [0, 0.9, 1.8].forEach(function (d, n) { tone(dst, t + d, 1.0, 'sawtooth', n === 2 ? 147 : 165, n === 2 ? 139 : 156, 0.4, [4, 4], 700); tone(dst, t + d, 1.0, 'sine', 82, 78, 0.3); }); break;
+      case 'wind': burst(dst, t, 0.5, 'bandpass', 900, 1.5, 0.01, 1, 2400); burst(dst, t, 0.2, 'lowpass', 300, 1, 0.005, 0.6); break;
       // ヤギの角笛：低い 2 本の音が揺れながら長く響く
       case 'horn': tone(dst, t, 2.4, 'sawtooth', 196, 185, 0.45, [4.5, 5], 820); tone(dst, t + 0.04, 2.3, 'sawtooth', 294, 277, 0.22, [4.5, 6], 1100); tone(dst, t, 2.4, 'sine', 98, 92, 0.3); break;
       // 不死のトーテム：きらめく上がり音と、ふわっとした息

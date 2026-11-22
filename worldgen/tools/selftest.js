@@ -1392,5 +1392,59 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(!!warden && warden.emerge > 0 && !!g.effects.DARKNESS && rc && rc.key === 'RECOVERY_COMPASS', 'スカルクシュリーカーが 3 回叫ぶと、暗闇の中で深淵の番人が地面から現れる。リカバリーコンパスはこだまの欠片で作る');
 })();
 
+// ---- 襲撃・埋もれた宝・考古学・試練の間 ----
+(function () {
+  console.log('\n[襲撃・宝・考古学・試練の間]');
+  function fresh() { var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); g.mode = 'survival'; g.walker.pos = [0.5, 11, 0.5]; g.renderInventory = function () {}; return [w, g]; }
+  function run(g, n) { for (var i = 0; i < n; i++) g.tick(); }
+  // 1) 隊長 → 不吉な瓶 → 凶兆。襲撃は 3 つの波で、守りきると村の英雄
+  var a = fresh(), w = a[0], g = a[1];
+  var cap = g.mobs.spawn('PILLAGER', 3.5, 11, 0.5); cap.captain = true; g.entities.length = 0; WG.Mobs.prototype.die.call(g.mobs, cap);
+  var bottle = g.entities.some(function (e) { return e.key === 'OMINOUS_BOTTLE'; });
+  g.inv.slots[0] = { key: 'OMINOUS_BOTTLE', n: 1 }; g.inv.sel = 0; g.walker.target = null; g.mouseR = true; run(g, 33); g.mouseR = false;
+  var omen = !!g.effects.BAD_OMEN;
+  g.startRaid(0, 11, 0); var waves = [], rav = false;
+  for (var i = 0; i < 2000 && g.raid && g.raid.state !== 'won'; i++) {
+    g.tick(); g.walker.pos = [0.5, 11, 0.5]; g.health = 20;
+    var rs = g.mobs.list.filter(function (m) { return m.raid && !m.dead; });
+    if (rs.length && waves.indexOf(g.raid.wave) < 0) { waves.push(g.raid.wave); if (rs.some(function (m) { return m.type === 'RAVAGER'; })) rav = true; rs.forEach(function (m) { m.dead = 1; m.hp = 0; }); g.mobs.list = g.mobs.list.filter(function (m) { return !m.dead; }); }
+  }
+  check(bottle && omen && waves.length === 3 && rav && !!g.effects.HERO_OF_THE_VILLAGE, '隊長を倒すと不吉な瓶（飲むと凶兆）、襲撃は 3 つの波（ラヴェジャーあり）、守りきると村の英雄');
+  // 2) 構造物：埋もれた宝（海洋の心）・古道の遺跡・砂漠の井戸・試練の間
+  var wd = new WG.World('7', 'overworld'), ok = [];
+  [['buried_treasure', 8, '埋もれた宝'], ['trail_ruins', 10, '古道の遺跡'], ['desert_well', 10, '砂漠の井戸'], ['trial_chambers', 4, '試練の間']].forEach(function (k) { var l = WG.locateStructure(wd, k[0], 0, 0, k[1]); if (l) ok.push(k[2]); });
+  var bt = WG.locateStructure(wd, 'buried_treasure', 0, 0, 8), g2 = playGame(wd), heart = false;
+  if (bt) { var c = g2.chestAt(bt.x, bt.y, bt.z); heart = wd.block(bt.x, bt.y, bt.z) === B.CHEST && c.some(function (s) { return s && s.key === 'HEART_OF_THE_SEA'; }); }
+  check(ok.length === 4 && heart, '構造物が生成される（' + ok.join('・') + '）。埋もれた宝の箱にはかならず海洋の心');
+  // 3) ブラシで怪しい砂利を掘ると、物が出て砂利に戻る。ウィンドチャージで吹き上がる
+  a = fresh(); w = a[0]; g = a[1];
+  w.setBlock(2, 10, 2, B.SUSPICIOUS_GRAVEL_0); g.inv.slots[0] = { key: 'BRUSH', n: 1 }; g.inv.sel = 0; g.entities.length = 0;
+  g.walker.target = { id: B.SUSPICIOUS_GRAVEL_0, x: 2, y: 10, z: 2, px: 2, py: 11, pz: 2 }; g.mouseR = true;
+  for (i = 0; i < 120 && w.block(2, 10, 2) !== B.GRAVEL; i++) { g.walker.target.id = w.block(2, 10, 2); g.tickBrush(); }
+  g.mouseR = false;
+  var dug = w.block(2, 10, 2) === B.GRAVEL && g.entities.length === 1;
+  g.walker.vel = [0, 0, 0]; g.splash({ key: 'WIND_CHARGE', x: 0.5, y: 11.1, z: 0.5 });
+  var pot = WG.Craft.match([null, 'BRICK', null, 'POTTERY_SHERD_BOW', null, 'BRICK', null, 'BRICK', null], 3);
+  check(dug && g.walker.vel[1] > 0.5 && pot && pot.key === 'DECORATED_POT', 'ブラシで怪しい砂利を掘り出す（' + (g.entities[0] ? g.entities[0].key : '-') + '）、ウィンドチャージで吹き上がる、土器片とレンガで飾り壺');
+  // 4) 試練のスポナー：近づくと敵を出し、全部倒すと鍵。鍵で宝庫が開く
+  a = fresh(); w = a[0]; g = a[1];
+  w.setBlock(0, 11, 4, B.TRIAL_SPAWNER); w.trials = new Map([['0,11,4', { type: 'ZOMBIE', state: 'idle', spawned: 0, total: 6, cool: 0, wait: 0 }]]);
+  var killed = 0; g.entities.length = 0;
+  for (i = 0; i < 1500 && !g.entities.some(function (e) { return e.key === 'TRIAL_KEY'; }); i++) {
+    g.tick(); g.health = 20; g.walker.pos = [0.5, 11, 0.5];
+    g.mobs.list.forEach(function (m) { if (m.trialKey && !m.dead) { m.dead = 1; killed++; } }); g.mobs.list = g.mobs.list.filter(function (m) { return !m.dead; });
+  }
+  var key = g.entities.some(function (e) { return e.key === 'TRIAL_KEY'; });
+  w.setBlock(4, 11, 0, B.VAULT); g.inv.slots[0] = { key: 'TRIAL_KEY', n: 1 }; g.inv.sel = 0; g.walker.target = { id: B.VAULT, x: 4, y: 11, z: 0, px: 4, py: 12, pz: 0 }; var n0 = g.entities.length; g.use();
+  check(key && killed === 6 && w.block(4, 11, 0) === B.VAULT_OPEN && g.entities.length > n0, '試練のスポナー（6 体を倒すと試練の鍵）、鍵で宝庫が開いて褒美が出る');
+  // 5) コンジット：プリズマリンで囲んだ水中で、コンジットパワー
+  a = fresh(); w = a[0]; g = a[1];
+  for (var x = -3; x <= 3; x++) for (var y = 11; y <= 17; y++) for (var z = -3; z <= 3; z++) w.setBlock(x, y, z, B.WATER);
+  for (x = -2; x <= 2; x++) for (z = -2; z <= 2; z++) { w.setBlock(x, 12, z, B.PRISMARINE); }
+  w.setBlock(0, 14, 0, B.CONDUIT); w.conduits = new Set(['0,14,0']); g.walker.pos = [1.5, 13, 1.5];
+  run(g, 25);
+  check(!!g.effects.CONDUIT_POWER && WG.conduitFrame(w, 0, 14, 0) >= 16, 'コンジット：プリズマリンで囲むと、まわりの水中でコンジットパワー');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
