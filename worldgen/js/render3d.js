@@ -35,9 +35,9 @@
   };
 
   // ---- 見た目のアトラス ----
-  // 16×16 の見た目を 32×32 枚並べた 512×512。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
+  // 16×16 の見た目を 32×64 枚並べた 512×1024（ブロック・アイテム・生き物の質感で 1024 枚を超えたので縦に倍）。0 番は白（見た目のないブロック用）。同じ絵は 1 枚にまとめる。
   // ブロックの見た目（js/tex16.js）もアイテムのアイコンも 16×16。古い 8×8 の絵は 2 倍に広げて入れる。
-  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 512, ATLAS_H = 512, PER_ROW = 32, TS = 16, tileTable = null, atlasPixels = null, seen = {};
+  var FACE_IX = { top: 0, side: 1, bottom: 2 }, ATLAS = 512, ATLAS_H = 1024, PER_ROW = 32, TS = 16, tileTable = null, atlasPixels = null, seen = {};
   function atlas() {
     if (tileTable) return tileTable;
     tileTable = new Uint16Array(WG.BLOCKS.length * 3);
@@ -524,7 +524,7 @@
     'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
     'void main(){',
     '  float t = floor(vTile + 0.5), sz = 16.0; vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 16.0;',
-    '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(512.0, 512.0);',
+    '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(512.0, 1024.0);',
     '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
     '  vec3 c = tx.rgb * vCol.rgb * 2.0 * vL;',
     '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
@@ -725,7 +725,7 @@
     }
     gl.uniform1f(L.uAlpha, 1);
     parts.forEach(function (p) { if (p.op) { origin(p); draw(p.op); } });
-    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);   // 画面の不透明さは変えない（下のページの色が透けないように）
     if (this.outline) {
       // 照準のブロックの枠（少しだけ大きくして、面に埋もれないようにする）
       var o = this.outline;
@@ -796,7 +796,7 @@
     quad(moon, D * 0.045, [214, 220, 228]);
     batches.push([pos, col, uv, lt, 1]);
     gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
-    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);   // 画面の不透明さは変えない（下のページの色が透けないように）
     gl.uniform2f(L.uFogR, 1e7, 2e7);
     gl.uniform3f(L.uOrigin, 0, 0, 0); gl.uniform1f(L.uScale, 1);
     batches.forEach(function (bt) {
