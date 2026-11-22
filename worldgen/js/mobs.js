@@ -249,7 +249,8 @@
       // 遠くの敵は消える（Minecraft と同じく 128 ブロックより遠いとすぐ、32 より遠いと少しずつ）
       if ((T.hostile || T.despawn) && !T.boss && !m.name && !m.leash && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
       // 遠く（96 ブロックより先）の生き物は、近づくまで止めておく（読み込んでいないチャンクを作り直さないため）
-      if (dist > 96 && !T.boss && g.riding !== m && !m.leash) { keep.push(m); continue; }
+      if (dist > 96 && !T.boss && g.riding !== m && !m.leash) { keep.push(m); m.frozen = true; continue; }
+      m.frozen = false;
       this.think(m, T, dist, dx, dy, dz);
       this.physics(m, T);
       // 日光で燃える（ゾンビ・スケルトン）
@@ -269,8 +270,12 @@
       keep.push(m);
     }
     // 重なった生き物は少し押し合う
-    for (i = 0; i < keep.length; i++) for (var j = i + 1; j < keep.length; j++) {
-      var a = keep[i], b = keep[j], ox = a.x - b.x, oz = a.z - b.z, d2 = ox * ox + oz * oz, r = (mw(a) + mw(b)) / 2;
+    // （止めている遠くの生き物は除き、近くの組だけ調べる）
+    var act = keep.filter(function (q) { return !q.frozen; });
+    for (i = 0; i < act.length; i++) for (var j = i + 1; j < act.length; j++) {
+      var a = act[i], b = act[j], ox = a.x - b.x, oz = a.z - b.z;
+      if (ox > 8 || ox < -8 || oz > 8 || oz < -8) continue;
+      var d2 = ox * ox + oz * oz, r = (mw(a) + mw(b)) / 2;
       if (d2 < r * r && d2 > 1e-6 && Math.abs(a.y - b.y) < 1) { var d = Math.sqrt(d2), f = (r - d) / d * 0.05; a.vx += ox * f; a.vz += oz * f; b.vx -= ox * f; b.vz -= oz * f; }
     }
     this.list.length = 0;
@@ -748,8 +753,9 @@
     var g = this.game, wd = this.world, w = g.walker, self = this;
     if (!wd.spawners) return;
     wd.spawners.forEach(function (sp, key) {
-      if (wd.block(sp.x, sp.y, sp.z) !== B.SPAWNER) { wd.spawners.delete(key); return; }
+      // 先に距離を見る（遠いスポナーのブロックを読むと、そのチャンクを作り直してしまうため）
       if (Math.hypot(sp.x - w.pos[0], sp.y - w.pos[1], sp.z - w.pos[2]) > 16) return;
+      if (wd.block(sp.x, sp.y, sp.z) !== B.SPAWNER) { wd.spawners.delete(key); return; }
       if (--sp.timer > 0) return;
       sp.timer = 200 + Math.floor(Math.random() * 600);
       var count = self.list.filter(function (m) { return m.type === sp.type && Math.abs(m.x - sp.x) < 5 && Math.abs(m.z - sp.z) < 5 && Math.abs(m.y - sp.y) < 3; }).length;
