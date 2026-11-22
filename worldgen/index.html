@@ -280,6 +280,20 @@
   .slot.ghosted { background: rgba(90, 36, 32, 0.5); }
   body.touchplay .rb-list { max-height: 46vh; }
   @media (max-width: 720px) { .rbook { width: 172px; } .rb-list { grid-template-columns: repeat(4, 38px); } }
+  /* スマホ：インベントリは枠を小さくして、横向きの画面に収める */
+  body.touchplay #inv { background: rgb(30, 31, 34); padding: 10px 14px; }
+  body.touchplay #inv .slot { width: 36px; height: 36px; }
+  body.touchplay #inv .slot img { inset: 3px; width: 28px; height: 28px; }
+  body.touchplay #inv .slot.result { width: 42px; height: 42px; }
+  body.touchplay #inv .grid { grid-template-columns: repeat(9, 36px); }
+  body.touchplay #inv .cgrid[style*="repeat(2"] { grid-template-columns: repeat(2, 36px) !important; }
+  body.touchplay #inv .cgrid[style*="repeat(3"] { grid-template-columns: repeat(3, 36px) !important; }
+  body.touchplay #inv .craft { margin-bottom: 8px; }
+  body.touchplay #inv .grid.bar { margin-top: 6px; }
+  body.touchplay #inv .inv-help, body.touchplay .rb-tip { display: none; }
+  body.touchplay .inv-title { margin-bottom: 6px; }
+  body.touchplay .rb-list { max-height: calc(100vh - 190px); }
+  body.touchplay.invopen #hud { visibility: hidden; }
   .hide { display: none !important; }
   @media (max-width: 720px) {
     #app { flex-direction: column; }

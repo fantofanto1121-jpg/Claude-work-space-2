@@ -1107,5 +1107,57 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(blaze > 0 && popped && T.hitW >= 12, 'ネザーのスポナーから火の精が出る（' + blaze + ' 匹）、中身のある額縁を叩くと中身（エリトラ）だけ落ちる、果ての竜の当たり判定は幅 ' + T.hitW);
 })();
 
+(function () {
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w), i, R = function (t) { return WG.runCommand(g, t); };
+  g.walker.pos = [0.5, 11, 0.5];
+  // コマンド：空気、座標の誤り、対象の指定、日本語のモード、本家の英語名、一部だけ消す、世界の外
+  R('/setblock 2 11 0 stone'); var r1 = R('/setblock 2 11 0 air'), airOK = w.block(2, 11, 0) === B.AIR;
+  var r2 = R('/tp ~ ~-~ ~'), tpOK = /使い方/.test(r2) && isFinite(g.walker.pos[1]);
+  R('/give @p diamond 5'); R('/give @s stick 3'); R('/clear @s diamond 2');
+  var dia = g.inv.slots.filter(function (s) { return s && s.key === 'DIAMOND'; }).reduce(function (a, s) { return a + s.n; }, 0), stick = g.inv.slots.some(function (s) { return s && s.key === 'STICK'; });
+  R('/effect give @s speed 10 1'); R('/effect give @s jump_boost 10'); R('/effect clear @s speed');
+  var effOK = !g.effects.SPEED && !!g.effects.JUMP_BOOST;
+  var gm = R('/gamemode クリエイティブ'), gmOK = g.mode === 'creative'; R('/gamemode survival');
+  var sum = R('/summon creeper ~2 ~ ~'), sumOK = g.mobs.list.some(function (m) { return m.type === 'BOMBER'; });
+  var hi = R('/setblock 0 1000 0 stone'), xpn = (R('/xp add -1000'), g.xp.points >= 0);
+  var bad = [R('/give diamond 0'), R('/effect give speed -10'), R('/summon pig 0 0')].every(function (t) { return !/あげました|付けました|出しました/.test(t); });
+  check(airOK && tpOK && dia === 3 && stick && effOK && gmOK && sumOK && /世界の外/.test(hi) && xpn && bad,
+    'コマンド：air で消せる、~-~ は誤り、@s・@p を読み飛ばす、/clear と /effect clear で 1 種類だけ消す、/gamemode クリエイティブ、creeper（本家の名前）、世界の外・負の経験値・0 個を断る');
+  // /locate：構造物も探せる（次元が違えば知らせる）
+  var wo = new WG.World(SEED, 'overworld'), go = playGame(wo); go.walker.pos = [0, 80, 0];
+  var l1 = WG.runCommand(go, '/locate stronghold'), l2 = WG.runCommand(go, '/locate fortress'), l3 = WG.runCommand(go, '/locate village');
+  check(/要塞：/.test(l1) && /ネザーにあります/.test(l2) && /村：/.test(l3), '/locate で要塞などの構造物も探せる（' + l1 + '）');
+  // エンチャント：本を束で置いても 1 冊だけ。残りは持ち物へ
+  g.setMode('survival'); g.inv.clear(); g.xp.level = 30; g.enchSlots = [{ key: 'BOOK', n: 5 }, { key: 'LAPIS', n: 3 }];
+  g.offers = { list: [{ cost: 1, ench: { UNBREAKING: 1 } }] };
+  g.clickExtra('eopt', 0);
+  var books = g.inv.slots.filter(function (s) { return s && s.key === 'BOOK'; }).reduce(function (a, s) { return a + s.n; }, 0);
+  check(g.enchSlots[0] && g.enchSlots[0].key === 'ENCHANTED_BOOK' && g.enchSlots[0].n === 1 && books === 4, '本 5 冊にエンチャントすると、エンチャントの本 1 冊と、本 4 冊が持ち物に戻る');
+  // 遠くの生き物は止まっている（読み込んでいないチャンクを作り直さない）、ミツバチが繁殖する
+  g.mobs.list.length = 0;
+  var far = g.mobs.spawn('PIG', 300.5, 11, 0.5); far.vx = 0.3;
+  var b1 = g.mobs.spawn('BEE', 3.5, 13, 0.5), b2 = g.mobs.spawn('BEE', 4.5, 13, 0.5); b1.love = b2.love = 400;
+  for (i = 0; i < 100; i++) g.mobs.tick();
+  var babies = g.mobs.list.filter(function (m) { return m.type === 'BEE' && m.baby; }).length;
+  check(Math.abs(far.x - 300.5) < 1e-9 && babies >= 1, '96 ブロックより遠い生き物は止まっている、恋をしたミツバチどうしで子どもが生まれる');
+  // セーブ：ホッパー・コンパレーター・日照センサーの場所と、点火した TNT が残る
+  var wd = new WG.World(SEED, 'overworld'); wd.hoppers = new Set(['1,70,1']); wd.comparators = new Set(['2,70,2']); wd.daylights = new Set(['3,70,3']); wd.tnts = [{ x: 5.5, y: 70, z: 5.5, py: 70, vy: 0, fuse: 40 }];
+  var txt = WG.saveGame(SEED, { overworld: wd }, new WG.Player(), { dim: 'overworld', pos: [0, 70, 0] }), back = WG.loadGame(txt).worlds.overworld;
+  check(back.hoppers.has('1,70,1') && back.comparators.has('2,70,2') && back.daylights.has('3,70,3') && back.tnts.length === 1 && back.tnts[0].fuse === 40,
+    'セーブして読み込むと、ホッパー・コンパレーター・日照センサーが動き続け、点火した TNT も残る');
+})();
+
+(function () {
+  // 始める場所が木の下の洞窟にならない（シード 2026 の原点）。溶岩に落ちたアイテムは燃える。ブロックを壊すと少しおなかが減る
+  var wo = new WG.World('2026', 'overworld'), wk = new WG.Walker({}, wo, {}); wk.spawn(0, 0);
+  var surf = wk.pos[1] >= wo.gen.column(Math.floor(wk.pos[0]), Math.floor(wk.pos[2])).h - 1;
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w);
+  w.setBlock(3, 11, 0, B.LAVA); g.entities.length = 0; g.spawnItem('DIAMOND', 1, 3.5, 11.2, 0.5, 0, 0); g.spawnItem('NETHERITE_INGOT', 1, 3.5, 11.2, 0.5, 0, 0);
+  for (var i = 0; i < 5; i++) g.tickEntities();
+  var burned = !g.entities.some(function (e) { return e.key === 'DIAMOND'; }) && g.entities.some(function (e) { return e.key === 'NETHERITE_INGOT'; });
+  var ex0 = g.exhaust; w.setBlock(5, 11, 0, B.DIRT); g.breakBlock(5, 11, 0, true);
+  check(surf && burned && g.exhaust > ex0, '始める場所が木の下の洞窟にならない（' + wk.pos.map(Math.round).join(', ') + '）、溶岩に落ちたダイヤは燃える（ネザライトは残る）、ブロックを壊すとおなかが減る');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

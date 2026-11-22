@@ -523,6 +523,8 @@
       var o = this.offers && this.offers.list[i], s0 = this.enchSlots[0], lap = this.enchSlots[1];
       if (!o || !s0 || !Object.keys(o.ench).length) return true;
       if (surv && (this.xp.level < o.cost || !lap || lap.key !== 'LAPIS' || lap.n < i + 1)) return true;
+      // 本を束で置いていたら、エンチャントするのは 1 冊だけで、残りは持ち物へ戻す（本家と同じく 1 冊ずつ）
+      if (s0.n > 1) { var rest = s0.n - 1, back = this.inv.add(s0.key, rest); if (back < rest) { var wp0 = this.walker.pos; this.spawnItem(s0.key, rest - back, wp0[0], wp0[1] + 1, wp0[2], 0.1, 20); } s0 = this.enchSlots[0] = { key: s0.key, n: 1 }; }
       var out = s0.key === 'BOOK' ? { key: 'ENCHANTED_BOOK', n: 1 } : s0;
       out.ench = o.ench;
       this.enchSlots[0] = out;

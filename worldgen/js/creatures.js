@@ -254,6 +254,12 @@
     }
     // ---- 飛ぶ動物（ミツバチ・オウム）：ふわふわ。怒ったハチは刺しに来る ----
     if (m.type === 'BEE' || m.type === 'PARROT') {
+      // 恋をしたミツバチは、恋をしている相手へ飛んで行き、近づくと子どもが生まれる
+      if (m.type === 'BEE' && m.love > 0) {
+        var bm = null, bd = 10;
+        this.list.forEach(function (o) { if (o !== m && !o.dead && o.type === 'BEE' && o.love > 0 && !o.baby) { var d0 = Math.hypot(o.x - m.x, o.y - m.y, o.z - m.z); if (d0 < bd) { bd = d0; bm = o; } } });
+        if (bm) { if (bd < 1.4) this.breed(m, bm); else flyTo(m, bm.x, bm.y, bm.z, 0.12, 0.1); return 'done'; }
+      }
       if (m.type === 'BEE' && m.angry && !m.stung && g.mode === 'survival' && dist < 20) {
         flyTo(m, p[0], p[1] + 1, p[2], 0.15, 0.15);
         if (dist < 1.2 && Math.abs(dy + 1) < 1.5 && ai.cd === 0) { g.hurtPlayer(2, m.x, m.z); g.addEffect('POISON', 200, 0); m.stung = true; ai.cd = 20; }

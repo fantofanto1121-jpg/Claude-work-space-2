@@ -368,6 +368,7 @@
     $('wcTitle').textContent = walkLoading ? '読み込み中…' : TOUCH ? 'タップして遊ぶ' : 'クリックして遊ぶ';
     $('touchUI').classList.toggle('hide', !(on && touchPlay && !touchHold && !game.dead));
     $('tInv').classList.toggle('hide', !touchPlay);
+    document.body.classList.toggle('invopen', on && !!game.invOpen);
   }
 
   function lockPointer() {

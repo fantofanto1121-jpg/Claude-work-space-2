@@ -248,6 +248,8 @@
       var dx = p[0] - m.x, dz = p[2] - m.z, dist = Math.hypot(dx, dz), dy = p[1] - m.y;
       // 遠くの敵は消える（Minecraft と同じく 128 ブロックより遠いとすぐ、32 より遠いと少しずつ）
       if ((T.hostile || T.despawn) && !T.boss && !m.name && !m.leash && (dist > 128 || (dist > 32 && Math.random() < 1 / 800))) continue;
+      // 遠く（96 ブロックより先）の生き物は、近づくまで止めておく（読み込んでいないチャンクを作り直さないため）
+      if (dist > 96 && !T.boss && g.riding !== m && !m.leash) { keep.push(m); continue; }
       this.think(m, T, dist, dx, dy, dz);
       this.physics(m, T);
       // 日光で燃える（ゾンビ・スケルトン）

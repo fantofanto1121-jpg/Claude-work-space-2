@@ -708,6 +708,7 @@
   Game.prototype.breakBlock = function (x, y, z, harvest) {
     var wd = this.world, id = wd.block(x, y, z), surv = this.mode === 'survival', self = this;
     if (id === B.AIR || FLUID[id]) return;
+    if (surv) this.exhaust += 0.005;   // ブロックを壊すと少しおなかが減る（本家と同じ）
     // チェストの中身は、その場に落ちる（まだ開けていない地下のチェストも）
     if (id === B.CHEST) {
       this.chestAt(x, y, z).forEach(function (s) { if (s) self.spawnItem(s.key, s.n, x + 0.5, y + 0.3, z + 0.5, 0.1, 10, s.dmg, s.ench); });
@@ -1161,6 +1162,8 @@
         e.x += e.vx; e.y += e.vy; e.z += e.vz;
       } else {
         var here = wd.block(cx, cy, cz);
+        // 溶岩や火に落ちたアイテムは燃えてなくなる（ネザライトの物は燃えない）
+        if ((WG.isLava(here) || here === B.FIRE) && !/NETHERITE|ANCIENT_DEBRIS/.test(e.key)) { if (this.puff) this.puff(e.x, e.y + 0.3, e.z, [70, 70, 70], 4, 0.06); continue; }
         if (WG.isWater(here)) {
           e.vy = Math.min(e.vy + 0.02, 0.06);
           var flow = WG.fluidFlow(wd, cx, cy, cz);

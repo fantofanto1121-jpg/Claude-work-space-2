@@ -68,10 +68,13 @@
 
   // 立ち位置を探す：上から見て、足元が固体（か水）で、体の 2 マスが空いている場所（木の上は除く）
   Walker.prototype.findStand = function (x, z) {
-    var w = this.world, top = Math.min(w.maxY - 2, w.dim.view.yMax);
+    var w = this.world, top = Math.min(w.maxY - 2, w.dim.view.yMax), tree = false;
     for (var y = top; y > w.minY; y--) {
       var below = w.block(x, y - 1, z), here = w.block(x, y, z), up = w.block(x, y + 1, z);
       if ((SOLID[below] || WG.isWater(below)) && !TREE[below] && !SOLID[here] && !SOLID[up] && !WG.isLava(here) && !WG.isLava(up) && !WG.isLava(below)) return y;
+      // 木の幹や葉を通り抜けた先の地面に立てなければ、その列はあきらめる（幹の下の洞窟へ落ちないように）
+      if (TREE[here] || TREE[below]) tree = true;
+      else if (tree && SOLID[below]) return null;
     }
     return null;
   };
