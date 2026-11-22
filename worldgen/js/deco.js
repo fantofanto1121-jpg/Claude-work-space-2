@@ -192,6 +192,8 @@
     var wd = this.world, id = wd.block(x, y, z), bk = WG.BLOCKS[id].key, k = keyOf(x, y, z), self = this, surv = this.mode === 'survival';
     var drop = function (key, n, extra) { self.spawnItem(key, n, x + 0.5, y + 0.4, z + 0.5, 0.1, 10, extra && extra.dmg, extra && extra.ench, extra && WG.itemExtra(extra)); };
     var boxes = wd.boxes, frames = wd.frames, paints = wd.paintings, banners = wd.banners;
+    // 中身のある額縁を叩くと、中身だけが落ちて額縁は残る（本家と同じ）
+    if (/^ITEM_FRAME_/.test(bk) && frames && frames.get(k) && this.mode !== 'adventure') { var f0 = frames.get(k); frames.delete(k); if (surv) drop(f0.key, 1, f0); remesh(this, x, z); return; }
     var r = breakBlock.call(this, x, y, z, harvest);
     if (wd.block(x, y, z) === id) return r;   // 壊れなかった（アドベンチャーなど）
     if (bk === 'BARREL' && boxes && boxes.get(k)) { boxes.get(k).forEach(function (s) { if (s) drop(s.key, s.n, s); }); boxes.delete(k); }

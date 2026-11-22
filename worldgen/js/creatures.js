@@ -128,7 +128,7 @@
   T('DARK_SKELETON', { name: '黒い骸骨', w: 0.7, h: 2.4, hp: 20, speed: 0.09, hostile: true, range: 16, ai: 'melee', dmg: 8, onHit: 'WITHER', fireproof: true, drops: [['COAL', 0, 1], ['BONE', 0, 2]], rare: ['DARK_SKULL'], rareP: 0.05 });
   T('SHADOW', { name: '影の長足', w: 0.6, h: 2.9, hp: 40, speed: 0.1, hostile: true, range: 64, ai: 'shadow', dmg: 7, neutralLook: true, drops: [['SHADOW_PEARL', 0, 1]] });
   T('SHELL_GUARD', { name: '貝の番人', w: 1, h: 1, hp: 30, speed: 0, hostile: true, range: 16, ai: 'ranged', shot: 'bullet', cd: 60, still: true, noFall: true, drops: [['SHELL', 0, 1]] });
-  T('END_DRAGON', { name: '果ての竜', w: 6, h: 3, hp: 200, speed: 0.4, hostile: true, range: 160, flies: true, noFall: true, noclip: true, fireproof: true, boss: true, ai: 'dragon', dmg: 10, scale: 3, drops: [] });
+  T('END_DRAGON', { name: '果ての竜', w: 6, h: 3, hp: 200, speed: 0.4, hostile: true, range: 160, flies: true, noFall: true, noclip: true, fireproof: true, boss: true, ai: 'dragon', dmg: 10, scale: 3, hitW: 14, hitH: 6, drops: [] });
   T('SKULL_BOSS', { name: '三つ首の骸', w: 0.9, h: 3.5, hp: 300, speed: 0.06, hostile: true, range: 48, flies: true, noFall: true, fireproof: true, boss: true, ai: 'ranged', shot: 'skull', cd: 20, keep: [6, 14], scale: 1.8, drops: [['NETHER_STAR', 1, 1]] });
   var NEW = ['HORSE', 'DONKEY', 'CAMEL', 'CAT', 'FOX', 'GOAT', 'TURTLE', 'BEE', 'FISH', 'PARROT', 'PANDA', 'POLAR_BEAR', 'DROWNED', 'HUSK', 'PILLAGER', 'NIGHT_RAY', 'EYE_FISH', 'DEEP_WARDEN',
     'PIGLIN', 'HOGLIN', 'STRIDER', 'FIRE_SPIRIT', 'WAILER', 'DARK_SKELETON', 'SHADOW', 'SHELL_GUARD', 'END_DRAGON', 'SKULL_BOSS'];
@@ -662,7 +662,7 @@
       if (dark > 8 && g.mode === 'survival' && days >= 3 && count('NIGHT_RAY') < 3 && Math.random() < 0.05) this.spawn('NIGHT_RAY', p[0] + (Math.random() - 0.5) * 10, p[1] + 20, p[2] + (Math.random() - 0.5) * 10);
       // 略奪者の見回り（夜、2〜4 人）と、影の長足（夜、まれ）
       if (dark > 8 && Math.random() < 0.01 && count('PILLAGER') < 4) { c = near(24, 40); y = standAt(c[0], c[1], Math.floor(p[1]), 20); if (y != null) for (i = 0; i < 2 + Math.floor(Math.random() * 3); i++) this.spawn('PILLAGER', c[0] + 0.5 + i, y, c[1] + 0.5); }
-      if (dark > 8 && Math.random() < 0.02 && count('SHADOW') < 2) { c = near(20, 40); y = standAt(c[0], c[1], Math.floor(p[1]), 20); if (y != null) this.spawn('SHADOW', c[0] + 0.5, y, c[1] + 0.5); }
+      if (dark > 8 && Math.random() < 0.05 && count('SHADOW') < 3) { c = near(20, 40); y = standAt(c[0], c[1], Math.floor(p[1]), 20); if (y != null) this.spawn('SHADOW', c[0] + 0.5, y, c[1] + 0.5); }
       // 深淵の番人：とても深い暗い所（y −40 より下）で、ごくまれに
       if (p[1] < -40 && count('DEEP_WARDEN') < 1 && Math.random() < 0.004) { c = near(10, 20); y = standAt(c[0], c[1], Math.floor(p[1]), 10); if (y != null && w.lightLevels(c[0] + 0.5, y, c[1] + 0.5)[1] < 3) this.spawn('DEEP_WARDEN', c[0] + 0.5, y, c[1] + 0.5); }
     } else if (wd.dimKey === 'nether') {

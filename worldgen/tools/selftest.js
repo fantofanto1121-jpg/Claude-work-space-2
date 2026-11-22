@@ -1088,5 +1088,24 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     'レシピ本（' + book.length + ' 種）：押すと材料を並べ、もう一度で 1 回分増える。3×3 のレシピは作業台で。足りないものは形だけ薄く出す');
 })();
 
+// ---- テストプレイで見つかった不具合 ----
+(function () {
+  console.log('\n[テストプレイの不具合]');
+  // ネザーのスポナー（要塞の火の精）が動く
+  var wn = flatWorld(function (x, y, z) { return y <= 60 ? B.NETHER_BRICKS : 0; }); wn.dimKey = 'nether';
+  var gn = playGame(wn); gn.mobs.spawnTick = WG.Mobs.prototype.spawnTick; gn.walker.pos = [0.5, 61, 0.5];
+  wn.setBlock(4, 61, 0, B.SPAWNER); wn.spawners = new Map([['4,61,0', { x: 4, y: 61, z: 0, timer: 5, type: 'FIRE_SPIRIT' }]]);
+  for (var i = 0; i < 40; i++) gn.mobs.spawnTick();
+  var blaze = gn.mobs.list.filter(function (m) { return m.type === 'FIRE_SPIRIT'; }).length;
+  // 中身のある額縁を叩くと、中身だけ落ちて額縁は残る
+  var wf = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), gf = playGame(wf);
+  wf.setBlock(0, 11, 0, B.ITEM_FRAME_N); wf.frames = new Map([['0,11,0', { key: 'ELYTRA', n: 1 }]]);
+  gf.entities.length = 0; gf.breakBlock(0, 11, 0, true);
+  var popped = wf.block(0, 11, 0) === B.ITEM_FRAME_N && !wf.frames.get('0,11,0') && gf.entities.some(function (e) { return e.key === 'ELYTRA'; });
+  // 果ての竜の当たり判定は描く大きさに合わせて広い
+  var T = WG.MOB_TYPES.END_DRAGON;
+  check(blaze > 0 && popped && T.hitW >= 12, 'ネザーのスポナーから火の精が出る（' + blaze + ' 匹）、中身のある額縁を叩くと中身（エリトラ）だけ落ちる、果ての竜の当たり判定は幅 ' + T.hitW);
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

@@ -222,8 +222,9 @@
   };
 
   // 大きさ（スライムは大きさを掛ける）
-  function mw(m) { return TYPES[m.type].w * (m.size || 1) * (m.baby ? 0.5 : 1); }
-  function mh(m) { return TYPES[m.type].h * (m.size || 1) * (m.baby ? 0.5 : 1); }
+  // 当たり判定の大きさ（hitW・hitH があればそれを使う：果ての竜は描く大きさに合わせて広い）
+  function mw(m) { var T = TYPES[m.type]; return (T.hitW || T.w) * (m.size || 1) * (m.baby ? 0.5 : 1); }
+  function mh(m) { var T = TYPES[m.type]; return (T.hitH || T.h) * (m.size || 1) * (m.baby ? 0.5 : 1); }
   function box3(m) { var w2 = mw(m) / 2; return [m.x - w2, m.y, m.z - w2, m.x + w2, m.y + mh(m), m.z + w2]; }
 
   // ---- 1 刻み ----
@@ -722,7 +723,7 @@
   // 暗い所に敵が出る（明かりのない所、夜の地上）。スポナーの近くにも出る。
   Mobs.prototype.spawnTick = function () {
     var g = this.game, wd = this.world, w = g.walker;
-    if (wd.dimKey === 'nether') { this.spawnNether(); return; }
+    if (wd.dimKey === 'nether') { this.spawnNether(); this.tickSpawners(); return; }
     if (wd.dimKey !== 'overworld') return;
     var sky = g.sky(), dark = sky ? sky.dark : 0, self = this;
     var hostiles = this.list.filter(function (m) { return TYPES[m.type].hostile; }).length;
@@ -738,7 +739,12 @@
       }
     }
     this.spawnAmbient();
-    // スポナー：16 ブロック以内にいるとき、10〜40 秒ごとに最大 4 匹
+    this.tickSpawners();
+  };
+  // スポナー：16 ブロック以内にいるとき、10〜40 秒ごとに最大 4 匹（地上とネザー）
+  Mobs.prototype.tickSpawners = function () {
+    var g = this.game, wd = this.world, w = g.walker, self = this;
+    if (!wd.spawners) return;
     wd.spawners.forEach(function (sp, key) {
       if (wd.block(sp.x, sp.y, sp.z) !== B.SPAWNER) { wd.spawners.delete(key); return; }
       if (Math.hypot(sp.x - w.pos[0], sp.y - w.pos[1], sp.z - w.pos[2]) > 16) return;
