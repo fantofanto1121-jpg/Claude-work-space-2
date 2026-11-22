@@ -660,9 +660,13 @@
     this.puff(fx + 0.5, fy + 0.5, fz + 0.5, [170, 170, 170], 5, 0.3);
     if (m[1] === 'DROPPER') { drop(); this.inv.changed(); return; }
     var free = fid === B.AIR || FLUID[fid] || kind(fid) === 'plant';
-    if (key === 'ARROW') {
+    if (it.arrow) {
       var ar = this.mobs.shootFromPlayer([fx + 0.5 - v[0] * 0.4, fy + 0.6, fz + 0.5 - v[2] * 0.4], [v[0], v[1] + 0.1, v[2]], 1.1, 3, false);
-      ar.any = true; use1();
+      ar.any = true; if (key !== 'ARROW') ar.kind = key; use1();
+    } else if (key === 'FIRE_CHARGE') {
+      // ファイヤーチャージ：小さな火の玉を前へ撃つ
+      (this.mobs.shots || (this.mobs.shots = [])).push({ kind: 'smallfire', x: fx + 0.5, y: fy + 0.5, z: fz + 0.5, px: fx + 0.5, py: fy + 0.5, pz: fz + 0.5, vx: v[0] * 0.6 + (Math.random() - 0.5) * 0.05, vy: v[1] * 0.6 + (Math.random() - 0.5) * 0.05, vz: v[2] * 0.6 + (Math.random() - 0.5) * 0.05, life: 0, owner: null });
+      if (WG.Sound) WG.Sound.play('ignite', fx + 0.5, fy + 0.5, fz + 0.5); use1();
     } else if (it.splash) {
       this.throwns.push({ key: key, x: fx + 0.5, y: fy + 0.5, z: fz + 0.5, px: fx + 0.5, py: fy + 0.5, pz: fz + 0.5, vx: v[0] * 0.5, vy: v[1] * 0.5 + 0.1, vz: v[2] * 0.5, age: 0 }); use1();
     } else if ((key === 'WATER_BUCKET' || key === 'LAVA_BUCKET') && free) {
@@ -772,7 +776,7 @@
       cube(solid, x, y, z, s, (o.age + a) / 8, function () { return 0; }, function () { return [120 + 100 * pulse, 230, 40 + 40 * pulse]; }, [15, 15]);
     });
     this.throwns.forEach(function (p) {
-      var x = p.px + (p.x - p.px) * a, y = p.py + (p.y - p.py) * a, z = p.pz + (p.z - p.pz) * a, col = WG.EFFECTS[ITEMS[p.key].effect] ? WG.EFFECTS[ITEMS[p.key].effect][1] : '#385dc6';
+      var x = p.px + (p.x - p.px) * a, y = p.py + (p.y - p.py) * a, z = p.pz + (p.z - p.pz) * a, col = ITEMS[p.key].throwColor || (WG.EFFECTS[ITEMS[p.key].effect] ? WG.EFFECTS[ITEMS[p.key].effect][1] : '#385dc6');
       cube(solid, x, y, z, 0.18, (p.age + a) / 4, function () { return 0; }, function () { return [parseInt(col.substr(1, 2), 16), parseInt(col.substr(3, 2), 16), parseInt(col.substr(5, 2), 16)]; }, w.lightLevels(x, y, z));
     });
     var b = this.bobber;

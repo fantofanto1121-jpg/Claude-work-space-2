@@ -170,3 +170,72 @@ D['ACTIVATOR_RAIL'] = (railrows(ramp_from('#a8443a'), True), {'R': ramp_from('#a
 D['TRIPWIRE_HOOK'] = (['................', '................', '.......AA.......', '......A..A......', '......A..A......', '.......AA.......', '........B.......', '........B.......',
                        '........B.......', '.......WWW......', '.......WWW......', '.......WWW......', '.......WWW......', '.......WWW......', '................'],
                       {'A': ramp_from('#b8b8c0'), 'B': ramp_from('#8a8a90'), 'W': W})
+
+# ---- 第 A2 回：足りなかったアイテム ----
+from defs2 import APPLE, BOWL, BOTTLE, bottle
+D['EGG'] = (['................', '................', '................', '.......AA.......', '......AAAA......', '.....AAAAAA.....', '.....AAAAAA.....', '....AAAAAAAA....',
+             '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '.....AAAAAA.....', '......AAAA......'], {'A': ramp_from('#e6d8bc')}, {'s': '#b89a70', 'w': '#ffffff'},
+            [(9, 8, 's'), (6, 10, 's'), (8, 11, 's'), (6, 5, 'w')])
+D['CAKE'] = (['................', '................', '................', '.......w..w.....', '....CCCCCCCCC...', '...CCCCCCCCCCC..', '..CCCCCCCCCCCCC.', '..CCCCCCCCCCCCC.',
+              '..cSSSSSSSSSSSc.', '..SSSSSSSSSSSSS.', '..JJJJJJJJJJJJJ.', '..SSSSSSSSSSSSS.', '..SSSSSSSSSSSSS.', '...SSSSSSSSSSS..'],
+             {'C': ramp_from('#f2ece2'), 'S': ramp_from('#d29456'), 'J': ramp_from('#c42c28')}, {'w': '#d83a34', 'c': '#f2ece2'},
+             [(5, 5, 'w'), (8, 6, 'w'), (11, 5, 'w'), (12, 7, 'w')])
+D['PUMPKIN_PIE'] = (['................', '................', '................', '................', '.....CCCCCC.....', '...CCPPPPPPCC...', '..CPPPPPPPPPPC..', '..CPPPPPPPPPPC..',
+                     '..CPPPPPPPPPPC..', '...CCPPPPPPCC...', '.....CCCCCC.....'], {'C': ramp_from('#c8904a'), 'P': ramp_from('#d8782a')}, {'d': '#a85418'},
+                    [(6, 6, 'd'), (9, 7, 'd'), (7, 8, 'd'), (10, 5, 'd')])
+D['COOKIE'] = (['................', '................', '................', '......AAAA......', '....AAAAAAAA....', '...AAAAAAAAAA...', '...AAAAAAAAAA...', '..AAAAAAAAAAAA..',
+                '..AAAAAAAAAAAA..', '...AAAAAAAAAA...', '...AAAAAAAAAA...', '....AAAAAAAA....', '......AAAA......'], {'A': ramp_from('#c88a46')}, {'k': '#4a2a14', 'h': '#6a3e1e'},
+               [(5, 5, 'k'), (9, 4, 'k'), (7, 7, 'k'), (11, 8, 'k'), (5, 9, 'k'), (9, 10, 'k'), (6, 6, 'h'), (10, 9, 'h')])
+BEET = ['........L.L.....', '.......LLLLL....', '........LLL.....', '.........S......', '.......AAAA.....', '......AAAAAA....', '.....AAAAAAAA...', '.....AAAAAAAA...',
+        '.....AAAAAAAA...', '......AAAAAA....', '.......AAAA.....', '........AA......', '.........A......']
+D['BEETROOT'] = (BEET, {'A': ramp_from('#a82440'), 'L': RR['leaf'], 'S': ramp_from('#a82440')}, {'w': '#e86880'}, [(7, 5, 'w'), (6, 6, 'w')])
+D['BEETROOT_SEEDS'] = (['................', '................', '................', '.....AA.........', '....AAA....AA...', '....AA....AAA...', '..........AA....', '...AA...........',
+                        '..AAA.....AA....', '..AA.....AAA....', '.........AA.....', '.....AA.........', '....AAA.........', '....AA..........'], {'A': ramp_from('#b8a060')})
+STEW = ['................', '................', '................', '................', '................', '...CCCCCCCCCC...', '..ACCCCCCCCCCA..', '..AAAAAAAAAAAA..',
+        '...AAAAAAAAAA...', '....AAAAAAAA....', '.....AAAAAA.....']
+D['BEETROOT_SOUP'] = (STEW, {'A': R['wood'], 'C': ramp_from('#9a1a2a')}, {'w': '#e85a70'}, [(5, 5, 'w'), (9, 5, 'w'), (7, 6, 'w')])
+D['RABBIT_STEW'] = (STEW, {'A': R['wood'], 'C': ramp_from('#b07a3e')}, {'o': '#ec8426', 'p': '#e8c890', 'm': '#7a5034', 'g': '#5a9a3a'},
+                    [(4, 5, 'o'), (6, 5, 'p'), (8, 5, 'm'), (10, 5, 'o'), (11, 6, 'g'), (5, 6, 'm'), (7, 6, 'p'), (9, 6, 'g')])
+for fk, fc in [('POPPY', '#c4342c'), ('DANDELION', '#f0c838')]:
+    D['SUSPICIOUS_STEW_' + fk] = (STEW, {'A': R['wood'], 'C': ramp_from('#a87a52')}, {'f': fc, 'r': '#c42a24', 'b': '#7a5034', 'g': '#5a9a3a'},
+                                  [(5, 5, 'r'), (7, 5, 'f'), (8, 5, 'f'), (10, 5, 'b'), (7, 6, 'g'), (4, 6, 'b'), (11, 6, 'r')])
+D['SWEET_BERRIES'] = (['................', '........LL......', '.......LLLL.....', '........S.......', '.......S.S......', '......S...S.....', '....AAA...AAA...', '...AAAAA.AAAAA..',
+                       '...AAAAA.AAAAA..', '...AAAAA.AAAAA..', '....AAA...AAA...', '.......AAA......', '......AAAAA.....', '......AAAAA.....', '.......AAA......'],
+                      {'A': ramp_from('#c82838'), 'L': RR['leaf'], 'S': ramp_from('#4a6a2a')}, {'w': '#ff9aa0'}, [(4, 7, 'w'), (10, 7, 'w'), (7, 12, 'w')])
+D['ENCHANTED_GOLDEN_APPLE'] = (APPLE, {'A': R['gold'], 'S': R['handle'], 'L': RR['leaf']}, {'w': '#ffffff', 'p': '#d8a0ff'},
+                               [(4, 4, 'w'), (4, 5, 'w'), (9, 6, 'p'), (6, 9, 'p'), (11, 9, 'p'), (8, 11, 'p')])
+D['TOTEM_OF_UNDYING'] = (['................', '.....AAAAAA.....', '....AAAAAAAA....', '....AeAAAAeA....', '....AAAAAAAA....', '.....AAgAAA.....', '..GGGGGGGGGGGG..', '..G.GGGGGGGG.G..',
+                          '....GGGGGGGG....', '....GGGeGGGG....', '.....GGGGGG.....', '.....GG..GG.....', '.....GG..GG.....', '....GGG..GGG....'],
+                         {'A': R['gold'], 'G': R['gold']}, {'e': '#1a8a3e', 'g': '#4a3208'}, [(6, 3, 'e'), (10, 3, 'e'), (7, 9, 'e'), (8, 9, 'e')])
+ARROW_ROWS = ['................', '............HH..', '...........HHHH.', '............HHH.', '..........S.H...', '.........S......', '........S.......', '.......S........',
+              '......S.........', '.....S..........', '.FF.S...........', '.FFS............', '..FF............', '.F.F............']
+D['SPECTRAL_ARROW'] = (ARROW_ROWS, {'H': ramp_from('#f0c838'), 'S': R['handle'], 'F': ramp_from('#f6e6a0')}, {'w': '#fffbe0'}, [(12, 2, 'w')])
+D['DRAGON_BREATH'] = (bottle(True), {'G': RR['glass'], 'N': R['wood'], 'L': ramp_from('#c86ae0')}, {'w': '#ffffff', 'p': '#f4c8ff'}, [(5, 7, 'w'), (8, 8, 'p'), (7, 10, 'p')])
+D['SCUTE'] = (['................', '................', '................', '.....AAAAAA.....', '....AAAAAAAA....', '...AABBAABBAA...', '...AAAAAAAAAA...', '...ABBAAAABBA...',
+               '...AAAAAAAAAA...', '....AABBBBAA....', '.....AAAAAA.....', '......AAAA......'], {'A': ramp_from('#4cae3c'), 'B': ramp_from('#2e7a2a')})
+D['TURTLE_HELMET'] = (['................', '................', '.....AAAAAA.....', '...AAAAAAAAAA...', '..AABBAAAABBAA..', '..AAAAAAAAAAAA..', '.AABBAAAAAABBAA.', '.AAAAAAAAAAAAAA.',
+                       '.AAA........AAA.', '.AA..........AA.', '.AA..........AA.', '..A..........A..'], {'A': ramp_from('#4cae3c'), 'B': ramp_from('#2e7a2a')})
+D['EXPERIENCE_BOTTLE'] = (bottle(True, True), {'G': RR['glass'], 'N': R['wood'], 'L': ramp_from('#5ec83a')}, {'w': '#ffffff', 'y': '#e8ff80'},
+                          [(5, 6, 'w'), (8, 7, 'y'), (6, 9, 'y'), (9, 10, 'y')])
+D['FIRE_CHARGE'] = (['................', '................', '................', '......AAAA......', '....AAAAAAAA....', '....AAAAAAAA....', '...AAAAAAAAAA...', '...AAAAAAAAAA...',
+                     '...AAAAAAAAAA...', '...AAAAAAAAAA...', '....AAAAAAAA....', '....AAAAAAAA....', '......AAAA......'], {'A': ramp_from('#3a2a22')}, {'o': '#f08a2a', 'y': '#ffd060', 'r': '#c8401a'},
+                    [(5, 5, 'o'), (6, 5, 'y'), (9, 6, 'o'), (10, 7, 'r'), (6, 8, 'r'), (7, 9, 'o'), (8, 9, 'y'), (11, 9, 'o'), (5, 10, 'o'), (8, 11, 'r')])
+D['ARMOR_STAND'] = (['.......WW.......', '.......WW.......', '...WWWWWWWWWW...', '...W..WWWW..W...', '...W...WW...W...', '...W...WW...W...', '.......WW.......', '......WWWW......',
+                     '......W..W......', '......W..W......', '......W..W......', '......W..W......', '......W..W......', '..SSSSSSSSSSSS..', '..SSSSSSSSSSSS..'], {'W': R['wood'], 'S': ramp_from('#9a9a96')})
+BUNDLE = ['................', '.......SS.......', '......S..S......', '.....AAAAAA.....', '......AAAA......', '.....AAAAAA.....', '....AAAAAAAA....', '...AAAAAAAAAA...',
+          '...AAAAAAAAAA...', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '...AAAAAAAAAA...', '....AAAAAAAA....']
+D['BUNDLE'] = (BUNDLE, {'A': R['leather'], 'S': ramp_from('#e8e0c8')}, {'k': '#5a3418'}, [(6, 4, 'k'), (9, 4, 'k')])
+D['BUNDLE_FILLED'] = (['................', '.......SS.......', '......S..S......', '.....AAAAAA.....', '....yAAAAgy.....', '....AAAAAAAA....', '...AAAAAAAAAA...', '..AAAAAAAAAAAA..',
+                       '..AAAAAAAAAAAA..', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '.AAAAAAAAAAAAAA.', '..AAAAAAAAAAAA..', '...AAAAAAAAAA...'],
+                      {'A': R['leather'], 'S': ramp_from('#e8e0c8')}, {'k': '#5a3418', 'y': '#e8c540', 'g': '#5ad67a'}, [(6, 4, 'k'), (9, 3, 'k')])
+D['GOAT_HORN'] = (['................', '................', '...........AA...', '..........AAAA..', '.........AAAAA..', '........AAAA....', '.......AAA......', '......AAA.......',
+                   '.....AAA........', '....AAA.........', '...AAA..........', '..AAA...........', '..AA............', '..A.............'], {'A': ramp_from('#c8bc9e')}, {'r': '#8a7e66'},
+                  [(10, 4, 'r'), (8, 6, 'r'), (6, 8, 'r'), (4, 10, 'r')])
+ROUND2 = ['................', '................', '.....AAAAAA.....', '....AAAAAAAA....', '...AAAAAAAAAA...', '...AAAAAAAAAA...', '...AAAAAAAAAA...', '...AAAAAAAAAA...',
+          '...AAAAAAAAAA...', '...AAAAAAAAAA...', '....AAAAAAAA....', '.....AAAAAA.....']
+D['RECOVERY_COMPASS'] = (ROUND2, {'A': ramp_from('#2a4a50')}, {'f': '#14282c', 'c': '#5ae0d0', 'k': '#3a4a50', 'p': '#a888e8'},
+                         [(x, y, 'f') for y in range(4, 10) for x in range(5, 11)] + [(8, 4, 'c'), (8, 5, 'c'), (7, 6, 'c'), (7, 7, 'k'), (6, 8, 'k'), (6, 9, 'k'), (3, 4, 'p'), (12, 4, 'p'), (3, 9, 'p'), (12, 9, 'p')])
+DISC = ['................', '.....AAAAAA.....', '...AAAAAAAAAA...', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '.AAAAALLLLAAAAA.', '.AAAALLLLLLAAAA.', '.AAAALLkkLLAAAA.',
+        '.AAAALLkkLLAAAA.', '.AAAALLLLLLAAAA.', '.AAAAALLLLAAAAA.', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '...AAAAAAAAAA...', '.....AAAAAA.....']
+for dk, lc in [('MEADOW', '#7ac850'), ('DRIP', '#4a8ad8'), ('FORGE', '#e0602a'), ('STARS', '#b878e8'), ('MARKET', '#e8c040')]:
+    D['MUSIC_DISC_' + dk] = (DISC, {'A': ramp_from('#26262c'), 'L': ramp_from(lc)}, {'k': '#0a0a0c', 'g': '#4a4a56'}, [(4, 3, 'g'), (3, 4, 'g'), (11, 12, 'g'), (12, 11, 'g')])

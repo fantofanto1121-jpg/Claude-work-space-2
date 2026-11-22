@@ -121,6 +121,10 @@
     if ((mb === 'plains' || mb === 'forest' || mb === 'taiga' || mb === 'savanna') && R(200) < 1 / 30) {
       for (k = 0; k < 12; k++) { var px = 3 + Math.floor(R(201 + k) * 10), pz = 3 + Math.floor(R(220 + k) * 10), ph = grassTop(px, pz); if (ph != null) set(px, ph + 1, pz, B.PUMPKIN); }
     }
+    // スイートベリーの茂み（タイガ）
+    if (mb === 'taiga' && R(204) < 1 / 5) {
+      for (k = 0; k < 6; k++) { px = 2 + Math.floor(R(205 + k) * 12); pz = 2 + Math.floor(R(212 + k) * 12); ph = grassTop(px, pz); if (ph != null) set(px, ph + 1, pz, B['SWEET_BERRY_BUSH_' + (2 + Math.floor(R(230 + k) * 2))]); }
+    }
     if (mb === 'jungle') {
       if (R(240) < 1 / 10) for (k = 0; k < 10; k++) { px = 3 + Math.floor(R(241 + k) * 10); pz = 3 + Math.floor(R(260 + k) * 10); ph = grassTop(px, pz); if (ph != null) set(px, ph + 1, pz, B.MELON); }
       // 竹の林

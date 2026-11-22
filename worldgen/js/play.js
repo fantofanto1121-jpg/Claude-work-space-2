@@ -393,7 +393,7 @@
   Game.prototype.tickBow = function () {
     var held = this.inv.held(), it = held ? ITEMS[held.key] : null, w = this.walker, surv = this.mode === 'survival';
     var arrowAt = -1;
-    for (var i = 0; i < 36 && surv; i++) if (this.inv.slots[i] && this.inv.slots[i].key === 'ARROW') { arrowAt = i; break; }
+    for (var i = 0; i < 36 && surv; i++) if (this.inv.slots[i] && ITEMS[this.inv.slots[i].key].arrow) { arrowAt = i; break; }
     var can = it && it.bow && (!surv || arrowAt >= 0);
     if (can && this.mouseR && !this.invOpen) { this.bowT++; w.using = true; return; }
     if (this.bowT <= 0) return;
@@ -404,9 +404,11 @@
     var v = f * 3, dmg = Math.ceil(v * 2), pw = WG.enchLevel(held, 'POWER'), inf = WG.enchLevel(held, 'INFINITY');
     if (pw) dmg = Math.ceil(dmg * (1 + 0.25 * (pw + 1)));   // 射撃ダメージ増加
     if (f >= 1) dmg += Math.floor(Math.random() * (dmg / 2 + 2));
-    var ar = this.mobs.shootFromPlayer(w.eye, w.dir, v, dmg, surv && !inf);
+    var akind = arrowAt >= 0 && this.inv.slots[arrowAt].key !== 'ARROW' ? this.inv.slots[arrowAt].key : null;   // 光の矢・効能付きの矢
+    var ar = this.mobs.shootFromPlayer(w.eye, w.dir, v, dmg, surv && (!inf || !!akind));
+    if (akind) ar.kind = akind;
     ar.flame = WG.enchLevel(held, 'FLAME') > 0; ar.punch = WG.enchLevel(held, 'PUNCH');
-    if (surv) { if (!inf) this.inv.take(arrowAt, 1); this.wearTool(1); }
+    if (surv) { if (!inf || akind) this.inv.take(arrowAt, 1); this.wearTool(1); }
     this.exhaust += 0.1;
   };
 
@@ -432,6 +434,7 @@
             wd.setBlock(x, y + 1, z, B.SUGAR_CANE); this.walker.remesh(x, z);   // サトウキビは 3 段まで伸びる
           }
           else if (k === 'farm') this.tickFarmland(x, y, z);
+          else if (k === 'plant' && WG.onPlantTick) WG.onPlantTick(this, x, y, z, id);   // スイートベリーの茂み（js/items2.js）
         }
       }
     }
@@ -1065,6 +1068,7 @@
     ['SLIME_BALL', 1, 3, 4], ['BOOK', 1, 3, 4], ['PAPER', 1, 5, 4], ['SUGAR_CANE', 1, 4, 3], ['GLISTERING_MELON_SLICE', 1, 2, 2], ['RABBIT_FOOT', 1, 1, 1],
     ['SADDLE', 1, 1, 4], ['NAME_TAG', 1, 1, 3], ['COCOA_BEANS', 1, 4, 4]];
   // ネザーの要塞のチェスト（ブレイズやガストがいないので、その材料もここに入れている）
+  WG.DUNGEON_LOOT = LOOT_OVER;   // 追加のアイテムが中身を足す（js/items2.js）
   var LOOT_NETHER = [['BLAZE_ROD', 1, 3, 10], ['NETHER_WART', 2, 6, 10], ['GHAST_TEAR', 1, 2, 6], ['MAGMA_CREAM', 1, 3, 6], ['GOLD_INGOT', 1, 5, 10],
     ['IRON_INGOT', 1, 5, 8], ['DIAMOND', 1, 3, 4], ['OBSIDIAN', 2, 6, 3], ['FLINT_AND_STEEL', 1, 1, 3], ['GLISTERING_MELON_SLICE', 1, 3, 4], ['RABBIT_FOOT', 1, 2, 3], ['SLIME_BALL', 1, 3, 3]];
   Game.prototype.chestAt = function (x, y, z) {

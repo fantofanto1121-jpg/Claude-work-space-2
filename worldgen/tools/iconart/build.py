@@ -58,7 +58,15 @@ for k, v in defs4.D.items():
 import subprocess
 POTS = json.loads(subprocess.run(['node', os.path.join(HERE, 'potions.js')], capture_output=True, text=True, check=True).stdout)
 for k, v in POTS.items():
-    make(k, defs3.potion(defs3.ramp_from(v['color']), v['splash']))
+    if v.get('arrow'):
+        make(k, (defs4.ARROW_ROWS, {'H': defs3.ramp_from(v['color']), 'S': defs1.R['handle'], 'F': defs3.ramp_from('#e8e8e8')}, {'t': v['color']}, [(11, 1, 't'), (13, 3, 't')]))
+    elif v.get('lingering'):
+        # 残留ポーション：首の長い丸いフラスコ
+        rows = ['................', '.......NN.......', '.......GG.......', '.......GG.......', '......GLLG......', '.....GLLLLG.....', '....GLLLLLLG....', '...GLLLLLLLLG...',
+                '...GLLLLLLLLG...', '...GLLLLLLLLG...', '....GLLLLLLG....', '.....GGGGGG.....']
+        make(k, (rows, {'G': defs3.RR['glass'], 'N': defs3.RR['wood'], 'L': defs3.ramp_from(v['color'])}, {'w': '#ffffff'}, [(5, 6, 'w'), (5, 7, 'w')]))
+    else:
+        make(k, defs3.potion(defs3.ramp_from(v['color']), v['splash']))
 
 if __name__ == '__main__':
     # 使い方: python3 tools/iconart/build.py [見本の PNG]

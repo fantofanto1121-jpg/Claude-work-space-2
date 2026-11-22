@@ -1239,5 +1239,73 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(crafted && up && g.health === 20, 'クラフター（板材 4 つ → 動力で作業台）、スライムブロックに落ちるとはね、痛くない');
 })();
 
+// ---- 足りなかったアイテム（第 2 回） ----
+(function () {
+  console.log('\n[足りなかったアイテム]');
+  function fresh() { var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); g.walker.pos = [40.5, 11, 40.5]; g.renderInventory = function () {}; g.ui.inv = { classList: { add: function () {}, remove: function () {} } }; g.mode = 'survival'; return [w, g]; }
+  function run(g, n) { for (var i = 0; i < n; i++) g.tick(); }
+  function aim(g, id, x, y, z, px, py, pz) { g.walker.target = { id: id, x: x, y: y, z: z, px: px, py: py, pz: pz }; }
+  // 1) 不死のトーテム・衝撃吸収・リカバリーコンパスの記録
+  var a = fresh(), w = a[0], g = a[1];
+  g.inv.slots[0] = { key: 'TOTEM_OF_UNDYING', n: 1 }; g.inv.sel = 0;
+  g.damage(40, true);
+  var saved = !g.dead && g.health === 1 && !!g.effects.REGENERATION && g.absorb === 8 && !g.inv.slots[0];
+  g.invuln = 0; g.health = 10; g.damage(3, true);
+  var absOK = g.health === 10 && g.absorb === 5;
+  g.invuln = 0; g.damage(40, true);
+  var died = g.dead && g.player.lastDeath && Math.abs(g.player.lastDeath.x - 40.5) < 0.01;
+  check(saved && absOK && died, '不死のトーテム（体力 1 で残り、再生・衝撃吸収）、黄色いハートが先に減る、持っていなければ死んで場所を覚える');
+  // 2) ケーキ：作るとバケツが戻る、置いて 1 口ずつ食べる、コンパレーターが残りを読む
+  a = fresh(); w = a[0]; g = a[1];
+  var grid = ['MILK_BUCKET', 'MILK_BUCKET', 'MILK_BUCKET', 'SUGAR', 'EGG', 'SUGAR', 'WHEAT', 'WHEAT', 'WHEAT'];
+  var made = WG.Craft.match(grid, 3);
+  g.craft = grid.map(function (k) { return { key: k, n: 1 }; }); g.craftN = 3; g.updateCraft(); g.consumeCraft();
+  var buckets = g.inv.slots.reduce(function (n, s) { return n + (s && s.key === 'BUCKET' ? s.n : 0); }, 0);
+  g.inv.slots[0] = { key: 'CAKE', n: 1 }; g.inv.sel = 0; aim(g, B.STONE, 5, 10, 5, 5, 11, 5); g.place();
+  g.food = 10; aim(g, B.CAKE_0, 5, 11, 5, 5, 12, 5); g.use();
+  var cakeOK = made && made.key === 'CAKE' && buckets === 3 && w.block(5, 11, 5) === B.CAKE_1 && g.food === 12 && g.containerSignal(5, 11, 5) === 12;
+  check(cakeOK, 'ケーキ（作るとバケツ 3 つが戻る、置いて 1 口で満腹度 +2、コンパレーターの強さ 12）');
+  // 3) 残留ポーション・効能付きの矢・光の矢
+  a = fresh(); w = a[0]; g = a[1];
+  var ling = WG.brew('SPLASH_POTION_POISON', 'DRAGON_BREATH'), tipped = WG.Craft.match(['ARROW', 'ARROW', 'ARROW', 'ARROW', 'LINGERING_POTION_POISON', 'ARROW', 'ARROW', 'ARROW', 'ARROW'], 3);
+  var pig = g.mobs.spawn('PIG', 44.5, 11, 40.5), cow = g.mobs.spawn('COW', 44.5, 11, 44.5);
+  g.mobs.arrows.push({ x: 42, y: 11.5, z: 40.5, vx: 0.6, vy: 0, vz: 0, px: 42, py: 11.5, pz: 40.5, life: 0, player: true, dmg: 1, kind: 'TIPPED_ARROW_POISON' });
+  g.mobs.arrows.push({ x: 42, y: 11.5, z: 44.5, vx: 0.6, vy: 0, vz: 0, px: 42, py: 11.5, pz: 44.5, life: 0, player: true, dmg: 1, kind: 'SPECTRAL_ARROW' });
+  run(g, 10);
+  var arrowOK = pig.poison > 0 && cow.glow > 0;
+  g.splash({ key: 'LINGERING_POTION_POISON', x: 40.5, y: 11.2, z: 40.5 }); run(g, 25);
+  var cloudOK = g.clouds.length === 1 && !!g.effects.POISON;
+  check(ling === 'LINGERING_POTION_POISON' && tipped && tipped.key === 'TIPPED_ARROW_POISON' && tipped.n === 8 && arrowOK && cloudOK,
+    '竜の息で残留ポーション、矢 8 本と合わせて効能付きの矢、当たると毒・光の矢は発光、残留ポーションの雲に入ると効く');
+  // 4) ビートルート（骨粉で育ち、実ると収穫）、スイートベリーの茂み（摘む、中を動くと痛い）
+  a = fresh(); w = a[0]; g = a[1];
+  w.setBlock(0, 10, 0, B.FARMLAND_MOIST); w.setBlock(0, 11, 0, B.BEETROOTS_0);
+  for (var i = 0; i < 40 && w.block(0, 11, 0) !== B.BEETROOTS_3; i++) g.growCrop(0, 11, 0, 2);
+  g.entities.length = 0; g.dropFor(B.BEETROOTS_3, 0, 11, 0);
+  var beetOK = g.entities.some(function (e) { return e.key === 'BEETROOT'; }) && g.entities.some(function (e) { return e.key === 'BEETROOT_SEEDS'; });
+  w.setBlock(3, 10, 3, B.GRASS); w.setBlock(3, 11, 3, B.SWEET_BERRY_BUSH_3); g.entities.length = 0;
+  g.inv.slots[0] = null; aim(g, B.SWEET_BERRY_BUSH_3, 3, 11, 3, 3, 12, 3); g.use();
+  var berryOK = w.block(3, 11, 3) === B.SWEET_BERRY_BUSH_1 && g.entities.some(function (e) { return e.key === 'SWEET_BERRIES' && e.n >= 2; });
+  g.walker.pos = [3.5, 11, 3.5]; g.walker.vel = [0.1, 0, 0]; g.invuln = 0; var h0 = g.health; g.tickExtra();
+  check(beetOK && berryOK && g.health < h0, 'ビートルート（骨粉で 4 段目まで育ち、ビートルートと種を落とす）、スイートベリー（摘むと 1 段目に戻る、中を動くと傷つく）');
+  // 5) ジュークボックス（動力とコンパレーター）、バンドル、防具立て、エンチャントの瓶
+  a = fresh(); w = a[0]; g = a[1];
+  w.setBlock(0, 11, 0, B.JUKEBOX); w.setBlock(1, 11, 0, B.REDSTONE_LAMP); run(g, 2);
+  g.inv.slots[0] = { key: 'MUSIC_DISC_FORGE', n: 1 }; g.inv.sel = 0; aim(g, B.JUKEBOX, 0, 11, 0, 0, 12, 0); g.use(); run(g, 4);
+  var juke = g.jukeboxPlaying(0, 11, 0) && g.containerSignal(0, 11, 0) === 3 && w.block(1, 11, 0) === B.REDSTONE_LAMP_ON && !g.inv.slots[0];
+  g.use(); run(g, 8);
+  juke = juke && !g.jukeboxPlaying(0, 11, 0) && w.block(1, 11, 0) === B.REDSTONE_LAMP && g.containerSignal(0, 11, 0) === 0;
+  var bun = { key: 'BUNDLE', n: 1 }, dirt = { key: 'DIRT', n: 40 }, pearl = { key: 'SNOWBALL', n: 16 };
+  var put1 = WG.bundlePut(bun, dirt), put2 = WG.bundlePut(bun, pearl), back = WG.bundleTake(bun);
+  var bundleOK = put1 === 40 && put2 === 6 && WG.bundleWeight(bun) === 40 && back.key === 'SNOWBALL' && bun.key === 'BUNDLE_FILLED';
+  g.mobs.target = null; g.inv.slots[0] = { key: 'ARMOR_STAND', n: 1 }; aim(g, B.STONE, 8, 10, 8, 8, 11, 8); g.use();
+  var st = g.mobs.list.filter(function (m) { return m.type === 'ARMOR_STAND'; })[0];
+  g.inv.slots[0] = { key: 'IRON_HELMET', n: 1 }; g.mobs.target = { mob: st, dist: 2 }; g.use(); g.mobs.target = null;
+  var standOK = st && st.armor[0] && st.armor[0].key === 'IRON_HELMET' && !g.inv.slots[0];
+  run(g, 5); standOK = standOK && Math.abs(st.x - 8.5) < 0.01;
+  var o0 = g.orbs.length; g.splash({ key: 'EXPERIENCE_BOTTLE', x: 40.5, y: 11.2, z: 40.5 });
+  check(juke && bundleOK && standOK && g.orbs.length > o0, 'ジュークボックス（鳴っている間は動力 15、コンパレーターはレコードの番号）、バンドル（重さ 64 まで）、防具立てに防具を着せる、エンチャントの瓶で経験値');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

@@ -329,6 +329,10 @@
       if (sh[0] === 'U') ALIAS[base + '_' + sh] = base + '_' + (sh[1] === 'N' || sh[1] === 'S' ? 'NS' : 'EW');
     });
   });
+  // 第 2 回（アイテム）：ケーキ（7 切れ）・ビートルート（4 段）・スイートベリーの茂み（4 段）・ジュークボックス
+  for (var cb = 0; cb < 7; cb++) { DEF.push(['CAKE_' + cb, 'ケーキ', '#f0e8e0', 'cake']); if (cb) ALIAS['CAKE_' + cb] = 'CAKE_0'; }
+  for (var bt = 0; bt < 4; bt++) DEF.push(['BEETROOTS_' + bt, 'ビートルート', '#6a9a3a', 'crop'], ['SWEET_BERRY_BUSH_' + bt, 'スイートベリーの茂み', '#3a6a3a', 'plant']);
+  DEF.push(['JUKEBOX', 'ジュークボックス', '#6a4a30', 'solid']);
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -477,14 +481,14 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -616,7 +620,8 @@
     if (k === 'vine') return [LADDER[FACE_OF[key.slice(-1)]]];
     if (k === 'endportal') return [[0, 0, 0, 16, 12, 16, B.END_PORTAL, 1]];
     if (k === 'gateway') return [[0, 0, 0, 16, 16, 16, B.END_PORTAL, 1]];
-    if (k === 'moving') return forCollide ? [[0, 0, 0, 16, 16, 16]] : [];   // ピストンで動いている途中（絵は別に描く）
+    if (k === 'moving') return forCollide ? [[0, 0, 0, 16, 16, 16]] : [];
+    if (k === 'cake') { var bites = +key.slice(5); return [[1 + bites * 2, 0, 1, 15, 8, 15, B.CAKE_0]]; }   // 食べた分だけ欠ける   // ピストンで動いている途中（絵は別に描く）
     if (k === 'hook') {
       var hf = /HOOK_([NESW])/.exec(key)[1], hon = /_ON$/.test(key);
       return [rotE([0, 1, 6, 2, 11, 10, B.OAK_PLANKS], hf), rotE(hon ? [2, 3, 7, 8, 5, 9, B.IRON_BLOCK] : [2, 5, 7, 8, 7, 9, B.IRON_BLOCK], hf), rotE([7, hon ? 3 : 5, 6, 9, hon ? 5 : 7, 10, B.IRON_BLOCK], hf)];

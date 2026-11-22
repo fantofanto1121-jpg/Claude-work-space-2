@@ -668,7 +668,7 @@
       a.px = a.x; a.py = a.y; a.pz = a.z; a.life++;
       if (a.stuck) {
         // 刺さった自分の矢は、近くを通ると拾える（サバイバル）
-        if (a.player && a.pickup && !g.dead && Math.hypot(a.x - w.pos[0], a.y - w.pos[1] - 0.9, a.z - w.pos[2]) < 1.4 && g.inv.add('ARROW', 1)) continue;
+        if (a.player && a.pickup && !g.dead && Math.hypot(a.x - w.pos[0], a.y - w.pos[1] - 0.9, a.z - w.pos[2]) < 1.4 && g.inv.add(a.kind || 'ARROW', 1)) continue;
         if (a.life < (a.player ? 1200 : 60)) keep.push(a);
         continue;
       }

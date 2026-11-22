@@ -254,7 +254,7 @@
   BrewingStand.prototype.canBrew = function () {
     var ing = this.slots[3];
     if (!ing) return false;
-    for (var i = 0; i < 3; i++) if (this.slots[i] && brew(this.slots[i].key, ing.key)) return true;
+    for (var i = 0; i < 3; i++) if (this.slots[i] && WG.brew(this.slots[i].key, ing.key)) return true;
     return false;
   };
   BrewingStand.prototype.tick = function () {
@@ -264,7 +264,7 @@
     if (this.time > 0) {
       if (!this.canBrew()) { this.time = 0; return true; }
       if (--this.time === 0) {
-        for (var i = 0; i < 3; i++) if (this.slots[i]) { var to = brew(this.slots[i].key, this.slots[3].key); if (to) this.slots[i] = { key: to, n: 1 }; }
+        for (var i = 0; i < 3; i++) if (this.slots[i]) { var to = WG.brew(this.slots[i].key, this.slots[3].key); if (to) this.slots[i] = { key: to, n: 1 }; }
         if (--this.slots[3].n <= 0) this.slots[3] = null;
         return true;
       }

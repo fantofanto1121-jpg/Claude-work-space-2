@@ -1475,6 +1475,80 @@ def main():
     painting('SUNSET', 1, 1, sunset); painting('FLOWER', 1, 1, flower); painting('MOUNTAINS', 2, 1, mountains); painting('LAKE', 2, 1, lake)
     painting('TOWER', 1, 2, tower); painting('FOREST', 2, 2, forest); painting('STARS', 2, 2, stars)
 
+    # ---- 第 2 回（アイテム）：ケーキ・ビートルート・スイートベリーの茂み・ジュークボックス ----
+    cake_side, cake_top, cake_bot = Img(), Img(), Img()
+    sponge, cream, jam = [214, 150, 86], [246, 240, 230], [196, 44, 40]
+    for y in range(N):
+        for x in range(N):
+            yy = y % 8   # 箱の高さは 8。上半分・下半分どちらで読んでも同じに見えるよう、8 段ごとに繰り返す
+            v = 0.92 + 0.1 * ((hsh(171, x, y) % 5) / 4)
+            if yy == 0: c = sc(cream, 0.98 + 0.03 * (x % 2))
+            elif yy == 1: c = sc(cream, 0.94) if (hsh(172, x) % 3) else sc(sponge, 1.08)   # 垂れたクリーム
+            elif yy == 4: c = sc(jam, 0.95 + 0.08 * (x % 2))                                  # 間のジャム
+            else: c = sc(sponge, v * (0.9 if yy == 7 else 1.0))
+            cake_side.set(x, y, c)
+            cake_bot.set(x, y, sc(sponge, 0.78 * v))
+            d = min(x, y, 15 - x, 15 - y)
+            cake_top.set(x, y, sc(cream, (0.9 if d == 0 else 1.0) * (0.97 + 0.03 * ((hsh(173, x, y) % 3) / 2))))
+    for (x, y) in [(4, 4), (11, 5), (7, 8), (4, 11), (12, 11), (8, 3), (9, 12)]:
+        cake_top.set(x, y, jam); cake_top.set(x + 1, y, sc(jam, 0.75)); cake_top.set(x, y - 1, [255, 140, 120])
+    for i in range(7):
+        put('CAKE_' + str(i), cake_side, cake_top, cake_bot)
+
+    def beet(stage):
+        img = Img(alpha=True)
+        leaf, dark, stem = [70, 138, 52], [42, 96, 34], [168, 38, 54]
+        h = [3, 6, 8, 11][stage]
+        for i, x in enumerate((2, 6, 10, 13)):
+            top = 16 - h + (i % 2)
+            for y in range(top, 16):
+                img.set(x, y, stem if y > top + 2 else dark)
+            for (dx, dy) in [(-1, 0), (1, 0), (-1, 1), (1, 1), (0, -1), (-2, 1), (2, 1)]:
+                if abs(dx) == 2 and stage < 2: continue
+                img.set(x + dx, top + dy, leaf if (dx + dy) % 2 else sc(leaf, 1.15))
+            if stage == 3:
+                for (dx, dy, c) in [(0, 15, [150, 26, 44]), (-1, 15, [120, 20, 36]), (1, 15, [176, 40, 60]), (0, 14, [196, 56, 76])]:
+                    img.set(x + dx, dy, c)
+        return img
+    for i in range(4):
+        b = beet(i); put('BEETROOTS_' + str(i), b, cut=b)
+
+    def bush(stage):
+        img = Img(alpha=True)
+        r = random.Random(181 + stage)
+        cx, rad = 7.5, [3.5, 5.5, 7.0, 7.5][stage]
+        base_y = 15
+        for y in range(N):
+            for x in range(N):
+                dy = (base_y - y) / max(1.0, rad * 1.25)
+                dx = (x - cx) / rad
+                if dx * dx + (dy - 0.75) ** 2 < 0.75 and y <= base_y and r.random() < 0.9:
+                    shade = 0.72 + 0.4 * (1 - y / 16) + r.random() * 0.12
+                    img.set(x, y, sc([44, 98, 54] if (x + y * 3) % 5 else [60, 122, 64], shade))
+        if stage >= 2:
+            col = [214, 32, 44] if stage == 3 else [150, 190, 90]
+            spots = [(4, 9), (10, 7), (7, 11), (12, 11), (3, 13), (9, 13), (6, 6), (11, 13)] if stage == 3 else [(5, 9), (10, 8), (7, 12), (11, 12)]
+            for (x, y) in spots:
+                img.set(x, y, col); img.set(x + 1, y, sc(col, 0.8)); img.set(x, y + 1, sc(col, 0.7)); img.set(x + 1, y + 1, sc(col, 0.6))
+                if stage == 3: img.set(x, y, [255, 140, 140])
+        img.set(7, 15, [90, 64, 40]); img.set(8, 15, [70, 50, 32])
+        return img
+    for i in range(4):
+        b = bush(i); put('SWEET_BERRY_BUSH_' + str(i), b, cut=b)
+
+    jb_wood = [106, 72, 46]
+    jb_side = framed(sc(jb_wood, 0.9), 191, planks(jb_wood, 192))
+    for y in range(5, 11):
+        for x in range(3, 13):
+            jb_side.set(x, y, sc(jb_wood, 0.62 if (x + y) % 2 else 0.7))   # 前の板の飾り
+    for x in range(3, 13): jb_side.set(x, 5, sc(jb_wood, 1.15)); jb_side.set(x, 10, sc(jb_wood, 0.45))
+    jb_top = framed(sc(jb_wood, 0.9), 193, planks(sc(jb_wood, 0.95), 194))
+    for x in range(3, 13):
+        for y in (7, 8):
+            jb_top.set(x, y, [22, 18, 16] if y == 7 else [44, 36, 30])   # レコードを入れる口
+    for (x, y) in [(2, 2), (13, 2), (2, 13), (13, 13)]: jb_top.set(x, y, [180, 170, 150])
+    put('JUKEBOX', jb_side, jb_top, planks(sc(jb_wood, 0.8), 195))
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):
