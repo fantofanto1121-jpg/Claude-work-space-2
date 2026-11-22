@@ -952,4 +952,6 @@
     if (this.puff) this.puff(to[0], to[1] + 1, to[2], [40, 120, 100], 20, 0.2);
     if (this.ui.toast) this.ui.toast('エンドゲートウェイを通った');
   };
+  // 構造物を足すための道具（js/structures2.js が使う）
+  WG.StructAPI = { spec: spec, Plan: Plan, bbox: bbox, biomeKey: biomeKey, flat: flat, SALT: SALT, SEA: SEA, KIND_KEY: KIND_KEY, LOOT: LOOT, SPECS: SPECS, plansNear: plansNear, rng: rng };
 })(typeof window !== 'undefined' ? window : globalThis);

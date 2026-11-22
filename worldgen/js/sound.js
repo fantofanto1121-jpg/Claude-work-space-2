@@ -102,6 +102,9 @@
       case 'SPIDER': case 'CAVE_SPIDER': burst(dst, t, 0.4, 'highpass', 3000 * p, 0.7, 0.05, 0.35); break;
       case 'BOMBER': burst(dst, t, 0.35, 'bandpass', 700 * p, 2, 0.05, 0.3, 300); break;
       case 'SLIME': case 'MAGMA_SLIME': tone(dst, t, 0.12, 'sine', 180 * p, 60 * p, 0.5); burst(dst, t, 0.1, 'lowpass', 600, 1, 0.005, 0.3); break;
+      case 'VINDICATOR': tone(dst, t, 0.22, 'sawtooth', 190 * p, 150 * p, 0.3, [7, 8], 1100); break;
+      case 'EVOKER': tone(dst, t, 0.5, 'sawtooth', 240 * p, 300 * p, 0.25, [5, 12], 1400); tone(dst, t + 0.1, 0.4, 'triangle', 480 * p, 520 * p, 0.12); break;
+      case 'VEX': for (var vq = 0; vq < 3; vq++) tone(dst, t + vq * 0.07, 0.06, 'triangle', 1500 * p + vq * 120, 1300 * p, 0.1); break;
       case 'WITCH': for (var k = 0; k < 3; k++) tone(dst, t + k * 0.1, 0.08, 'sawtooth', 520 * p + k * 30, 480 * p, 0.2, null, 1800); break;
       case 'BAT': tone(dst, t, 0.04, 'sine', 3800 * p, 3200 * p, 0.08); break;
       case 'SQUID': burst(dst, t, 0.3, 'lowpass', 500, 1, 0.05, 0.15); break;
@@ -145,6 +148,9 @@
         var near = arg == null ? 1 : arg;
         if (near > 0.5) burst(dst, t, 0.35, 'highpass', 1800, 0.7, 0.002, 1.1 * near);
         burst(dst, t + 0.05, 3.2, 'lowpass', 420 + near * 500, 0.8, 0.08, 1.3, 60); burst(dst, t + 0.6, 2.6, 'lowpass', 260, 0.9, 0.3, 0.9, 50); tone(dst, t, 2.4, 'sine', 52, 34, 0.6); break;
+      // スカルクシュリーカー：かすれた高い叫び。エヴォーカーの牙：かみ合う音
+      case 'shriek': burst(dst, t, 1.2, 'bandpass', 2400, 6, 0.08, 0.8, 1200); tone(dst, t, 1.1, 'sawtooth', 880, 620, 0.12, [9, 30], 2600); break;
+      case 'fangs': burst(dst, t, 0.08, 'bandpass', 900, 3, 0.002, 0.8); tone(dst, t, 0.1, 'square', 220, 120, 0.15, null, 800); break;
       // ヤギの角笛：低い 2 本の音が揺れながら長く響く
       case 'horn': tone(dst, t, 2.4, 'sawtooth', 196, 185, 0.45, [4.5, 5], 820); tone(dst, t + 0.04, 2.3, 'sawtooth', 294, 277, 0.22, [4.5, 6], 1100); tone(dst, t, 2.4, 'sine', 98, 92, 0.3); break;
       // 不死のトーテム：きらめく上がり音と、ふわっとした息

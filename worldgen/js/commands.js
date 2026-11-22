@@ -51,7 +51,9 @@
     jungle_pyramid: ['jungle', 'overworld', 'ジャングルの寺院', 5], jungle_temple: ['jungle', 'overworld', 'ジャングルの寺院', 5], jungle: ['jungle', 'overworld', 'ジャングルの寺院', 5],
     shipwreck: ['ship', 'overworld', '難破船', 6], ship: ['ship', 'overworld', '難破船', 6], mansion: ['mansion', 'overworld', '森の洋館', 2], woodland_mansion: ['mansion', 'overworld', '森の洋館', 2],
     fortress: ['fortress', 'nether', 'ネザー要塞', 5], nether_fortress: ['fortress', 'nether', 'ネザー要塞', 5], bastion: ['bastion', 'nether', 'ピグリンの砦', 4], bastion_remnant: ['bastion', 'nether', 'ピグリンの砦', 4],
-    end_city: ['city', 'end', 'エンドシティ', 12], city: ['city', 'end', 'エンドシティ', 12] };
+    end_city: ['city', 'end', 'エンドシティ', 12], city: ['city', 'end', 'エンドシティ', 12],
+    pillager_outpost: ['outpost', 'overworld', '前哨基地', 5], outpost: ['outpost', 'overworld', '前哨基地', 5], ruined_portal: ['ruined_portal', 'overworld', '廃ポータル', 6],
+    igloo: ['igloo', 'overworld', 'イグルー', 8], ocean_ruin: ['ocean_ruin', 'overworld', '海底遺跡', 8], swamp_hut: ['swamp_hut', 'overworld', '沼の小屋', 8], ancient_city: ['ancient_city', 'overworld', '古代都市', 3] };
   var DIM_NAME = { overworld: '地上', nether: 'ネザー', end: 'エンド' };
   function inWorld(wd, y) { return y >= wd.minY && y <= wd.maxY; }
   var TIMES = { day: 1000, noon: 6000, sunset: 12000, night: 13000, midnight: 18000, sunrise: 23000 };
@@ -60,7 +62,7 @@
     '/gamemode <survival|creative|adventure|spectator>', '/time set <day|noon|night|midnight|数> ・ /time add <数>', '/tp <x> <y> <z>',
     '/give <アイテム> [個数]', '/summon <生き物> [x y z]', '/kill [@e|@e[type=生き物]]', '/effect give <効果> [秒] [強さ] ・ /effect clear',
     '/xp add <数> [levels|points]', '/clear [アイテム] [個数]', '/setblock <x> <y> <z> <ブロック>', '/fill <x1> <y1> <z1> <x2> <y2> <z2> <ブロック>',
-    '/weather <clear|rain|thunder> [秒]', '/locate <village|stronghold|monument|jungle_pyramid|shipwreck|mansion|desert_pyramid|fortress|bastion|end_city>', '/seed',
+    '/weather <clear|rain|thunder> [秒]', '/locate <village|stronghold|monument|jungle_pyramid|shipwreck|mansion|desert_pyramid|pillager_outpost|ruined_portal|igloo|ocean_ruin|swamp_hut|ancient_city|fortress|bastion|end_city>', '/seed',
     '（@s・@p は書いても書かなくても同じです）'
   ];
 

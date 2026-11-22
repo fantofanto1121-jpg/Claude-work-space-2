@@ -1624,6 +1624,59 @@ def main():
         bi.set(i, (i * 2 + 3) % N, [170, 210, 255]); bi.set((i * 3) % N, i, [140, 190, 250])
     put('BLUE_ICE', bi)
 
+    # ---- 第 4 回：古代都市と廃ポータルの建材 ----
+    dsb = [74, 74, 80]
+    put('DEEPSLATE_BRICKS', bricks(dsb, 231, [34, 34, 38], 4, 8))
+    cr = bricks(sc(dsb, 0.96), 232, [34, 34, 38], 4, 8)
+    for (x, y) in [(3, 1), (4, 2), (4, 3), (5, 3), (11, 6), (12, 7), (12, 8), (13, 9), (6, 11), (7, 12), (7, 13), (8, 14)]: cr.set(x, y, [26, 26, 30])
+    put('CRACKED_DEEPSLATE_BRICKS', cr)
+    put('DEEPSLATE_TILES', bricks([56, 56, 62], 233, [26, 26, 30], 4, 4))
+    ch = noisy([62, 62, 68], 234, (0.86, 0.95, 1.05))
+    for i in range(N):
+        for (x, y) in [(i, 0), (0, i)]: ch.set(x, y, [92, 92, 100])
+        for (x, y) in [(i, 15), (15, i)]: ch.set(x, y, [36, 36, 40])
+    for y in range(3, 13):
+        for x in range(3, 13):
+            if x in (3, 12) or y in (3, 12) or (x in (6, 9) and 6 <= y <= 9) or (y in (6, 9) and 6 <= x <= 9): ch.set(x, y, [40, 40, 46])
+    put('CHISELED_DEEPSLATE', ch)
+    sk = Img()
+    for y in range(N):
+        for x in range(N):
+            n = (hsh(241, x // 2, y // 3) % 100) / 100.0
+            sk.set(x, y, [10 + int(n * 14), 34 + int(n * 20), 42 + int(n * 22)])
+    for (x, y) in [(2, 3), (9, 2), (13, 7), (5, 9), (11, 12), (3, 13), (7, 6)]:
+        sk.set(x, y, [60, 210, 220]); sk.set(x + 1, y, [30, 140, 150])     # ほのかに光る粒
+    put('SCULK', sk)
+    shs = sk.copy()
+    for y in range(9, 16):
+        for x in range(N): shs.set(x, y, sc([200, 196, 176], 0.85 + 0.1 * ((x + y) % 3)) if y > 10 else [30, 60, 66])
+    sht = sk.copy()
+    for y in range(N):
+        for x in range(N):
+            d = max(abs(x - 7.5), abs(y - 7.5))
+            if d > 5.5: sht.set(x, y, sc([214, 210, 190], 0.9 + 0.08 * ((x * 3 + y) % 3)))
+            elif d > 3.5: sht.set(x, y, [24, 70, 78])
+            else: sht.set(x, y, [70, 220, 230] if (x + y) % 3 else [40, 160, 170])
+    put('SCULK_SHRIEKER', shs, sht, sht)
+    sl = T['LANTERN']['side'].copy(); stp = T['LANTERN']['top']
+    for y in range(N):
+        for x in range(N):
+            c0 = sl.get(x, y)
+            if c0 and c0[0] > 150 and c0[0] > c0[2] + 40: sl.set(x, y, [90, 220, 230] if c0[1] > 150 else [50, 170, 190])
+    put('SOUL_LANTERN', sl, stp, stp)
+    co = T['OBSIDIAN']['side'].copy()
+    for (x, y) in [(3, 2), (3, 3), (3, 4), (10, 5), (10, 6), (6, 9), (6, 10), (6, 11), (12, 11), (12, 12), (1, 13), (8, 1)]:
+        co.set(x, y, [150, 60, 240]); co.set(x, y + 1, [100, 30, 180])
+    put('CRYING_OBSIDIAN', co)
+    mg = Img()
+    for y in range(N):
+        for x in range(N):
+            n = hsh(251, x // 3, y // 3) % 7
+            mg.set(x, y, [92, 30, 10] if n else [70, 20, 8])
+    for (x0, y0, l) in [(1, 2, 6), (8, 5, 6), (3, 10, 8), (11, 12, 4)]:
+        for i in range(l): mg.set(x0 + i, y0 + (i // 3) % 2, [255, 150, 40] if i % 3 else [255, 210, 90])
+    put('MAGMA_BLOCK', mg)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

@@ -344,6 +344,10 @@
     ['BLUE_ORCHID', 'ヒスイラン', '#3aa8e0', 'plant'], ['LILY_OF_THE_VALLEY', 'スズラン', '#e8ece0', 'plant'], ['RED_TULIP', '赤色のチューリップ', '#d8382c', 'plant'], ['ORANGE_TULIP', '橙色のチューリップ', '#e8862a', 'plant'],
     ['WHITE_TULIP', '白色のチューリップ', '#e8ece8', 'plant'], ['PINK_TULIP', '桃色のチューリップ', '#ec9ab8', 'plant'], ['FERN', 'シダ', '#5a8a3e', 'plant'], ['DEAD_BUSH', '枯れ木', '#8a6a3e', 'plant'],
     ['SNOW_BLOCK', '雪ブロック', '#f2f4f6', 'solid'], ['PACKED_ICE', '氷塊', '#8ab0e0', 'solid'], ['BLUE_ICE', '青氷', '#6aa0f0', 'solid']);
+  // 第 4 回：古代都市・廃ポータルの建材
+  DEF.push(['DEEPSLATE_BRICKS', '深層岩レンガ', '#4a4a50', 'solid'], ['CRACKED_DEEPSLATE_BRICKS', 'ひび割れた深層岩レンガ', '#46464c', 'solid'], ['DEEPSLATE_TILES', '深層岩タイル', '#36363c', 'solid'],
+    ['CHISELED_DEEPSLATE', '模様入りの深層岩', '#3e3e44', 'solid'], ['SCULK', 'スカルク', '#0e2a32', 'solid'], ['SCULK_SHRIEKER', 'スカルクシュリーカー', '#1a3a40', 'solid'],
+    ['SOUL_LANTERN', '魂のランタン', '#3a5a60', 'lantern'], ['CRYING_OBSIDIAN', '泣く黒曜石', '#2a1040', 'solid'], ['MAGMA_BLOCK', 'マグマブロック', '#8a3a10', 'solid']);
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -483,6 +487,7 @@
   LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
+  LIGHT_EMIT[B.SOUL_LANTERN] = 10; LIGHT_EMIT[B.CRYING_OBSIDIAN] = 10; LIGHT_EMIT[B.MAGMA_BLOCK] = 3; LIGHT_EMIT[B.SCULK_SHRIEKER] = 1;
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
   WG.railInfo = function (id) { return RAIL_INFO[LIST[id].key] || null; }; LIGHT_EMIT[B.NETHER_PORTAL_X] = LIGHT_EMIT[B.NETHER_PORTAL_Z] = 11;
   // ぶつかる高さのおおよそ（固いブロックは 1、ベッドは 9/16、ほかは 0）。正確な形は WG.blockBoxes。
@@ -670,7 +675,7 @@
       if (lvl > 0) cb2.push([2, 2, 2, 14, 2 + Math.min(7, lvl) * 1.75, 14, lvl >= 8 ? B.WHITE_WOOL : B.DIRT]);
       return cb2;
     }
-    if (k === 'lantern') return [[5, 0, 5, 11, 7, 11, B.LANTERN, 1], [6, 7, 6, 10, 9, 10, B.LANTERN]];
+    if (k === 'lantern') return [[5, 0, 5, 11, 7, 11, id, 1], [6, 7, 6, 10, 9, 10, id]];
     return null;
   }
   // ピストンの向き（見た目の「上」の面をどちらへ向けるか）

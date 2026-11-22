@@ -1363,5 +1363,34 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(Object.keys(flowers).length >= 5 && dye && dye.key === 'BLUE_DYE', '花・シダ・枯れ木が生える（' + Object.keys(flowers).join(' ') + '）、ヤグルマギクから青の染料');
 })();
 
+// ---- 構造物と生き物（第 4 回） ----
+(function () {
+  console.log('\n[構造物と生き物]');
+  var wd = new WG.World('7', 'overworld'), found = [], ok = true;
+  [['outpost', 6, '前哨基地'], ['ruined_portal', 8, '廃ポータル'], ['igloo', 12, 'イグルー'], ['ocean_ruin', 10, '海底遺跡'], ['swamp_hut', 12, '沼の小屋'], ['ancient_city', 3, '古代都市']].forEach(function (k) {
+    var l = WG.locateStructure(wd, k[0], 0, 0, k[1]);
+    if (!l) { ok = false; return; }
+    var keys = Object.keys(l.plan.loot), good = keys.length ? keys.every(function (c) { var q = c.split(',').map(Number); return wd.block(q[0], q[1], q[2]) === B.CHEST; })
+      : l.plan.mobs.length > 0;
+    if (!good) ok = false; else found.push(k[2]);
+  });
+  check(ok && found.length === 6, '6 つの構造物が生成され、宝箱が中身の表つきで置かれる（' + found.join('・') + '）');
+  // エヴォーカー：牙で傷つけ、しばらくするとヴェックスを呼ぶ
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); g.mode = 'survival'; g.walker.pos = [0.5, 11, 0.5];
+  var ev = g.mobs.spawn('EVOKER', 7.5, 11, 0.5), hurt = false, vex = false;
+  for (var i = 0; i < 420; i++) { g.tick(); if (g.health < 20) hurt = true; if (g.mobs.list.some(function (m) { return m.type === 'VEX'; })) vex = true; g.health = 20; g.invuln = 0; g.walker.pos = [0.5, 11, 0.5]; }
+  ev.dead = 1; g.entities.length = 0; WG.Mobs.prototype.die.call(g.mobs, ev);
+  var totem = g.entities.some(function (e) { return e.key === 'TOTEM_OF_UNDYING'; });
+  var mansion = WG.locateStructure(wd, 'mansion', 0, 0, 3), mtypes = mansion ? mansion.plan.mobs.map(function (m) { return m[0]; }) : [];
+  check(hurt && vex && totem && mtypes.indexOf('EVOKER') >= 0 && mtypes.indexOf('VINDICATOR') >= 0, 'エヴォーカーは牙で傷つけ、ヴェックスを呼び、倒すと不死のトーテムを落とす。森の洋館にヴィンディケーターとエヴォーカー');
+  // スカルクシュリーカー：3 回叫ぶと深淵の番人が現れる
+  w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); g = playGame(w); g.mode = 'survival'; g.walker.pos = [0.5, 11, 0.5];
+  w.setBlock(0, 10, 0, B.SCULK_SHRIEKER);
+  for (i = 0; i < 3; i++) { g.tickCount = (g.tickCount || 0) + 200; g.shriek(0, 10, 0); }
+  var warden = g.mobs.list.filter(function (m) { return m.type === 'DEEP_WARDEN'; })[0];
+  var rc = WG.Craft.match(['ECHO_SHARD', 'ECHO_SHARD', 'ECHO_SHARD', 'ECHO_SHARD', 'COMPASS', 'ECHO_SHARD', 'ECHO_SHARD', 'ECHO_SHARD', 'ECHO_SHARD'], 3);
+  check(!!warden && warden.emerge > 0 && !!g.effects.DARKNESS && rc && rc.key === 'RECOVERY_COMPASS', 'スカルクシュリーカーが 3 回叫ぶと、暗闇の中で深淵の番人が地面から現れる。リカバリーコンパスはこだまの欠片で作る');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
