@@ -280,3 +280,7 @@ D['CONDUIT'] = (['................', '................', '................', '..
 D['DECORATED_POT'] = (['................', '......AAAA......', '.....AAAAAA.....', '......AAAA......', '....AAAAAAAA....', '...AAAAAAAAAA...', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..',
                        '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '...AAAAAAAAAA...', '....AAAAAAAA....'], {'A': ramp_from('#9a5438')}, {'k': '#4a2414'},
                       [(5, 7, 'k'), (6, 8, 'k'), (7, 7, 'k'), (8, 8, 'k'), (9, 7, 'k'), (10, 8, 'k')])
+
+# ---- ロードマップ 第 1 段階：新しい動物の卵 ----
+for k, (a, b) in {'LLAMA': ('#e0cca4', '#8a6448'), 'AXOLOTL': ('#f0a8c0', '#a84870'), 'FROG': ('#c8783a', '#f0d8a8'), 'TADPOLE': ('#5a4632', '#2a2016'), 'MUSHROOM_COW': ('#a8282a', '#e8e0d4')}.items():
+    D['SPAWN_EGG_' + k] = (EGG, {'A': ramp_from(a), 'B': ramp_from(b)}, {}, [], [(x, y, 'B') for x, y in SPOTS])

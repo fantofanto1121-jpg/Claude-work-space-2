@@ -124,7 +124,50 @@
         else if (Math.min(pt.s[0], pt.s[1], pt.s[2]) <= 0.6 && mat !== 'WOOL') mat = 'SKIN';   // 口・鼻・模様など薄い板はなめらかに
         PART.set(pt.o, { mat: mat, eye: eye, darkEye: eye && lum(pt.c) < 70, ofs: Math.floor(h2(i, type.length, 7) * 97) });
       });
+      markHead(type, parts);
     });
+  }
+  // 頭：目のある面をもつ箱（いちばん大きいもの）と、その近くの鼻・耳・角・目。首を軸に向きを変える
+  var NO_HEAD = { SLIME: 1, MAGMA_SLIME: 1, BOMBER: 1, END_DRAGON: 1, SQUID: 1, FISH: 1, EYE_FISH: 1, WAILER: 1, SHELL_GUARD: 1, ARMOR_STAND: 1, VEX: 1, TADPOLE: 1, NIGHT_RAY: 1 };
+  function markHead(type, parts) {
+    if (NO_HEAD[type]) return;
+    // 目の候補：小さく薄い板（色は問わない。白目と黒目を重ねた目や、横向きの目も）
+    var small = function (pt) { var q = pt.s; return Math.min(q[0], q[1], q[2]) <= 0.6 && Math.max(q[0], q[1], q[2]) <= 2.5; };
+    var eyes = parts.filter(function (pt) { return pt && pt.o && (isEye(pt) || (small(pt) && pt.o[1] > 4)); });
+    if (!eyes.length) return;
+    var head = null, best = 0, total = 0;
+    parts.forEach(function (pt) { if (pt && pt.o) total += pt.s[0] * pt.s[1] * pt.s[2]; });
+    eyes.forEach(function (e) {
+      var ex = e.o[0] + e.s[0] / 2, ey = e.o[1] + e.s[1] / 2, ez = e.o[2] + e.s[2] / 2;
+      parts.forEach(function (pt) {
+        if (!pt || !pt.o || pt === e || small(pt) || /^(L1|L2|A|W1|W2|T1|T2)$/.test(pt.sw || '')) return;
+        var o = pt.o, s = pt.s, v = s[0] * s[1] * s[2], t = 0.8;
+        if (ex >= o[0] - t && ex <= o[0] + s[0] + t && ey >= o[1] - t && ey <= o[1] + s[1] + t && ez >= o[2] - t && ez <= o[2] + s[2] + t && v > best) { best = v; head = pt; }
+      });
+    });
+    if (!head || best > total * 0.62) return;
+    var o = head.o, s = head.s, piv = [o[0] + s[0] / 2, o[1], o[2] + s[2] * 0.35];
+    parts.forEach(function (pt) {
+      if (!pt || !pt.o || /^(L1|L2|A|W1|W2|T1|T2)$/.test(pt.sw || '')) return;
+      var c = [pt.o[0] + pt.s[0] / 2, pt.o[1] + pt.s[1] / 2, pt.o[2] + pt.s[2] / 2];
+      if (c[0] < o[0] - 1.5 || c[0] > o[0] + s[0] + 1.5 || c[1] < o[1] - 0.5 || c[1] > o[1] + s[1] + 4 || c[2] < o[2] - 1 || c[2] > o[2] + s[2] + 3) return;
+      var info = PART.get(pt.o);
+      if (info && !info.piv) info.piv = piv;
+    });
+  }
+  // 頭の向き：8 ブロック以内のプレイヤーを見る。いなければ、ときどきあたりを見回す
+  function updateLook(g, m) {
+    var w = g.walker, e = w.eye || w.pos, dx = e[0] - m.x, dz = e[2] - m.z, d = Math.hypot(dx, dz), T = WG.MOB_TYPES[m.type];
+    var ty = 0, tp = 0;
+    if (d < 8 && !m.dead && !g.spectator) {
+      ty = Math.atan2(dx, dz) - m.yaw; ty = Math.atan2(Math.sin(ty), Math.cos(ty));
+      tp = Math.atan2(e[1] - (m.y + (T ? T.h : 1) * 0.85), d);
+    } else {
+      if (!(m._lookT > 0)) { m._lookT = 60 + Math.floor(Math.random() * 120); m._lookY = Math.random() < 0.6 ? 0 : (Math.random() - 0.5) * 1.6; m._lookP = (Math.random() - 0.5) * 0.4; }
+      m._lookT--; ty = m._lookY || 0; tp = m._lookP || 0;
+    }
+    ty = Math.max(-1.1, Math.min(1.1, ty)); tp = Math.max(-0.5, Math.min(0.5, tp));
+    m._hy = (m._hy || 0) + (ty - (m._hy || 0)) * 0.12; m._hp = (m._hp || 0) + (tp - (m._hp || 0)) * 0.12;
   }
   WG.mobPartInfo = function (o) { if (!built) build(); return PART.get(o) || null; };
 
@@ -160,12 +203,26 @@
   var draw = Mobs.prototype.draw;
   Mobs.prototype.draw = function (bt, a, cube) {
     if (!built) build();
+    var cur = null, self = this, all = this.list, arrows = this.arrows;
     var wrapped = function (b2, o, s, tf, c) {
-      var info = PART.get(o);
-      if (info && texturedBox(b2, o, s, tf, c, info)) return;
-      return cube.apply(this, arguments);
+      var info = PART.get(o), tf2 = tf;
+      if (info && info.piv && cur && !cur.dead && (cur._hy || cur._hp)) {
+        var pv = info.piv, ch = Math.cos(cur._hy), sh = Math.sin(cur._hy), cp = Math.cos(cur._hp), sp = Math.sin(cur._hp);
+        tf2 = function (lx, ly, lz) {
+          var y1 = ly - pv[1], z1 = lz - pv[2], x1 = lx - pv[0];
+          var y2 = y1 * cp + z1 * sp, z2 = -y1 * sp + z1 * cp;   // 上を向く・下を向く
+          return tf(pv[0] + x1 * ch + z2 * sh, pv[1] + y2, pv[2] - x1 * sh + z2 * ch);   // 左右を向く
+        };
+      }
+      if (info && texturedBox(b2, o, s, tf2, c, info)) return;
+      return cube.call(this, b2, o, s, tf2, c);
     };
-    return draw.call(this, bt, a, wrapped);
+    // 1 匹ずつ描く（いま描いている生き物の頭の向きを使うため）。矢は最後にまとめて
+    try {
+      this.arrows = [];
+      all.forEach(function (m) { cur = m; updateLook(self.game, m); self.list = [m]; draw.call(self, bt, a, wrapped); });
+      cur = null; this.list = []; this.arrows = arrows; draw.call(this, bt, a, wrapped);
+    } finally { this.list = all; this.arrows = arrows; }
   };
 
   // ---------------- 燃えている生き物には炎、すべての生き物の足元に丸い影 ----------------
