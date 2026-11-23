@@ -1844,6 +1844,58 @@ def main():
             elif r == 1 and x % 2 == 0: pp.set(x, y, [232, 150, 186])
     put('PINK_PETALS', pp)
 
+    # ---- ロードマップ 第 4 段階：繁茂した洞窟と鍾乳洞 ----
+    moss = noisy([90, 122, 46], 321, (0.78, 0.9, 1.0, 1.12))
+    for (x, y) in [(2, 3), (9, 1), (13, 7), (5, 10), (11, 13)]: moss.set(x, y, [130, 160, 70])
+    put('MOSS_BLOCK', moss)
+    az = leaves([88, 128, 44], 322)
+    azs = az.copy()
+    for y in range(N):
+        for x in range(N):
+            if y > 9: azs.set(x, y, [70, 56, 36] if 6 <= x <= 9 else None) if False else None
+    put('AZALEA', az, az, az)
+    faz = az.copy()
+    for (x, y) in [(2, 2), (7, 4), (12, 3), (4, 9), (10, 10), (13, 13), (6, 13), (1, 7)]:
+        faz.set(x, y, [220, 120, 190]); faz.set(x + 1, y, [240, 160, 210]); faz.set(x, y + 1, [200, 100, 170])
+    put('FLOWERING_AZALEA', faz, faz, faz)
+    def vine(lit):
+        img = Img(alpha=True)
+        for y in range(N):
+            for x in (5, 10):
+                xx = x + (1 if (y // 3) % 2 else 0)
+                img.set(xx, y, [70, 112, 40]); img.set(xx - 1, y, [96, 140, 56] if y % 4 == 1 else None) if False else img.set(xx - 1 if y % 4 == 1 else xx, y, [96, 140, 56] if y % 4 == 1 else [70, 112, 40])
+                if y % 5 == 2: img.set(xx + 1, y, [110, 160, 60])
+        if lit:
+            for (x, y) in [(4, 3), (11, 6), (6, 11), (10, 13)]:
+                img.set(x, y, [255, 196, 70]); img.set(x + 1, y, [240, 150, 40]); img.set(x, y + 1, [220, 120, 30]); img.set(x + 1, y + 1, [255, 220, 120])
+        return img
+    v = vine(False); put('CAVE_VINES', v, cut=v)
+    vl = vine(True); put('CAVE_VINES_LIT', vl, cut=vl)
+    sb = plant_cut(['................', '......gggg......', '.......gg.......', '....p..gg..p....', '...ppp.gg.ppp...', '..ppppPggPpppp..', '...pppPPPPppp...', '....ppPPPPpp....',
+                    '...pppPPPPppp...', '..ppppPPPPpppp..', '...ppp.pp.ppp...', '....p..pp..p....', '.......pp.......', '................', '................', '................'],
+                   {'g': [80, 130, 50], 'p': [216, 120, 168], 'P': [240, 170, 200]})
+    put('SPORE_BLOSSOM', sb, cut=sb)
+    sd = plant_cut(['................', '................', '..lll.....lll...', '.lllll...lllll..', '..llls...slll...', '.....s...s......', '..lll.s.s.lll...', '.lllll.s.lllll..',
+                    '..llll.s.llll...', '.......s........', '.......s........', '......ss........', '.......s........', '.......s........', '.......s........', '.......s........'],
+                   {'l': [96, 160, 60], 's': [70, 120, 44]})
+    put('SMALL_DRIPLEAF', sd, cut=sd)
+    bd = Img()
+    for y in range(N):
+        for x in range(N):
+            d = abs(x - 7.5) + abs(y - 7.5)
+            bd.set(x, y, [118, 178, 70] if (x == 7 or x == 8 or (d % 5 < 1 and d < 12)) else [96, 160, 60])
+    put('BIG_DRIPLEAF', bd, bd, sc_img([80, 130, 50], 0.9))
+    dsb = Img()
+    for y in range(N):
+        for x in range(N):
+            band = 0.9 + 0.12 * ((y + (hsh(331, x // 4) % 3)) % 4 == 0) - 0.06 * ((x + y * 3) % 7 == 0)
+            dsb.set(x, y, sc([134, 107, 92], band * (0.95 + 0.06 * ((hsh(332, x, y) % 3) / 2))))
+    put('DRIPSTONE_BLOCK', dsb)
+    pdt = Img()
+    for y in range(N):
+        for x in range(N): pdt.set(x, y, sc([140, 112, 96], (1.08 if x % 4 == 1 else 0.86 if x % 4 == 3 else 1.0) * (0.96 + 0.06 * ((hsh(333, x, y) % 3) / 2))))
+    put('POINTED_DRIPSTONE_UP_TIP', pdt)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

@@ -1472,5 +1472,20 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(ok.length === 4 && planks && planks.key === 'CHERRY_PLANKS' && door && door.key === 'MANGROVE_DOOR', '4 つの新しいバイオーム（' + ok.join('・') + '）と、桜・マングローブの木の建材');
 })();
 
+// ---- ロードマップ 第 4 段階：洞窟のバイオーム ----
+(function () {
+  console.log('\n[洞窟のバイオーム]');
+  var wd = new WG.World('7', 'overworld'), cnt = {};
+  for (var cx = -6; cx < 6; cx++) for (var cz = -6; cz < 6; cz++) { var bl = wd.chunk(cx, cz).blocks; for (var i = 0; i < bl.length; i++) { var k = WG.BLOCKS[bl[i]].key; if (/^(MOSS_BLOCK|CAVE_VINES_LIT|SPORE_BLOSSOM|POINTED_DRIPSTONE_DOWN_TIP|DRIPSTONE_BLOCK|AZALEA)$/.test(k)) cnt[k] = (cnt[k] || 0) + 1; } }
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); g.mode = 'survival';
+  w.setBlock(0, 16, 0, B.STONE); w.setBlock(0, 15, 0, B.POINTED_DRIPSTONE_DOWN_MID); w.setBlock(0, 14, 0, B.POINTED_DRIPSTONE_DOWN_TIP);
+  g.walker.pos = [0.5, 11, 0.5]; var h0 = g.health; g.breakBlock(0, 16, 0, true);
+  for (var t = 0; t < 40; t++) g.tick();
+  var fell = w.block(0, 15, 0) === B.AIR && g.health < h0;
+  w.setBlock(3, 12, 3, B.STONE); g.inv.slots[0] = { key: 'GLOW_BERRIES', n: 2 }; g.inv.sel = 0; g.mobs.target = null;
+  g.walker.target = { id: B.STONE, x: 3, y: 12, z: 3, px: 3, py: 11, pz: 3 }; g.place();
+  check(Object.keys(cnt).length === 6 && fell && w.block(3, 11, 3) === B.CAVE_VINES, '繁茂した洞窟と鍾乳洞が生まれる（' + Object.keys(cnt).length + ' 種）、付け根を壊すと鍾乳石が落ちて当たる、光るベリーを天井に植える');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

@@ -380,6 +380,13 @@
     ['PACKED_MUD', '固めた泥', '#8e6b50', 'solid'], ['MUD_BRICKS', '泥レンガ', '#89674f', 'solid'], ['RED_SAND', '赤い砂', '#be6621', 'solid'], ['RED_SANDSTONE', '赤い砂岩', '#b5621f', 'solid'],
     ['MYCELIUM', '菌糸', '#6f6265', 'solid'], ['PINK_PETALS', '桜の花びら', '#f0b0c8', 'carpet']);
   NEW_WOODS.forEach(function (w) { WOODS.push([w[0], w[1], w[2]]); SHAPE_MATS.push([w[0], w[1] + 'の', w[0] + '_PLANKS', w[2]]); });
+  // ロードマップ 第 4 段階：繁茂した洞窟（苔・ツツジ・発光するベリーのつる・ドリップリーフ・胞子の花）と鍾乳洞（鍾乳石・石筍）
+  DEF.push(['MOSS_BLOCK', '苔ブロック', '#5a7a2e', 'solid'], ['MOSS_CARPET', '苔のじゅうたん', '#5a7a2e', 'carpet'], ['AZALEA', 'ツツジ', '#5e7c2a', 'azalea'], ['FLOWERING_AZALEA', '花の咲いたツツジ', '#6e7a40', 'azalea'],
+    ['CAVE_VINES', '洞窟のつる', '#4e7a2a', 'plant'], ['CAVE_VINES_LIT', '洞窟のつる（実）', '#e8a030', 'plant'], ['SPORE_BLOSSOM', '胞子の花', '#d878a8', 'plant'],
+    ['SMALL_DRIPLEAF', '小さなドリップリーフ', '#5a9a3a', 'plant'], ['BIG_DRIPLEAF', '大きなドリップリーフ', '#6aa83e', 'bigdrip'], ['DRIPSTONE_BLOCK', '鍾乳石ブロック', '#866b5c', 'solid'],
+    ['POINTED_DRIPSTONE_UP_TIP', '鍾乳石', '#866b5c', 'drip'], ['POINTED_DRIPSTONE_UP_MID', '鍾乳石', '#866b5c', 'drip'], ['POINTED_DRIPSTONE_DOWN_TIP', '鍾乳石', '#866b5c', 'drip'], ['POINTED_DRIPSTONE_DOWN_MID', '鍾乳石', '#866b5c', 'drip']);
+  ALIAS.MOSS_CARPET = 'MOSS_BLOCK'; ALIAS.POINTED_DRIPSTONE_UP_MID = ALIAS.POINTED_DRIPSTONE_DOWN_TIP = ALIAS.POINTED_DRIPSTONE_DOWN_MID = 'POINTED_DRIPSTONE_UP_TIP';
+
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -519,6 +526,7 @@
   LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
+  LIGHT_EMIT[B.CAVE_VINES_LIT] = 14; LIGHT_EMIT[B.SPORE_BLOSSOM] = 2;
   LIGHT_EMIT[B.TRIAL_SPAWNER] = 4; LIGHT_EMIT[B.TRIAL_SPAWNER_ACTIVE] = 8; LIGHT_EMIT[B.VAULT] = 6; LIGHT_EMIT[B.CONDUIT] = 15;
   LIGHT_EMIT[B.SOUL_LANTERN] = 10; LIGHT_EMIT[B.CRYING_OBSIDIAN] = 10; LIGHT_EMIT[B.MAGMA_BLOCK] = 3; LIGHT_EMIT[B.SCULK_SHRIEKER] = 1;
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
@@ -530,14 +538,14 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1, azalea: 1, bigdrip: 1, drip: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -678,6 +686,14 @@
       return cb;
     }
     if (k === 'carpet') return [[0, 0, 0, 16, 1, 16, id]];
+    if (k === 'azalea') return forCollide ? [[0, 0, 0, 16, 16, 16, id]] : [[0, 7, 0, 16, 16, 16, id], [6, 0, 6, 10, 7, 10, B.OAK_LOG], [2, 4, 2, 5, 7, 5, id], [11, 5, 11, 14, 7, 14, id]];
+    if (k === 'bigdrip') return forCollide ? [[0, 14, 0, 16, 15, 16, id]] : [[0, 14, 0, 16, 15, 16, id], [7, 0, 7, 9, 14, 9, B.SMALL_DRIPLEAF]];
+    if (k === 'drip') {
+      if (forCollide) return [];
+      var up = /_UP_/.test(key), mid = /_MID$/.test(key), tx = B.POINTED_DRIPSTONE_UP_TIP;
+      if (mid) return [[4, 0, 4, 12, 16, 12, tx]];
+      return up ? [[5, 0, 5, 11, 7, 11, tx], [6, 7, 6, 10, 12, 10, tx], [7, 12, 7, 9, 16, 9, tx]] : [[5, 9, 5, 11, 16, 11, tx], [6, 4, 6, 10, 9, 10, tx], [7, 0, 7, 9, 4, 9, tx]];
+    }
     if (k === 'dpot') return [[1, 0, 1, 15, 13, 15, B.DECORATED_POT], [4, 13, 4, 12, 14, 12, B.DECORATED_POT], [3, 14, 3, 13, 16, 13, B.DECORATED_POT]];
     if (k === 'conduit') return [[5, 5, 5, 11, 11, 11, B.CONDUIT, 1]];
     if (k === 'lrod') return [[7, 0, 7, 9, 12, 9, B.LIGHTNING_ROD], [6, 12, 6, 10, 16, 10, B.LIGHTNING_ROD, key === 'LIGHTNING_ROD_ON' ? 1 : 0]];

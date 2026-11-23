@@ -114,6 +114,52 @@
         break;
       }
     }
+    // 洞窟のバイオーム（ロードマップ 第 4 段階）：64 ブロックの区画ごとに、繁茂した洞窟か鍾乳洞か、ふつうの洞窟
+    if (!surfaceOnly) {
+      var cr = rnd(seed, Math.floor(x0 / 64), 9, Math.floor(z0 / 64), 881), cave = cr < 0.16 ? 'lush' : cr < 0.32 ? 'drip' : null;
+      if (cave) {
+        var ROCK = {}; [B.STONE, B.DEEPSLATE, B.TUFF, B.GRANITE, B.DIORITE, B.ANDESITE, B.DIRT, B.GRAVEL, B.COBBLED_DEEPSLATE].forEach(function (q) { if (q != null) ROCK[q] = 1; });
+        for (i = 0; i < 256; i++) {
+          var cxl = i & 15, czl = i >> 4, top2 = hmap[i] - 6;
+          for (y = MINY + 6; y < top2; y++) {
+            var here = bl[idx(i, y)];
+            if (here !== B.AIR) continue;
+            var dn = bl[idx(i, y - 1)], upb = bl[idx(i, y + 1)], q = rnd(seed, x0 + cxl, y, z0 + czl, 882);
+            if (ROCK[dn]) {   // 床
+              if (cave === 'lush') {
+                bl[idx(i, y - 1)] = q < 0.06 ? B.CLAY : B.MOSS_BLOCK;
+                if (q < 0.3) bl[idx(i, y)] = B.MOSS_CARPET;
+                else if (q < 0.34) bl[idx(i, y)] = q < 0.32 ? B.AZALEA : B.FLOWERING_AZALEA;
+                else if (q < 0.36 && bl[idx(i, y + 1)] === B.AIR) bl[idx(i, y)] = B.BIG_DRIPLEAF;
+                else if (q < 0.39) bl[idx(i, y)] = B.SMALL_DRIPLEAF;
+              } else {
+                if (q < 0.55) bl[idx(i, y - 1)] = B.DRIPSTONE_BLOCK;
+                if (q < 0.07) {   // 石筍（下から伸びる）
+                  var n2 = 1 + Math.floor(q * 40) % 3;
+                  for (var k2 = 0; k2 < n2 && bl[idx(i, y + k2)] === B.AIR; k2++) bl[idx(i, y + k2)] = k2 === n2 - 1 ? B.POINTED_DRIPSTONE_UP_TIP : B.POINTED_DRIPSTONE_UP_MID;
+                }
+              }
+            }
+            if (ROCK[upb] || upb === B.MOSS_BLOCK) {   // 天井
+              if (cave === 'lush') {
+                if (q < 0.55) bl[idx(i, y + 1)] = B.MOSS_BLOCK;
+                if (q > 0.88 && bl[idx(i, y)] === B.AIR) {   // 洞窟のつる（ときどき実が光る）
+                  var len = 1 + Math.floor((q - 0.88) * 60) % 5;
+                  for (var k3 = 0; k3 < len && bl[idx(i, y - k3)] === B.AIR; k3++) bl[idx(i, y - k3)] = rnd(seed, x0 + cxl, y - k3, z0 + czl, 883) < 0.35 ? B.CAVE_VINES_LIT : B.CAVE_VINES;
+                } else if (q > 0.86 && bl[idx(i, y)] === B.AIR) bl[idx(i, y)] = B.SPORE_BLOSSOM;
+              } else {
+                if (q > 0.45) bl[idx(i, y + 1)] = B.DRIPSTONE_BLOCK;
+                if (q > 0.9 && bl[idx(i, y)] === B.AIR) {   // 鍾乳石（天井から垂れる）
+                  var n3 = 1 + Math.floor((q - 0.9) * 40) % 4;
+                  for (var k4 = 0; k4 < n3 && bl[idx(i, y - k4)] === B.AIR; k4++) bl[idx(i, y - k4)] = k4 === n3 - 1 ? B.POINTED_DRIPSTONE_DOWN_TIP : B.POINTED_DRIPSTONE_DOWN_MID;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     // 6. 植物：バイオームごとに
     var mid = biome[136], mb = bkey(mid);
     var grassTop = function (x, z) { var ii = (z << 4) | x, h = hmap[ii]; return bl[idx(ii, h)] === B.GRASS && bl[idx(ii, h + 1)] === B.AIR ? h : null; };
