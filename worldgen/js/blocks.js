@@ -363,6 +363,23 @@
     if (c[0] === 'WHITE') return;
     ['FOOT', 'HEAD'].forEach(function (p) { ['N', 'E', 'S', 'W'].forEach(function (d) { DEF.push(['BED_' + c[0] + '_' + p + '_' + d, c[1] + 'のベッド', c[2], 'bed']); ALIAS['BED_' + c[0] + '_' + p + '_' + d] = 'BED_' + c[0]; }); });
   });
+  // ロードマップ 第 3 段階：桜とマングローブの木（扉・柵・階段・ハーフブロック・トラップドア・フェンスゲートも）、泥、赤い砂、菌糸、桜の花びら
+  // （ブロックの番号を変えないよう、いちばん後ろに足す）
+  var NEW_WOODS = [['CHERRY', '桜', '#e2b4ac', '#3e2430', '#e8a8c0'], ['MANGROVE', 'マングローブ', '#7a3632', '#4a3628', '#4e7e34']];
+  NEW_WOODS.forEach(function (w) {
+    DEF.push([w[0] + '_LOG', w[1] + 'の原木', w[3], 'solid'], [w[0] + '_LEAVES', w[1] + 'の葉', w[4], 'solid'], [w[0] + '_PLANKS', w[1] + 'の板材', w[2], 'solid']);
+    DIR4.forEach(function (d) { ['C', 'O'].forEach(function (o) { ['L', 'U'].forEach(function (h) { DEF.push([w[0] + '_DOOR_' + d + o + h, w[1] + 'のドア', w[2], 'door']); }); }); });
+    DEF.push([w[0] + '_FENCE', w[1] + 'の柵', w[2], 'fence']); ALIAS[w[0] + '_FENCE'] = w[0] + '_PLANKS';
+    DIR4.forEach(function (d) { ['', '_T'].forEach(function (t) { DEF.push([w[0] + '_STAIRS_' + d + t, w[1] + 'の階段', w[2], 'stairs']); ALIAS[w[0] + '_STAIRS_' + d + t] = w[0] + '_PLANKS'; }); });
+    DEF.push([w[0] + '_SLAB', w[1] + 'のハーフブロック', w[2], 'slab'], [w[0] + '_SLAB_TOP', w[1] + 'のハーフブロック', w[2], 'slab'], [w[0] + '_SLAB_DOUBLE', w[1] + 'のハーフブロック（2 段）', w[2], 'solid']);
+    ALIAS[w[0] + '_SLAB'] = ALIAS[w[0] + '_SLAB_TOP'] = ALIAS[w[0] + '_SLAB_DOUBLE'] = w[0] + '_PLANKS';
+    ['B', 'T', 'ON', 'OE', 'OS', 'OW'].forEach(function (st) { DEF.push([w[0] + '_TRAPDOOR_' + st, w[1] + 'のトラップドア', w[2], 'trapdoor']); ALIAS[w[0] + '_TRAPDOOR_' + st] = w[0] + '_TRAPDOOR'; });
+    ['X', 'Z', 'XO', 'ZO'].forEach(function (st) { DEF.push([w[0] + '_FENCE_GATE_' + st, w[1] + 'のフェンスゲート', w[2], 'gate']); ALIAS[w[0] + '_FENCE_GATE_' + st] = w[0] + '_PLANKS'; });
+  });
+  DEF.push(['MANGROVE_ROOTS', 'マングローブの根', '#4a3628', 'solid'], ['MUDDY_MANGROVE_ROOTS', '泥まみれのマングローブの根', '#3e3430', 'solid'], ['MUD', '泥', '#3c3837', 'solid'],
+    ['PACKED_MUD', '固めた泥', '#8e6b50', 'solid'], ['MUD_BRICKS', '泥レンガ', '#89674f', 'solid'], ['RED_SAND', '赤い砂', '#be6621', 'solid'], ['RED_SANDSTONE', '赤い砂岩', '#b5621f', 'solid'],
+    ['MYCELIUM', '菌糸', '#6f6265', 'solid'], ['PINK_PETALS', '桜の花びら', '#f0b0c8', 'carpet']);
+  NEW_WOODS.forEach(function (w) { WOODS.push([w[0], w[1], w[2]]); SHAPE_MATS.push([w[0], w[1] + 'の', w[0] + '_PLANKS', w[2]]); });
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 

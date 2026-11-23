@@ -4,6 +4,7 @@ from defs2 import R2, F, D as D2, bottle, BUCKET
 RR = dict(R); RR.update(R2)
 RR.update({
     'oak': ['#3a2a14', '#7a5c30', '#9c7a44', '#b8945a', '#d0ae74'],
+    'cherry': ['#5a3036', '#c08a88', '#e2b4ac', '#f0cac4', '#fae2dc'], 'mangrove': ['#2a0e0c', '#5e2824', '#7a3632', '#94463e', '#b0605a'],
     'spruce': ['#22170c', '#4e3820', '#6a4c2e', '#84623c', '#9e7a50'],
     'acacia': ['#3a1a0a', '#8a4422', '#aa5a32', '#c47446', '#da9060'],
     'birch': ['#5a5038', '#b4a674', '#cdbf8c', '#e0d4a4', '#f0e6c0'],
@@ -77,7 +78,7 @@ def block_marks(rows, mat):
             if ch == '.':
                 continue
             h = (x * 73856093 ^ y * 19349663) & 15
-            if mat in ('oak', 'spruce', 'acacia', 'birch', 'jungle', 'darkoak') and ch in 'LR' and y % 3 == 0:
+            if mat in ('oak', 'spruce', 'acacia', 'birch', 'jungle', 'darkoak', 'cherry', 'mangrove') and ch in 'LR' and y % 3 == 0:
                 marks.append((x, y, 'p'))
             elif mat in ('cobble', 'stonebrick', 'stone2', 'blackstone') and h < 3:
                 marks.append((x, y, 's'))
@@ -102,7 +103,7 @@ D = {}
 CUBE = lambda: [(0, 0, 0, 1, 1, 1, 'T', 'L', 'R')]
 STAIRS = [(0, 0, 0, 1, 0.5, 1, 'T', 'L', 'R'), (0, 0.5, 0, 1, 1, 0.5, 'T', 'L', 'R')]
 SLAB = [(0, 0, 0, 1, 0.5, 1, 'T', 'L', 'R')]
-for k, m in [('OAK', 'oak'), ('SPRUCE', 'spruce'), ('ACACIA', 'acacia'), ('BIRCH', 'birch'), ('JUNGLE', 'jungle'), ('COBBLESTONE', 'cobble'),
+for k, m in [('OAK', 'oak'), ('SPRUCE', 'spruce'), ('ACACIA', 'acacia'), ('BIRCH', 'birch'), ('JUNGLE', 'jungle'), ('CHERRY', 'cherry'), ('MANGROVE', 'mangrove'), ('COBBLESTONE', 'cobble'),
              ('STONE_BRICK', 'stonebrick'), ('SANDSTONE', 'sandstone'), ('BRICK', 'bricks'),
              ('DARK_OAK', 'darkoak'), ('NETHER_BRICK', 'netherbrick'), ('PURPUR', 'purpur'), ('PRISMARINE_BRICK', 'prismarine'),
              ('BLACKSTONE_BRICK', 'blackstone'), ('END_STONE_BRICK', 'endbrick')]:
@@ -141,7 +142,7 @@ def door(mat, iron=False):
         return (rows, {'A': RR['iron2']}, {'w': ('#5a5a60', None), 'h': '#2e2e32'}, [])
     base = RR[mat]
     return (rows, {'A': base}, {'w': ('#a8c8d4', None), 'h': '#2a1c0e'}, [(5, 7, 'p'), (6, 7, 'p'), (7, 7, 'p'), (8, 7, 'p'), (9, 7, 'p'), (5, 11, 'p'), (6, 11, 'p'), (7, 11, 'p'), (8, 11, 'p'), (9, 11, 'p')])
-for k, m in [('OAK', 'oak'), ('SPRUCE', 'spruce'), ('ACACIA', 'acacia'), ('BIRCH', 'birch'), ('JUNGLE', 'jungle')]:
+for k, m in [('OAK', 'oak'), ('SPRUCE', 'spruce'), ('ACACIA', 'acacia'), ('BIRCH', 'birch'), ('JUNGLE', 'jungle'), ('CHERRY', 'cherry'), ('MANGROVE', 'mangrove')]:
     r, fr, fx, mk = door(m)
     fx = dict(fx); fx['p'] = RR[m][1]
     D[k + '_DOOR'] = (r, fr, fx, mk)

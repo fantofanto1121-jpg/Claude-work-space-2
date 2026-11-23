@@ -1458,5 +1458,19 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
     'じゅうたん（羊毛 2 つで 3 枚、薄い板）、色付きのベッド（作って置ける）、彩釉テラコッタ（色付きテラコッタを焼く）');
 })();
 
+// ---- ロードマップ 第 3 段階：新しいバイオーム ----
+(function () {
+  console.log('\n[新しいバイオーム]');
+  var wd = new WG.World('7', 'overworld'), want = { cherry_grove: /CHERRY_LOG|PINK_PETALS/, mangrove_swamp: /MANGROVE_ROOTS/, badlands: /ORANGE_TERRACOTTA/, mushroom_fields: /MYCELIUM/ }, ok = [];
+  var at = { badlands: [42, 23], cherry_grove: [9, -96], mangrove_swamp: [-249, -466], mushroom_fields: [1002, 822] };
+  Object.keys(at).forEach(function (k) {
+    var p = at[k], b = WG.BIOMES[wd.gen.column(p[0], p[1]).b].key, ch = wd.chunk(p[0] >> 4, p[1] >> 4), hit = false;
+    for (var i = 0; i < ch.blocks.length && !hit; i++) if (want[k].test(WG.BLOCKS[ch.blocks[i]].key)) hit = true;
+    if (b === k && hit) ok.push(WG.BIOMES.filter(function (q) { return q.key === k; })[0].name);
+  });
+  var planks = WG.Craft.match(['CHERRY_LOG'], 2), door = WG.Craft.match(['MANGROVE_PLANKS', 'MANGROVE_PLANKS', null, 'MANGROVE_PLANKS', 'MANGROVE_PLANKS', null, 'MANGROVE_PLANKS', 'MANGROVE_PLANKS', null], 3);
+  check(ok.length === 4 && planks && planks.key === 'CHERRY_PLANKS' && door && door.key === 'MANGROVE_DOOR', '4 つの新しいバイオーム（' + ok.join('・') + '）と、桜・マングローブの木の建材');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

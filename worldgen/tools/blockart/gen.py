@@ -524,7 +524,9 @@ def main():
     out_png = sys.argv[1] if len(sys.argv) > 1 else None
     info = json.loads(subprocess.run(['node', os.path.join(HERE, 'colors.js')], capture_output=True, text=True, check=True).stdout)
     T = {}
+    EXTRA_COL = {'CHERRY_PLANKS': '#e2b4ac', 'CHERRY_LOG': '#4a2a34', 'CHERRY_LEAVES': '#eaa6c2', 'MANGROVE_PLANKS': '#7a3632', 'MANGROVE_LOG': '#54402e', 'MANGROVE_LEAVES': '#4e7e34'}
     def col(k, face='side'):
+        if k not in info: return hx(EXTRA_COL[k])   # 新しいブロック（古い 8×8 の見た目がないもの）
         return hx(info[k][face])
     def put(k, side, top=None, bottom=None, cut=None, all_faces=False):
         e = {'side': side, 'top': top or side, 'bottom': bottom or top or side}
@@ -556,7 +558,7 @@ def main():
     put('MOSSY_COBBLESTONE', cobble(col('COBBLESTONE'), 18, [84, 120, 58]))
     cd = cobble(col('COBBLED_DEEPSLATE'), 19); put('COBBLED_DEEPSLATE', cd)
     # 木と葉
-    for w, birch in [('OAK', False), ('BIRCH', True), ('SPRUCE', False), ('JUNGLE', False), ('ACACIA', False)]:
+    for w, birch in [('OAK', False), ('BIRCH', True), ('SPRUCE', False), ('JUNGLE', False), ('ACACIA', False), ('CHERRY', False), ('MANGROVE', False)]:
         pl = planks(col(w + '_PLANKS'), s(w))
         put(w + '_PLANKS', pl)
         put(w + '_LOG', log_side(col(w + '_LOG'), s(w) + 1, birch), log_top(col(w + '_LOG'), col(w + '_PLANKS'), s(w)))
@@ -681,7 +683,7 @@ def main():
                      '.a.......b......', '.ac......b..l...', '.a.......b.l....', '.a......lb......', 'la.......b......', '.a.......bc.....', '.a.......b......', '.a.......b......'],
                     {'a': [136, 194, 90], 'b': [116, 174, 72], 'c': [170, 220, 120], 'l': [96, 156, 60]})
     put('SUGAR_CANE', sc_, cut=sc_)
-    for w in ['OAK', 'SPRUCE', 'ACACIA', 'BIRCH', 'JUNGLE']:
+    for w in ['OAK', 'SPRUCE', 'ACACIA', 'BIRCH', 'JUNGLE', 'CHERRY', 'MANGROVE']:
         pc = col(w + '_PLANKS')
         for u, up in [('L', False), ('U', True)]:
             d = door(pc, up)
@@ -1037,7 +1039,7 @@ def main():
         for (x, y) in [(3, 2), (2, 3), (4, 2), (2, 4), (12, 11), (11, 12)]: g2.set(x, y, mixc(base, [255, 255, 255], 0.6))
         put(k + '_STAINED_GLASS', g2, cut=g2, all_faces=True)
     # トラップドア（窓の穴のある板）と鉄のトラップドア、鉄格子
-    for wd_, c in [('OAK', col('OAK_PLANKS')), ('SPRUCE', col('SPRUCE_PLANKS')), ('ACACIA', col('ACACIA_PLANKS')), ('BIRCH', col('BIRCH_PLANKS')), ('JUNGLE', col('JUNGLE_PLANKS')), ('IRON', [196, 196, 200])]:
+    for wd_, c in [('OAK', col('OAK_PLANKS')), ('SPRUCE', col('SPRUCE_PLANKS')), ('ACACIA', col('ACACIA_PLANKS')), ('BIRCH', col('BIRCH_PLANKS')), ('JUNGLE', col('JUNGLE_PLANKS')), ('CHERRY', col('CHERRY_PLANKS')), ('MANGROVE', col('MANGROVE_PLANKS')), ('IRON', [196, 196, 200])]:
         td = Img(alpha=True)
         for y in range(N):
             for x in range(N):
@@ -1795,6 +1797,52 @@ def main():
             return im
         s2 = recol(bside, 0, 8); t2 = recol(btop, 5, 15)
         put('BED_' + cn, s2, t2, T['BED']['bottom'], cut=s2)
+
+    # ---- ロードマップ 第 3 段階：新しいバイオームの素材 ----
+    cl = T['CHERRY_LEAVES']['side'].copy()
+    for y in range(N):
+        for x in range(N):
+            hv = hsh(301, x, y) % 23
+            if hv == 0: cl.set(x, y, [255, 236, 244])
+            elif hv == 1: cl.set(x, y, [214, 120, 160])
+    put('CHERRY_LEAVES', cl)
+    roots = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            a = (x + y * 2) % 7 < 2 or (x * 2 - y + 32) % 9 < 2 or (x * 3 + y) % 11 == 0
+            if a: roots.set(x, y, sc([88, 64, 44], 0.85 + 0.25 * ((hsh(302, x, y) % 4) / 3)))
+    put('MANGROVE_ROOTS', roots, cut=roots, all_faces=True)
+    mud = noisy([62, 58, 56], 303, (0.82, 0.92, 1.0, 1.08))
+    for (x, y) in [(3, 4), (10, 2), (7, 11), (13, 9), (2, 13)]: mud.set(x, y, [92, 86, 80])   # ぬれて光る所
+    put('MUD', mud)
+    mr = mud.copy()
+    for y in range(N):
+        for x in range(N):
+            if roots.p[y][x]: mr.set(x, y, roots.p[y][x])
+    put('MUDDY_MANGROVE_ROOTS', mr)
+    put('PACKED_MUD', noisy([142, 108, 80], 304, (0.86, 0.94, 1.02, 1.08)))
+    put('MUD_BRICKS', bricks([138, 104, 80], 305, [96, 72, 56], 4, 8))
+    rs = sand([190, 102, 34], 306); put('RED_SAND', rs)
+    rss = Img()
+    for y in range(N):
+        for x in range(N): rss.set(x, y, sc([182, 98, 32], (0.84 if y % 5 == 4 else 1.0) * (0.94 + 0.08 * ((hsh(307, x, y) % 3) / 2))))
+    put('RED_SANDSTONE', rss, noisy([186, 100, 34], 308, (0.9, 1.0, 1.06)))
+    myt = Img()
+    for y in range(N):
+        for x in range(N):
+            v = hsh(309, x, y) % 9
+            myt.set(x, y, [150, 120, 160] if v == 0 else [96, 84, 98] if v < 3 else [118, 104, 116])
+    mys = T['DIRT']['side'].copy()
+    for x in range(N):
+        for y in range(0, 3 + hsh(310, x) % 2): mys.set(x, y, myt.get(x, y))
+    put('MYCELIUM', mys, myt, T['DIRT']['side'])
+    pp = T['GRASS']['top'].copy()
+    for y in range(N):
+        for x in range(N):
+            r = hsh(311, x // 2, y // 2) % 5
+            if r == 0 and (x + y) % 2 == 0: pp.set(x, y, [246, 186, 210])
+            elif r == 1 and x % 2 == 0: pp.set(x, y, [232, 150, 186])
+    put('PINK_PETALS', pp)
 
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():

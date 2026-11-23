@@ -133,6 +133,10 @@
         bl[idx(i, fh)] = B[pick];
       } else if (fid === B.SHORT_GRASS && (fb === 'taiga' || fb === 'jungle') && fr < 0.35) bl[idx(i, fh)] = B.FERN;
       else if (fid === B.AIR && fb === 'desert' && bl[idx(i, fh - 1)] === B.SAND && fr < 0.012) bl[idx(i, fh)] = B.DEAD_BUSH;
+      // 新しいバイオーム：桜の花びら、荒野の枯れ木、キノコ島の小さなキノコ
+      else if (fid === B.AIR && fb === 'cherry_grove' && bl[idx(i, fh - 1)] === B.GRASS && fr < 0.3) bl[idx(i, fh)] = B.PINK_PETALS;
+      else if (fid === B.AIR && fb === 'badlands' && bl[idx(i, fh - 1)] === B.RED_SAND && fr < 0.015) bl[idx(i, fh)] = B.DEAD_BUSH;
+      else if (fid === B.AIR && fb === 'mushroom_fields' && bl[idx(i, fh - 1)] === B.MYCELIUM && fr < 0.025) bl[idx(i, fh)] = fr < 0.012 ? B.RED_MUSHROOM : B.BROWN_MUSHROOM;
     }
     // スイートベリーの茂み（タイガ）
     if (mb === 'taiga' && R(204) < 1 / 5) {

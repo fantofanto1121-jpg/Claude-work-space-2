@@ -155,8 +155,9 @@
     function group(type, n, at) { for (k = 0; k < n && at; k++) self.spawn(type, at[0] + (Math.random() - 0.5) * 2, at[1], at[2] + (Math.random() - 0.5) * 2); }
     if ((bk === 'savanna' || bk === 'rocky_mountain') && Math.random() < 0.05) group('LLAMA', 2 + Math.floor(Math.random() * 3), findLand(wd, x0, z0, h));
     if ((bk === 'swamp' || bk === 'jungle') && Math.random() < 0.06) group('AXOLOTL', 1 + Math.floor(Math.random() * 3), findWater(wd, x0, z0, h));
-    if (bk === 'swamp' && Math.random() < 0.08) { group('FROG', 2 + Math.floor(Math.random() * 3), findLand(wd, x0, z0, h)); if (Math.random() < 0.5) group('TADPOLE', 3, findWater(wd, x0, z0, h)); }
-    if ((bk === 'swamp' || bk === 'forest') && Math.random() < 0.006) group('MUSHROOM_COW', 2, findLand(wd, x0, z0, h));   // キノコ島ができるまでは、まれに沼と森に
+    if ((bk === 'swamp' || bk === 'mangrove_swamp') && Math.random() < 0.08) { group('FROG', 2 + Math.floor(Math.random() * 3), findLand(wd, x0, z0, h)); if (Math.random() < 0.5) group('TADPOLE', 3, findWater(wd, x0, z0, h)); }
+    if (bk === 'mushroom_fields' && Math.random() < 0.25) group('MUSHROOM_COW', 2 + Math.floor(Math.random() * 3), findLand(wd, x0, z0, h));   // キノコ島に
+    if (bk === 'mangrove_swamp' && Math.random() < 0.08) group('FROG', 2 + Math.floor(Math.random() * 2), findLand(wd, x0, z0, h));
     return r;
   };
 })(typeof window !== 'undefined' ? window : globalThis);

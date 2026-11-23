@@ -14,7 +14,8 @@
 
   var BI = {
     OCEAN: 0, FROZEN_OCEAN: 1, BEACH: 2, DESERT: 3, SNOWY_PLAINS: 4, SNOWY_MOUNTAIN: 5,
-    ROCKY_MOUNTAIN: 6, JUNGLE: 7, SAVANNA: 8, TAIGA: 9, SWAMP: 10, FOREST: 11, PLAINS: 12
+    ROCKY_MOUNTAIN: 6, JUNGLE: 7, SAVANNA: 8, TAIGA: 9, SWAMP: 10, FOREST: 11, PLAINS: 12,
+    CHERRY_GROVE: 13, MANGROVE_SWAMP: 14, BADLANDS: 15, MUSHROOM_FIELDS: 16
   };
   // top: 表面 / under: その下の層 / depth: 下の層の厚さ / base: さらに下の層
   WG.BIOMES = [
@@ -30,7 +31,12 @@
     { key: 'taiga', name: 'タイガ', top: B.GRASS, under: B.DIRT, depth: 3, tint: [0.82, 0.93, 0.92] },
     { key: 'swamp', name: '沼地', top: B.GRASS, under: B.DIRT, depth: 3, tint: [0.8, 0.84, 0.64] },
     { key: 'forest', name: '森', top: B.GRASS, under: B.DIRT, depth: 3, tint: [0.9, 1.0, 0.86] },
-    { key: 'plains', name: '平原', top: B.GRASS, under: B.DIRT, depth: 3, tint: [1.03, 1.02, 0.9] }
+    { key: 'plains', name: '平原', top: B.GRASS, under: B.DIRT, depth: 3, tint: [1.03, 1.02, 0.9] },
+    // ロードマップ 第 3 段階
+    { key: 'cherry_grove', name: '桜の林', top: B.GRASS, under: B.DIRT, depth: 3, tint: [1.0, 1.06, 0.84] },
+    { key: 'mangrove_swamp', name: 'マングローブの沼', top: B.MUD, under: B.MUD, depth: 4, tint: [0.78, 0.9, 0.6] },
+    { key: 'badlands', name: '荒野', top: B.RED_SAND, under: B.RED_SAND, depth: 1, tint: [1.2, 0.95, 0.6] },
+    { key: 'mushroom_fields', name: 'キノコ島', top: B.MYCELIUM, under: B.DIRT, depth: 3, tint: [0.9, 1.0, 0.86] }
   ];
   WG.BI = BI;
 
@@ -41,7 +47,12 @@
   var T_OAK = 0, T_BIRCH = 1, T_SPRUCE = 2, T_JUNGLE = 3, T_ACACIA = 4, T_SWAMP = 5;
   TREE_T[BI.FOREST] = T_OAK; TREE_T[BI.TAIGA] = T_SPRUCE; TREE_T[BI.SNOWY_PLAINS] = T_SPRUCE;
   TREE_T[BI.JUNGLE] = T_JUNGLE; TREE_T[BI.SWAMP] = T_SWAMP; TREE_T[BI.SAVANNA] = T_ACACIA; TREE_T[BI.PLAINS] = T_OAK;
+  var T_CHERRY = 6, T_MANGROVE = 7, T_HMUSH = 8;
+  TREE_P[BI.CHERRY_GROVE] = 0.22; TREE_P[BI.MANGROVE_SWAMP] = 0.42; TREE_P[BI.MUSHROOM_FIELDS] = 0.05;
+  TREE_T[BI.CHERRY_GROVE] = T_CHERRY; TREE_T[BI.MANGROVE_SWAMP] = T_MANGROVE; TREE_T[BI.MUSHROOM_FIELDS] = T_HMUSH;
   var TREE_R = 5; // 根から葉の端までの最大距離
+  var BANDS = [B.TERRACOTTA, B.ORANGE_TERRACOTTA, B.TERRACOTTA, B.YELLOW_TERRACOTTA, B.BROWN_TERRACOTTA, B.TERRACOTTA, B.RED_TERRACOTTA, B.WHITE_TERRACOTTA,
+    B.TERRACOTTA, B.LIGHT_GRAY_TERRACOTTA, B.ORANGE_TERRACOTTA, B.TERRACOTTA, B.RED_TERRACOTTA, B.YELLOW_TERRACOTTA, B.TERRACOTTA, B.BROWN_TERRACOTTA];
 
   // 草と花の確率
   var GRASS_P = [0, 0, 0, 0, 0, 0, 0, 0.35, 0.32, 0.1, 0.18, 0.15, 0.3];
@@ -109,17 +120,31 @@
     var sw = smooth(0.22, 0.42, w) * smooth(-0.3, -0.12, t) * (1 - smooth(0.22, 0.38, t)) * (1 - smooth(0, 0.18, ms));
     if (sw > 0) plain = lerp(plain, SEA - 0.4 + d * 4, sw * 0.9);
     var h = Math.floor(lerp(ocean, plain, land));
+    // キノコ島：深い海の中に、まれに丸い島（640 ブロックの区画に 1 つの候補）
+    var mush = 0;
+    if (c < -0.05) {
+      var gx = Math.floor(x / 640), gz = Math.floor(z / 640);
+      if (rnd(this.seed, gx, 3, gz, 991) < 0.35) {
+        var mx = gx * 640 + 140 + hash(this.seed, gx, 4, gz, 991) % 360, mz = gz * 640 + 140 + hash(this.seed, gx, 5, gz, 991) % 360;
+        mush = 1 - smooth(16, 44, Math.hypot(x - mx, z - mz) + d * 6);
+        if (mush > 0) h = Math.floor(lerp(h, SEA + 2 + mush * 5 + d * 2, Math.min(1, mush * 1.6)));
+      }
+    }
     t -= Math.max(0, h - 110) / 150;
 
     var b;
-    if (h < SEA && !(sw > 0.5 && land > 0.9)) b = t < -0.38 ? BI.FROZEN_OCEAN : BI.OCEAN;
+    if (mush > 0.25 && h >= SEA) b = BI.MUSHROOM_FIELDS;
+    else if (h < SEA && !(sw > 0.5 && land > 0.9)) b = t < -0.38 ? BI.FROZEN_OCEAN : BI.OCEAN;
     else if (h > 128 || ms > 0.55) b = (t < -0.15 || h > 168) ? BI.SNOWY_MOUNTAIN : BI.ROCKY_MOUNTAIN;
-    else if (sw > 0.45) b = BI.SWAMP;
+    else if (sw > 0.45) b = t > 0.05 ? BI.MANGROVE_SWAMP : BI.SWAMP;
     else if (h <= SEA + 2 && ms < 0.2) b = BI.BEACH;
+    else if (ms > 0.1 && t > -0.14 && t < 0.24 && h > SEA + 8) b = BI.CHERRY_GROVE;   // 山のすそ野の桜
     else if (t < -0.38) b = BI.SNOWY_PLAINS;
     else if (t < -0.14) b = BI.TAIGA;
-    else if (t > 0.3) b = w < -0.05 ? BI.DESERT : (w > 0.24 ? BI.JUNGLE : BI.SAVANNA);
+    else if (t > 0.3) b = w < -0.05 ? (w < -0.3 && t > 0.45 ? BI.BADLANDS : BI.DESERT) : (w > 0.24 ? BI.JUNGLE : BI.SAVANNA);
     else b = w > 0.02 ? BI.FOREST : BI.PLAINS;
+    // 荒野：段々の台地（5 ブロックずつの段）
+    if (b === BI.BADLANDS) { var bump = smooth(0.3, 0.55, -w) * smooth(0.45, 0.62, t); h += Math.floor(bump * (10 + 18 * (this.nDet.fbm2(x / 46, z / 46, 2) * 0.5 + 0.5)) / 5) * 5; }
     return { h: h, b: b };
   };
 
@@ -147,6 +172,7 @@
       if (h < SEA) {
         // 水の底
         if (biome[i] === BI.SWAMP) { top = patch > 0 ? B.CLAY : B.DIRT; under = B.DIRT; }
+        else if (biome[i] === BI.MANGROVE_SWAMP) { top = B.MUD; under = B.MUD; depth = 4; }
         else if (biome[i] === BI.FROZEN_OCEAN) { top = B.GRAVEL; under = B.GRAVEL; }
         else if (h < 50 || patch > 0.32) { top = B.GRAVEL; under = B.GRAVEL; depth = 2; }
         else if (patch < -0.42 && h > 52) { top = B.CLAY; under = B.SAND; }
@@ -162,6 +188,12 @@
       for (k = 1; k <= baseDepth; k++) blocks[((h - depth - k - MINY) << 8) | i] = base;
       for (y = h + 1; y <= SEA; y++) blocks[((y - MINY) << 8) | i] = B.WATER;
       if (biome[i] === BI.FROZEN_OCEAN && h < SEA) blocks[((SEA - MINY) << 8) | i] = B.ICE;
+      // 荒野の地層：色の付いたテラコッタの帯（場所で少し上下する）
+      if (biome[i] === BI.BADLANDS) {
+        var off = Math.floor(patch * 3);
+        for (y = h - 1; y >= Math.max(SEA - 6, h - 46); y--) blocks[((y - MINY) << 8) | i] = BANDS[((y + off) % BANDS.length + BANDS.length) % BANDS.length];
+        if (patch > 0.45) blocks[((h - MINY) << 8) | i] = BANDS[((h + off) % BANDS.length + BANDS.length) % BANDS.length];   // ところどころ地層がむき出し
+      }
     }
 
     if (!surfaceOnly) this.carve(blocks, hmap, x0, z0, maxH);
@@ -296,25 +328,25 @@
       } else {
         var col = this.column(rx, rz); h = col.h; b = col.b;
       }
-      if (h < SEA || h > MAXY - 12 || !(r < (TREE_P[b] || 0))) continue;
+      if ((h < SEA && !(b === BI.MANGROVE_SWAMP && h >= SEA - 3)) || h > MAXY - 12 || !(r < (TREE_P[b] || 0))) continue;
       var t = TREE_T[b];
       if (b === BI.FOREST && ((hh >>> 16) & 255) < 64) t = T_BIRCH;
-      list.push({ t: t, x: rx, y: h + 1, z: rz, k: hash(seed, rx, h, rz, S.TREE2) });
+      list.push({ t: t, x: rx, y: h + 1, z: rz, k: hash(seed, rx, h, rz, S.TREE2), sea: SEA });
     }
     if (!list.length) return;
     var put = function (x, y, z, id) {
       var lx = x - x0, lz = z - z0;
       if (lx < 0 || lx > 15 || lz < 0 || lz > 15 || y < MINY || y > MAXY) return;
       var idx = ((y - MINY) << 8) | (lz << 4) | lx;
-      if (blocks[idx] === B.AIR) blocks[idx] = id;
+      if (blocks[idx] === B.AIR || (id === B.MANGROVE_ROOTS || id === B.MANGROVE_LOG) && blocks[idx] === B.WATER) blocks[idx] = id;   // マングローブの根と幹は水の中にも
     };
     for (var pass = 0; pass < 2; pass++) {
       for (var i = 0; i < list.length; i++) drawTree(list[i], pass, put, seed);
     }
   };
 
-  var LOGS = [B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.JUNGLE_LOG, B.ACACIA_LOG, B.OAK_LOG];
-  var LEAVES = [B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.JUNGLE_LEAVES, B.ACACIA_LEAVES, B.OAK_LEAVES];
+  var LOGS = [B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.JUNGLE_LOG, B.ACACIA_LOG, B.OAK_LOG, B.CHERRY_LOG, B.MANGROVE_LOG, B.MUSHROOM_STEM];
+  var LEAVES = [B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.JUNGLE_LEAVES, B.ACACIA_LEAVES, B.OAK_LEAVES, B.CHERRY_LEAVES, B.MANGROVE_LEAVES, B.RED_MUSHROOM_BLOCK];
 
   function drawTree(t, pass, put, seed) {
     var k = t.k, x = t.x, y = t.y, z = t.z, log = LOGS[t.t], leaf = LEAVES[t.t];
@@ -366,6 +398,50 @@
         put(tx + dx, top, tz + dz, leaf);
       }
       for (dz = -1; dz <= 1; dz++) for (dx = -1; dx <= 1; dx++) put(tx + dx, top + 1, tz + dz, leaf);
+    } else if (t.t === T_CHERRY) {
+      // 桜：途中で少し曲がる幹と、横に広い丸い花の冠。冠の下に花が垂れる
+      Hh = 5 + (k % 3);
+      var cd = (k >>> 5) & 3, cx2 = [1, -1, 0, 0][cd], cz2 = [0, 0, 1, -1][cd], bend = Hh - 3;
+      if (pass === 0) { for (j = 0; j < Hh; j++) put(j < bend ? x : x + cx2, y + j, j < bend ? z : z + cz2, log); return; }
+      var hx = x + cx2, hz = z + cz2, hy = y + Hh;
+      for (dy = -2; dy <= 1; dy++) for (dz = -4; dz <= 4; dz++) for (dx = -4; dx <= 4; dx++) {
+        var e2 = (dx * dx + dz * dz) / (dy === 1 ? 6 : dy === -2 ? 9 : 17) + (dy < 0 ? 0.1 : 0);
+        if (e2 > 1 || rnd(seed, hx + dx, hy + dy, hz + dz, S.LEAF) < e2 * 0.35) continue;
+        put(hx + dx, hy + dy, hz + dz, leaf);
+        if (dy === -2 && rnd(seed, hx + dx, hy - 3, hz + dz, S.LEAF) < 0.12) put(hx + dx, hy - 3, hz + dz, leaf);   // 垂れた花
+      }
+    } else if (t.t === T_MANGROVE) {
+      // マングローブ：水の上の高い幹を、四方の根が支える。葉は丸く大きめ
+      Hh = 6 + (k % 3);
+      var base = y + 2;
+      if (pass === 0) {
+        for (j = 0; j < Hh; j++) put(x, base + j, z, log);
+        [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]].forEach(function (q, qi) {
+          if (qi > 3 && ((k >>> qi) & 1)) return;
+          var rxx = x + q[0] * (qi > 3 ? 1 : 2), rzz = z + q[1] * (qi > 3 ? 1 : 2);
+          put(x + q[0], base, z + q[1], B.MANGROVE_ROOTS);
+          for (var ry = base; ry >= y - 3; ry--) put(rxx, ry, rzz, B.MANGROVE_ROOTS);
+        });
+        for (var ry2 = base - 1; ry2 >= y - 3; ry2--) put(x, ry2, z, B.MANGROVE_ROOTS);
+        return;
+      }
+      top = base + Hh;
+      for (dy = -2; dy <= 1; dy++) for (dz = -3; dz <= 3; dz++) for (dx = -3; dx <= 3; dx++) {
+        var e3 = dx * dx + dz * dz + dy * dy * 1.8;
+        if (e3 <= 8 + rnd(seed, x + dx, top + dy, z + dz, S.LEAF) * 3) put(x + dx, top + dy, z + dz, leaf);
+      }
+    } else if (t.t === T_HMUSH) {
+      // 大きなキノコ：赤（丸い傘）と茶（平らな傘）
+      Hh = 5 + (k % 3);
+      var red = ((k >>> 3) & 1) === 0, cap = red ? B.RED_MUSHROOM_BLOCK : B.BROWN_MUSHROOM_BLOCK;
+      if (pass === 0) { for (j = 0; j < Hh; j++) put(x, y + j, z, log); return; }
+      top = y + Hh;
+      if (red) {
+        for (dz = -2; dz <= 2; dz++) for (dx = -2; dx <= 2; dx++) if (Math.abs(dx) + Math.abs(dz) < 4) put(x + dx, top, z + dz, cap);
+        for (ly = top - 3; ly < top; ly++) for (dz = -2; dz <= 2; dz++) for (dx = -2; dx <= 2; dx++) if ((Math.abs(dx) === 2 || Math.abs(dz) === 2) && Math.abs(dx) + Math.abs(dz) < 4) put(x + dx, ly, z + dz, cap);
+      } else {
+        for (dz = -3; dz <= 3; dz++) for (dx = -3; dx <= 3; dx++) if (Math.abs(dx) + Math.abs(dz) < 6) put(x + dx, top, z + dz, cap);
+      }
     }
   }
 
