@@ -284,3 +284,15 @@ D['DECORATED_POT'] = (['................', '......AAAA......', '.....AAAAAA.....
 # ---- ロードマップ 第 1 段階：新しい動物の卵 ----
 for k, (a, b) in {'LLAMA': ('#e0cca4', '#8a6448'), 'AXOLOTL': ('#f0a8c0', '#a84870'), 'FROG': ('#c8783a', '#f0d8a8'), 'TADPOLE': ('#5a4632', '#2a2016'), 'MUSHROOM_COW': ('#a8282a', '#e8e0d4')}.items():
     D['SPAWN_EGG_' + k] = (EGG, {'A': ramp_from(a), 'B': ramp_from(b)}, {}, [], [(x, y, 'B') for x, y in SPOTS])
+
+# ---- ロードマップ 第 2 段階：じゅうたんと色付きのベッド ----
+import defs3 as _d3
+from defs2 import D as _D2
+_C16 = {'WHITE': '#e9ecec', 'ORANGE': '#e0761a', 'MAGENTA': '#b44cb4', 'LIGHT_BLUE': '#3aa8d8', 'YELLOW': '#f0c434', 'LIME': '#70ba1c', 'PINK': '#ec8aa8', 'GRAY': '#3e4448',
+        'LIGHT_GRAY': '#8e8e86', 'CYAN': '#158a92', 'PURPLE': '#7a2aa8', 'BLUE': '#343c9c', 'GREEN': '#546c1c', 'RED': '#a42620', 'BLACK': '#18181c', 'BROWN': '#72482a'}
+for _k, _c in _C16.items():
+    _d3.RR['carpet_' + _k] = ramp_from(_c)
+    D[_k + '_CARPET'] = _d3.block_item([(0.02, 0, 0.02, 0.98, 0.1, 0.98, 'T', 'L', 'R')], 'carpet_' + _k)
+    if _k != 'WHITE':
+        _b = _D2['BED']
+        D[_k + '_BED'] = (_b[0], dict(_b[1], R=ramp_from(_c)), _b[2], _b[3])

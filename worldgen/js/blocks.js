@@ -354,6 +354,15 @@
     ['COPPER_GRATE', '銅の格子', '#c06f52', 'solid'], ['TRIAL_SPAWNER', '試練のスポナー', '#2a2e34', 'solid'], ['TRIAL_SPAWNER_ACTIVE', '試練のスポナー', '#3a3e44', 'solid'],
     ['VAULT', '宝庫', '#3a3e44', 'solid'], ['VAULT_OPEN', '宝庫', '#2a2e34', 'solid'], ['CONDUIT', 'コンジット', '#c8a870', 'conduit']);
   ALIAS.TRIAL_SPAWNER_ACTIVE = 'TRIAL_SPAWNER';
+  // ロードマップ 第 2 段階：じゅうたん・彩釉テラコッタ・色付きのベッド（16 色）
+  var C16B = [['WHITE', '白色', '#e9ecec']].concat(WOOL_COLORS).concat([['BROWN', '茶色', '#72482a']]);
+  WG.C16B = C16B;
+  C16B.forEach(function (c) {
+    DEF.push([c[0] + '_CARPET', c[1] + 'のじゅうたん', c[2], 'carpet'], [c[0] + '_GLAZED_TERRACOTTA', c[1] + 'の彩釉テラコッタ', c[2], 'solid']);
+    ALIAS[c[0] + '_CARPET'] = c[0] + '_WOOL';
+    if (c[0] === 'WHITE') return;
+    ['FOOT', 'HEAD'].forEach(function (p) { ['N', 'E', 'S', 'W'].forEach(function (d) { DEF.push(['BED_' + c[0] + '_' + p + '_' + d, c[1] + 'のベッド', c[2], 'bed']); ALIAS['BED_' + c[0] + '_' + p + '_' + d] = 'BED_' + c[0]; }); });
+  });
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
 
@@ -504,14 +513,14 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
   var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
-    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1 };
+    hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
@@ -651,6 +660,7 @@
       if (lv && !forCollide) cb.push([2, 4, 2, 14, 6 + lv * 3, 14, B.WATER]);   // 中の水
       return cb;
     }
+    if (k === 'carpet') return [[0, 0, 0, 16, 1, 16, id]];
     if (k === 'dpot') return [[1, 0, 1, 15, 13, 15, B.DECORATED_POT], [4, 13, 4, 12, 14, 12, B.DECORATED_POT], [3, 14, 3, 13, 16, 13, B.DECORATED_POT]];
     if (k === 'conduit') return [[5, 5, 5, 11, 11, 11, B.CONDUIT, 1]];
     if (k === 'lrod') return [[7, 0, 7, 9, 12, 9, B.LIGHTNING_ROD], [6, 12, 6, 10, 16, 10, B.LIGHTNING_ROD, key === 'LIGHTNING_ROD_ON' ? 1 : 0]];
@@ -807,6 +817,7 @@
   ['N', 'E', 'S', 'W'].forEach(function (d) {
     var v = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }[d];
     WG.BED_DIR[B['BED_FOOT_' + d]] = v; WG.BED_DIR[B['BED_HEAD_' + d]] = v; WG.BED_HEAD[B['BED_HEAD_' + d]] = true;
+    WG.C16B.forEach(function (c) { var f = B['BED_' + c[0] + '_FOOT_' + d], h = B['BED_' + c[0] + '_HEAD_' + d]; if (f != null) { WG.BED_DIR[f] = v; WG.BED_DIR[h] = v; WG.BED_HEAD[h] = true; } });
   });
 
   WG.FLUID = FLUID;

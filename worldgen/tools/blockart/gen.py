@@ -1751,6 +1751,51 @@ def main():
             cd2.set(x, y, [200, 168, 112] if d > 5 else [110, 220, 230] if d < 2.5 else [60, 110, 140] if (x + y) % 2 else [80, 140, 170])
     put('CONDUIT', cd2)
 
+    # ---- ロードマップ 第 2 段階：彩釉テラコッタ（色ごとに違う模様）と色付きのベッド ----
+    C16H = {'WHITE': '#e9ecec', 'ORANGE': '#e0761a', 'MAGENTA': '#b44cb4', 'LIGHT_BLUE': '#3aa8d8', 'YELLOW': '#f0c434', 'LIME': '#70ba1c', 'PINK': '#ec8aa8', 'GRAY': '#3e4448',
+            'LIGHT_GRAY': '#8e8e86', 'CYAN': '#158a92', 'PURPLE': '#7a2aa8', 'BLUE': '#343c9c', 'GREEN': '#546c1c', 'RED': '#a42620', 'BLACK': '#18181c', 'BROWN': '#72482a'}
+    C16 = list(C16H.keys())
+    for ci, cn in enumerate(C16):
+        base = hx(C16H[cn])
+        lt = mixc(base, [255, 255, 255], 0.5); dk = sc(base, 0.5); ac = mixc(base, [250, 236, 200], 0.25)
+        kind = ci % 4
+        img = Img()
+        for y in range(N):
+            for x in range(N):
+                dx, dy = x - 7.5, y - 7.5
+                r = math.hypot(dx, dy); a = math.atan2(dy, dx)
+                c0 = base
+                if kind == 0:     # ひし形の重なりと、四隅の四分円
+                    if (abs(dx) + abs(dy)) % 6 < 2: c0 = lt
+                    if min(math.hypot(x, y), math.hypot(15 - x, y), math.hypot(x, 15 - y), math.hypot(15 - x, 15 - y)) < 4.5: c0 = dk
+                elif kind == 1:   # うず巻き
+                    if ((a / math.pi * 2 + r * 0.35) % 2) < 0.9: c0 = lt
+                    if r < 2: c0 = dk
+                elif kind == 2:   # 4 枚の花びらと輪
+                    if r < 3.5 + 3 * abs(math.cos(2 * a)): c0 = lt
+                    if 6.2 < r < 7.4: c0 = dk
+                    if r < 1.6: c0 = ac
+                else:             # 山形の帯
+                    if (y + abs(dx)) % 6 < 2: c0 = dk
+                    if x in (0, 15) or y in (0, 15): c0 = lt
+                g = 0.95 + 0.06 * ((hsh(281 + ci, x, y) % 5) / 4)                 # 焼きむら
+                if x + y < 6 and (x + y) % 2 == 0: g *= 1.06                       # つやの光
+                img.set(x, y, sc(c0, g))
+        put(cn + '_GLAZED_TERRACOTTA', img)
+    bside, btop = T['BED']['side'], T['BED']['top']
+    for cn in C16[1:]:
+        base = hx(C16H[cn])
+        def recol(src, ymin, ymax):
+            im = src.copy()
+            for y in range(N):
+                for x in range(N):
+                    c0 = src.p[y][x]
+                    if c0 and ymin <= y <= ymax and min(c0) > 190:
+                        im.set(x, y, sc(base, 0.75 + 0.35 * (sum(c0) / 3 - 190) / 65))
+            return im
+        s2 = recol(bside, 0, 8); t2 = recol(btop, 5, 15)
+        put('BED_' + cn, s2, t2, T['BED']['bottom'], cut=s2)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

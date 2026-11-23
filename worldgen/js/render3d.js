@@ -180,6 +180,7 @@
     var TT = atlas();
     var v = vol.v, sx = vol.sx, sz = vol.sz, sxz = sx * sz;
     var op = new Buf(), wa = new Buf();
+    var STAINED = WG.STAINED_GLASS || (WG.STAINED_GLASS = (function () { var t = new Uint8Array(WG.BLOCKS.length); WG.BLOCKS.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) t[b.id] = 1; }); return t; })());
     var dOff = DIRS.map(function (d) { return d.n[0] + d.n[2] * sx + d.n[1] * sxz; });
     var uOff = DIRS.map(function (d) { return d.u[0] + d.u[2] * sx + d.u[1] * sxz; });
     var vOff = DIRS.map(function (d) { return d.v[0] + d.v[2] * sx + d.v[1] * sxz; });
@@ -266,22 +267,24 @@
               }
               op.quad(v0, ao[0] + ao[2] < ao[1] + ao[3]);
             }
-          } else if (id === B.GLASS) {
+          } else if (id === B.GLASS || STAINED[id]) {
+            // ガラス。色付きガラスは半透明の層（水と同じ）に描く（以前は描く所がなく、見えなかった）
+            var gbuf = STAINED[id] ? wa : op;
             for (d = 0; d < 6; d++) {
               var gi = i + dOff[d], gn = v[gi];
-              if (gn === B.GLASS || OPQ[gn]) continue;
+              if (gn === id || OPQ[gn]) continue;
               D = DIRS[d];
               var gt = TT[id * 3 + FACE_IX[D.face]], gs = D.n[1] === 0, gf = D.shade * 0.5 * jit;
               if (LT) { var lv4 = LT[gi]; light(lv4 >> 4, lv4 & 15); } else noLight();
-              v0 = op.nv;
+              v0 = gbuf.nv;
               for (k = 0; k < 4; k++) {
                 cu = CORNERS[k][0]; cv = CORNERS[k][1];
                 px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
                 py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
                 pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
-                op.vert(px, py, pz, c8(255 * gf), c8(255 * gf), c8(255 * gf), 0, cu * 16, gs ? 16 - cv * 16 : cv * 16, gt);
+                gbuf.vert(px, py, pz, c8(255 * gf), c8(255 * gf), c8(255 * gf), 0, cu * 16, gs ? 16 - cv * 16 : cv * 16, gt);
               }
-              op.quad(v0, false);
+              gbuf.quad(v0, false);
             }
           } else if (kind === 'bed') {
             // ベッド：高さ 9/16 の箱。横の面には図の下の部分（枠・敷布・脚）を貼る。頭側と足側の間の面は描かない。

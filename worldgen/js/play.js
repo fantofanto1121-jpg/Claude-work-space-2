@@ -1057,7 +1057,8 @@
     if (WG.COLLIDE[wd.block(x, y - 1, z)] < 1 || WG.COLLIDE[wd.block(hx, y - 1, hz)] < 1) return;
     var b = w.box();
     if ([[x, z], [hx, hz]].some(function (c) { return b[0] < c[0] + 1 && b[3] > c[0] && b[1] < y + 0.5625 && b[4] > y && b[2] < c[1] + 1 && b[5] > c[1]; })) return;
-    wd.setBlock(x, y, z, B['BED_FOOT_' + dir]); wd.setBlock(hx, y, hz, B['BED_HEAD_' + dir]);
+    var held = this.inv.held(), bc = held && ITEMS[held.key] && ITEMS[held.key].bedColor, pre = bc ? 'BED_' + bc + '_' : 'BED_';   // 色付きのベッド
+    wd.setBlock(x, y, z, B[pre + 'FOOT_' + dir]); wd.setBlock(hx, y, hz, B[pre + 'HEAD_' + dir]);
     if (this.mode === 'survival') this.inv.take(this.inv.sel, 1);
     w.remesh(x, z); w.remesh(hx, hz);
   };

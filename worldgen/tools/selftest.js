@@ -1446,5 +1446,17 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(!!g.effects.CONDUIT_POWER && WG.conduitFrame(w, 0, 14, 0) >= 16, 'コンジット：プリズマリンで囲むと、まわりの水中でコンジットパワー');
 })();
 
+// ---- ロードマップ 第 2 段階：色の建材 ----
+(function () {
+  console.log('\n[色の建材]');
+  var w = flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }), g = playGame(w); g.mode = 'survival';
+  var carpet = WG.Craft.match(['RED_WOOL', 'RED_WOOL', null, null], 2), bed = WG.Craft.match(['BLUE_WOOL', 'BLUE_WOOL', 'BLUE_WOOL', 'OAK_PLANKS', 'OAK_PLANKS', 'OAK_PLANKS', null, null, null], 3);
+  g.inv.slots[0] = { key: 'BLUE_BED', n: 1 }; g.inv.sel = 0; g.walker.yaw = Math.PI;   // 南向き
+  g.placeBed({ id: B.STONE, x: 3, y: 10, z: 3, px: 3, py: 11, pz: 3 });
+  var placed = w.block(3, 11, 3) === B.BED_BLUE_FOOT_S && w.block(3, 11, 4) === B.BED_BLUE_HEAD_S && WG.BED_HEAD[B.BED_BLUE_HEAD_S];
+  check(carpet && carpet.key === 'RED_CARPET' && carpet.n === 3 && bed && bed.key === 'BLUE_BED' && placed && WG.Craft.SMELT.LIME_TERRACOTTA === 'LIME_GLAZED_TERRACOTTA' && WG.COLLIDE[B.RED_CARPET] < 0.1,
+    'じゅうたん（羊毛 2 つで 3 枚、薄い板）、色付きのベッド（作って置ける）、彩釉テラコッタ（色付きテラコッタを焼く）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
