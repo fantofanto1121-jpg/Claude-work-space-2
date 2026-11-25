@@ -290,6 +290,27 @@
   .an-name { width: 236px; padding: 6px 8px; font: inherit; font-size: 13px; color: #f1efe9; background: rgba(16, 17, 19, 0.85); border: 1px solid #55585e; border-radius: 2px; }
   .an-name:focus { outline: none; border-color: #b9b4a8; }
   .an-name:disabled { opacity: 0.5; }
+  /* 進捗と統計の札、統計の画面 */
+  .advtabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .slot.advtab { width: auto; height: auto; padding: 5px 16px; font-size: 12.5px; color: #a8aaae; cursor: pointer; }
+  .slot.advtab.on { color: #f0e6c8; border-color: #8a7a50; background: rgba(58, 52, 36, 0.85); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; min-width: 540px; max-height: 340px; overflow-y: auto; }
+  .stcard { background: #26272b; border: 1px solid #3c3e42; border-radius: 3px; padding: 8px 10px; }
+  .stcard.wide { grid-column: 1 / -1; }
+  .stcard h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #c8c2b0; }
+  .strow { display: grid; grid-template-columns: 104px 1fr 70px; align-items: center; gap: 8px; font-size: 11.5px; color: #a8aaae; margin: 1px 0; }
+  .stbar { height: 8px; background: #1a1b1e; border-radius: 1px; overflow: hidden; }
+  .stbar i { display: block; height: 100%; min-width: 1px; }
+  .stv { text-align: right; color: #dedad0; font-variant-numeric: tabular-nums; }
+  .stnums { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .stnums div { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px; background: #1e1f22; border-radius: 2px; }
+  .stnums span { font-size: 10.5px; color: #8a8c90; }
+  .stnums b { font-size: 13px; font-weight: 600; color: #e8e2d0; }
+  .stitem { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 6px; font-size: 11.5px; color: #b8bab0; margin: 3px 0; }
+  .stitem img, .stitem i { width: 20px; height: 20px; image-rendering: pixelated; display: block; }
+  .stitem b { color: #e8e2d0; font-weight: 600; }
+  .stnone { font-size: 11px; color: #6c6e72; }
+  @media (max-width: 720px) { .stats { min-width: 0; grid-template-columns: 1fr; } .stnums { grid-template-columns: repeat(2, 1fr); } }
   body.touchplay .rb-list { max-height: 46vh; }
   @media (max-width: 720px) { .rbook { width: 172px; } .rb-list { grid-template-columns: repeat(4, 38px); } }
   /* スマホ：インベントリは枠を小さくして、横向きの画面に収める */
@@ -342,6 +363,8 @@
     <div class="group hide" id="g-game">
       <div class="label">モード</div>
       <div class="seg" id="modesGame"><button data-v="survival">サバイバル</button><button data-v="creative">クリエイティブ</button><button data-v="adventure">アドベンチャー</button><button data-v="spectator">スペクテイター</button></div>
+      <div class="label">難易度</div>
+      <div class="seg" id="diffs"><button data-d="peaceful">ピースフル</button><button data-d="easy">イージー</button><button data-d="normal">ノーマル</button><button data-d="hard">ハード</button></div>
     </div>
 
     <div class="group hide" id="g-time">
@@ -525,6 +548,7 @@
 <script src="js/biomes.js"></script>
 <script src="js/caves.js"></script>
 <script src="js/workshop.js"></script>
+<script src="js/motion.js"></script>
 <script src="js/mobskins.js"></script>
 <script src="js/recipebook.js"></script>
 <script src="js/main.js"></script>

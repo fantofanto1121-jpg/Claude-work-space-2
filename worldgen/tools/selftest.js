@@ -1529,5 +1529,56 @@ console.log('\n道具と作業台');
   check(px.length === 64 * 64 * 4 && px[3] === 255 && Object.keys(kinds).length > 4, '額縁の地図：64×64 で描け、地形の色が出る（' + Object.keys(kinds).length + ' 色）');
 })();
 
+// ---- ロードマップ 第 6 段階：難易度・統計・泳ぎ・しゃがみ・修繕 ----
+console.log('\n動きと体験');
+(function () {
+  var flat = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  // 難易度：受けるダメージと空腹
+  var res = ['peaceful', 'easy', 'normal', 'hard'].map(function (d) {
+    var g = playGame(flat()); g.setDifficulty(d); g.health = 20; g.invuln = 0; g.hurtPlayer(6, 3, 0); return 20 - g.health;
+  });
+  var starve = ['easy', 'normal', 'hard'].map(function (d) {
+    var g = playGame(flat()); g.setDifficulty(d); g.food = 0; g.sat = 0; g.health = 12;
+    for (var i = 0; i < 20 * 120; i++) { g.foodTimer = (g.foodTimer || 0); g.hunger(); g.invuln = 0; }
+    return g.health;
+  });
+  check(res[0] === 0 && res[1] === 4 && res[2] === 6 && res[3] === 9 && starve[0] === 10 && starve[1] === 1 && starve[2] <= 0,
+    '難易度：生き物のダメージ 6 → ' + res.join('・') + '（ピースフル・イージー・ノーマル・ハード）、飢えは ' + starve.join('・') + ' まで');
+  var gp = playGame(flat()); gp.mobs.list.push({ type: 'ZOMBIE', x: 2, y: 11, z: 2 }, { type: 'PIG', x: 3, y: 11, z: 3 });
+  gp.setDifficulty('peaceful'); gp.food = 10; gp.health = 10; gp.tickCount = 0;
+  for (var i = 0; i < 40; i++) { gp.tickCount = i; gp.hunger(); }
+  check(gp.mobs.list.length === 1 && gp.mobs.list[0].type === 'PIG' && gp.health > 10 && gp.food > 10, 'ピースフル：敵が消え、体力と満腹度が戻る');
+  // しゃがむと縁で止まる（前からある）
+  var w2 = flatWorld(function (x, y, z) { return y <= 10 && x <= 0 ? B.STONE : 0; }), g2 = playGame(w2);
+  g2.walker.pos = [-0.5, 11, 0.5]; g2.walker.yaw = -Math.PI / 2; g2.walker.keys = { KeyW: true, ShiftLeft: true };
+  for (i = 0; i < 80; i++) g2.walker.tick();
+  check(g2.walker.pos[1] > 10.9 && g2.walker.pos[0] < 1.31, 'しゃがんで歩くと、縁で止まって落ちない（x = ' + g2.walker.pos[0].toFixed(2) + '）');
+  // 水中を這う姿勢：走りながら潜ると泳ぐ姿勢になり、1 ブロックの穴を抜けられる
+  var w3 = flatWorld(function (x, y, z) { if (y <= 5) return B.STONE; if (y <= 20) return (x >= 4 && x <= 8 && y !== 10) ? B.STONE : B.WATER; return 0; }), g3 = playGame(w3);
+  g3.walker.pos = [0.5, 10, 0.5]; g3.walker.yaw = -Math.PI / 2; g3.walker.pitch = 0; g3.walker.keys = { KeyW: true, ControlLeft: true };
+  var swam = false;
+  for (i = 0; i < 400; i++) { g3.walker.sprint = true; g3.walker.tick(); if (g3.walker.swimming) swam = true; if (g3.walker.pos[1] > 10.3) g3.walker.pos[1] = 10.05; }
+  check(swam && g3.walker.pos[0] > 9, '水の中で走ると泳ぐ姿勢（高さ 0.6）になり、1 ブロックの穴を抜けられる（x = ' + g3.walker.pos[0].toFixed(1) + '）');
+  // 修繕（前からある）：経験値で道具が直る
+  var g4 = playGame(flat()); g4.inv.slots[0] = { key: 'DIAMOND_PICKAXE', n: 1, dmg: 100, ench: { MENDING: 1 } }; g4.inv.sel = 0;
+  var lv0 = g4.xp.level, pt0 = g4.xp.points; g4.addXp(10);
+  check(g4.inv.slots[0].dmg === 80 && g4.xp.level === lv0 && g4.xp.points === pt0, '修繕：経験値 10 で耐久が 20 戻り、経験値は増えない');
+  // 統計
+  var g5 = playGame(flat()); g5.walker.yaw = Math.PI; g5.walker.keys = { KeyW: true };
+  for (i = 0; i < 100; i++) g5.walker.tick();
+  var st = WG.playerStats(g5); g5.walker.keys = {};
+  g5.walker.target = { x: 0, y: 10, z: 3, px: 0, py: 11, pz: 3, id: B.STONE }; g5.inv.slots[g5.inv.sel] = null; g5.breakBlock(0, 10, 3, true);
+  var html = g5.renderStats();
+  check(st.walk > 5 && st.time >= 99 && st.mined === 1 && st.minedBy.STONE === 1 && /歩いた/.test(html) && /よく掘ったブロック/.test(html), '統計：歩いた距離 ' + st.walk.toFixed(1) + ' m・遊んだ時間・掘ったブロックを数え、画面に出す');
+  // 泳ぎの見た目：水に飛び込むとしぶき、潜ると泡
+  var w6 = flatWorld(function (x, y, z) { return y <= 5 ? B.STONE : y <= 9 ? B.WATER : 0; }), g6 = playGame(w6);
+  g6.walker.pos = [0.5, 16, 0.5]; g6.walker.prev = g6.walker.pos.slice(); g6.particles = [];
+  var splash = 0;
+  for (i = 0; i < 60; i++) { var n0 = g6.particles.length; g6.walker.tick(); if (g6.particles.length - n0 > 10) splash = g6.particles.length - n0; }
+  var bubbles = g6.particles.filter(function (q) { return q.smoke; }).length;
+  check(splash > 10 && bubbles > 0, '泳ぎ：水に飛び込むとしぶき（' + splash + ' 粒）、潜ると泡が出る');
+  check(WG.runCommand(g5, '/difficulty hard') === '難易度をハードにしました' && WG.difficultyOf(g5) === 'hard', 'コマンド /difficulty で難易度を変えられる');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
