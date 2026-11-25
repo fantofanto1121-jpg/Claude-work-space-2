@@ -1613,5 +1613,14 @@ console.log('\nネザーとエンドの残り');
   check(ok && grown && stem >= 4 && wart > 20, '真紅と歪んだ木：ドア・柵・階段・ハーフブロック・トラップドア・フェンスゲートを作れる。骨粉で巨大なキノコ（幹 ' + stem + '・かさ ' + wart + '）');
 })();
 
+// ---- ロードマップ 第 8 段階：仕上げ ----
+console.log('\n仕上げ');
+(function () {
+  var e = [0, 70, 0], d = [0, 0, -1], T = WG.MOB_TYPES;
+  var front = WG.mobVisible({ x: 0, y: 69, z: -20 }, e, d, T.ZOMBIE), back = WG.mobVisible({ x: 0, y: 69, z: 20 }, e, d, T.ZOMBIE), side = WG.mobVisible({ x: 20, y: 69, z: -2 }, e, d, T.COW);
+  var near = WG.mobVisible({ x: 0, y: 69, z: 2 }, e, d, T.PIG), far = WG.mobVisible({ x: 0, y: 69, z: -200 }, e, d, T.PIG), dragon = WG.mobVisible({ x: 0, y: 80, z: 60 }, e, d, T.END_DRAGON);
+  check(front && !back && side && near && !far && dragon, '描く生き物：前と横と近くは描き、後ろと遠すぎるものは省く（大きなボスは省かない）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
