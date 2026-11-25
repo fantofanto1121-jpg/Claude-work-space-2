@@ -393,7 +393,7 @@
   // dmg は道具の使った回数（道具だけ。束にならないので 1 つずつ持たせる）
   // extra：地図の場所・箱の中身・旗の模様など（あるものは重ねない）
   Inventory.prototype.add = function (key, n, dmg, ench, extra) {
-    var max = ITEMS[key].max, s = this.slots, left = n, i, plain = function (q) { return !q.ench && !q.map && !q.box && !q.layers && !q.loaded; };
+    var max = ITEMS[key].max, s = this.slots, left = n, i, plain = function (q) { return !q.ench && !q.map && !q.box && !q.layers && !q.loaded && !q.star && !q.fw && !q.name; };
     for (i = 0; i < 36 && left > 0; i++) {
       if (s[i] && s[i].key === key && s[i].n < max && !ench && !extra && plain(s[i])) { var a = Math.min(left, max - s[i].n); s[i].n += a; left -= a; }
     }

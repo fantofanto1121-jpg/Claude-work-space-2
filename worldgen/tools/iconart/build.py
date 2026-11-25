@@ -53,7 +53,7 @@ for k, v in defs3.D.items():
     make(k, v, ('T', 'L', 'R') if k in defs3.ISO else ())
 import defs4
 for k, v in defs4.D.items():
-    make(k, v, ('T', 'L', 'R') if k.endswith('_CARPET') else ())
+    make(k, v, ('T', 'L', 'R') if k.endswith('_CARPET') or k in ('CHIPPED_ANVIL', 'DAMAGED_ANVIL') else ())
 # ポーション（効果の色ごと）
 import subprocess
 POTS = json.loads(subprocess.run(['node', os.path.join(HERE, 'potions.js')], capture_output=True, text=True, check=True).stdout)

@@ -1896,6 +1896,31 @@ def main():
         for x in range(N): pdt.set(x, y, sc([140, 112, 96], (1.08 if x % 4 == 1 else 0.86 if x % 4 == 3 else 1.0) * (0.96 + 0.06 * ((hsh(333, x, y) % 3) / 2))))
     put('POINTED_DRIPSTONE_UP_TIP', pdt)
 
+    # ---- ロードマップ 第 5 段階：砥石・欠けた金床・壊れかけの金床 ----
+    gsf = Img()   # 砥石の円盤の面：外の縁は暗く、内は明るい石、中心に軸
+    for y in range(N):
+        for x in range(N):
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            n = 0.94 + 0.08 * ((hsh(401, x, y) % 4) / 3)
+            if d > 7.6: c = sc([92, 90, 88], n)
+            elif d > 6.4: c = sc([112, 110, 106], n * (1.08 if x + y < 15 else 0.9))
+            elif d > 2.2: c = sc([150, 148, 142], n * (1.06 if (x * 3 + y * 5) % 11 == 0 else 1.0))
+            elif d > 1.3: c = [96, 80, 60]
+            else: c = [58, 46, 34]
+            gsf.set(x, y, c)
+    gse = Img()   # 砥石の周り：研ぐ面の細い溝
+    for y in range(N):
+        for x in range(N):
+            n = 0.93 + 0.09 * ((hsh(402, x, y) % 4) / 3)
+            gse.set(x, y, sc([140, 138, 132], n * (0.84 if y % 4 == 0 else 1.06 if y % 4 == 1 else 1.0)))
+    put('GRINDSTONE', gsf, gse, gse)
+    for k, cracks in [('CHIPPED_ANVIL', [(3, 2), (4, 3), (4, 4), (5, 5), (11, 9), (12, 10), (12, 11)]),
+                      ('DAMAGED_ANVIL', [(2, 1), (3, 2), (4, 3), (4, 4), (5, 5), (6, 5), (7, 6), (11, 8), (12, 9), (12, 10), (13, 11), (9, 12), (8, 13), (10, 3), (11, 2), (6, 10), (5, 11)])]:
+        anv = panel([70, 70, 76], 56, 'noise'); ca = anv.copy()
+        for (x, y) in cracks:
+            ca.set(x, y, [26, 26, 30]); ca.set(x + 1, y, sc(anv.get(x + 1, y), 1.25))
+        put(k, ca)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

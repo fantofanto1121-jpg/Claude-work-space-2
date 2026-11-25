@@ -149,8 +149,9 @@
     if (this.spectator) return use.apply(this, arguments);
     // 花火：滑空中なら加速、そうでなければ見ている所から打ち上げる
     if (it && it.rocket) {
-      if (this.gliding) { this.boost = 30; if (surv) this.inv.take(this.inv.sel, 1); done(); return; }
-      if (t) { (this.rockets || (this.rockets = [])).push({ x: t.px + 0.5, y: t.py + 0.2, z: t.pz + 0.5, py: t.py + 0.2, vy: 0.3, life: 0, max: 26 + Math.floor(Math.random() * 10), burst: !!it.burst }); if (surv) this.inv.take(this.inv.sel, 1); if (WG.Sound) WG.Sound.play('ignite', t.px, t.py, t.pz); done(); return; }
+      var flight = held.fw && held.fw.flight || 1;
+      if (this.gliding) { this.boost = held.fw ? 16 + flight * 14 : 30; if (surv) this.inv.take(this.inv.sel, 1); done(); return; }
+      if (t) { (this.rockets || (this.rockets = [])).push({ x: t.px + 0.5, y: t.py + 0.2, z: t.pz + 0.5, py: t.py + 0.2, vy: 0.3, life: 0, max: (held.fw ? 12 + flight * 14 : 26) + Math.floor(Math.random() * 10), burst: !!it.burst, fw: held.fw || null }); if (surv) this.inv.take(this.inv.sel, 1); if (WG.Sound) WG.Sound.play('ignite', t.px, t.py, t.pz); done(); return; }
     }
     if (!t || mt || (shift && held && it.block >= 0)) return use.apply(this, arguments);
     var id = t.id, bk = WG.BLOCKS[id].key, k = keyOf(t.x, t.y, t.z), m;
@@ -328,6 +329,8 @@
       if (r.life % 2 === 0) self.particles.push({ x: r.x + (Math.random() - 0.5) * 0.1, y: r.y - 0.3, z: r.z + (Math.random() - 0.5) * 0.1, vx: 0, vy: -0.05, vz: 0, life: 12, c: [255, 220, 150], glow: true, fw: true });
       if (r.life < r.max && !WG.COLLIDE[wd.block(Math.floor(r.x), Math.floor(r.y + 0.5), Math.floor(r.z))]) { keep.push(r); return; }
       if (WG.Sound) WG.Sound.play('firework', r.x, r.y, r.z);
+      // 星の入った花火は、星ごとの色と形で開く（js/workshop.js）
+      if (r.fw && r.fw.stars && r.fw.stars.length && WG.fireworkBurst) { r.fw.stars.forEach(function (st) { WG.fireworkBurst(self, r, st); }); return; }
       if (!r.burst) return;
       var pal = [[255, 80, 80], [255, 200, 60], [90, 200, 255], [140, 255, 120], [230, 120, 255], [255, 255, 255]], c1 = pal[Math.floor(Math.random() * pal.length)], c2 = pal[Math.floor(Math.random() * pal.length)];
       for (var n = 0; n < 90; n++) {
@@ -356,6 +359,8 @@
       var f = WG.BLOCKS[wd.block(q[0], q[1], q[2])].key.slice(-1), n = NV[f], R = RIGHT[f], it = ITEMS[s.key];
       if (!n) return;
       var cx = q[0] + 0.5 - n[0] * (0.5 - 0.075), cz = q[2] + 0.5 - n[1] * (0.5 - 0.075), lt = w.lightLevels(cx + n[0] * 0.5, q[1] + 0.5, cz + n[1] * 0.5);
+      // 地図は額縁いっぱいに描く（js/workshop.js）
+      if (s.key === 'FILLED_MAP' && s.map && WG.frameMap && WG.frameMap(wd, solid, s.map, q, n, R, lt)) return;
       var tile = WG.itemIcon16(s.key) || (it && it.block < 0) ? WG.itemTile(s.key) : null;
       if (tile != null) {
         var h = 0.32;
@@ -370,7 +375,7 @@
       if (th == null) return;
       var cs = Math.cos(th), sn = Math.sin(th), lt = w.lightLevels(q[0] + 0.5, q[1] + 0.5, q[2] + 0.5);
       var tf = function (x, y, z) { var lx = (x - 8) / 16, lz = (z - 8) / 16; return [q[0] + 0.5 + lx * cs + lz * sn, q[1] + y / 16, q[2] + 0.5 - lx * sn + lz * cs]; };
-      var base = rgb(colorHex(bn.color)), top = wall ? 15 : 40, z0 = wall ? 0.6 : 7.6;
+      var base = rgb(colorHex(bn.color)), top = wall ? 15 : 40, z0 = wall ? 0.6 : 9.1;   // 立てた旗は、布が棒の前に来るように
       var sway = Math.sin(((wd.time || 0) + a) * 0.05 + q[0]) * 0.4;
       if (!wall) { WG.modelBox(solid, [7, 0, 7], [2, 42, 2], tf, [120, 90, 56], lt); }
       WG.modelBox(solid, [1, top - 1, z0 - 0.4], [14, 1.6, 1.6], tf, [120, 90, 56], lt);

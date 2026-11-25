@@ -386,6 +386,8 @@
     ['SMALL_DRIPLEAF', '小さなドリップリーフ', '#5a9a3a', 'plant'], ['BIG_DRIPLEAF', '大きなドリップリーフ', '#6aa83e', 'bigdrip'], ['DRIPSTONE_BLOCK', '鍾乳石ブロック', '#866b5c', 'solid'],
     ['POINTED_DRIPSTONE_UP_TIP', '鍾乳石', '#866b5c', 'drip'], ['POINTED_DRIPSTONE_UP_MID', '鍾乳石', '#866b5c', 'drip'], ['POINTED_DRIPSTONE_DOWN_TIP', '鍾乳石', '#866b5c', 'drip'], ['POINTED_DRIPSTONE_DOWN_MID', '鍾乳石', '#866b5c', 'drip']);
   ALIAS.MOSS_CARPET = 'MOSS_BLOCK'; ALIAS.POINTED_DRIPSTONE_UP_MID = ALIAS.POINTED_DRIPSTONE_DOWN_TIP = ALIAS.POINTED_DRIPSTONE_DOWN_MID = 'POINTED_DRIPSTONE_UP_TIP';
+  // ロードマップ 第 5 段階：砥石、使って傷んだ金床（2 段階）
+  DEF.push(['GRINDSTONE', '砥石', '#8c8a86', 'grindstone'], ['CHIPPED_ANVIL', '欠けた金床', '#4a4a4c', 'anvil'], ['DAMAGED_ANVIL', '壊れかけの金床', '#4a4a4c', 'anvil']);
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -538,13 +540,13 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, stand: 1,
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, stand: 1,
     hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1, azalea: 1, bigdrip: 1, drip: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
@@ -632,6 +634,8 @@
     if (k === 'daylight') return [[0, 0, 0, 16, 6, 16]];
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
+    // 砥石：2 本の脚（濃いオーク）に支えられた石の円盤
+    if (k === 'grindstone') return [[4, 4, 2, 12, 16, 14, id], [2, 0, 6, 4, 7, 10, B.DARK_OAK_LOG], [12, 0, 6, 14, 7, 10, B.DARK_OAK_LOG], [2, 7, 5, 4, 13, 11, B.DARK_OAK_PLANKS], [12, 7, 5, 14, 13, 11, B.DARK_OAK_PLANKS]];
     // ランタン：光る胴と、上の金具
     if (k === 'portal') return /_X$/.test(key) ? [[0, 0, 6, 16, 16, 10, B.NETHER_PORTAL_X, 1]] : [[6, 0, 0, 10, 16, 16, B.NETHER_PORTAL_Z, 1]];
     if (k === 'wall') return linkBoxes(nb, forCollide ? [4, 0, 4, 12, 24, 12] : [4, 0, 4, 12, 16, 12], forCollide ? [5, 11, 0, 24] : [5, 11, 0, 14], wallLink);

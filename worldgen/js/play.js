@@ -1127,6 +1127,8 @@
     if (s) Object.keys(s).forEach(function (k) { if (k !== 'key' && k !== 'n' && k !== 'dmg' && k !== 'ench') (o || (o = {}))[k] = s[k]; });
     return o;
   };
+  // 同じ束にできるか（名前・花火の中身・地図などの付いたものは、同じときだけ重ねる）
+  WG.sameExtra = function (a, b) { return JSON.stringify(WG.itemExtra(a)) === JSON.stringify(WG.itemExtra(b)) && JSON.stringify(a.ench || null) === JSON.stringify(b.ench || null); };
   Game.prototype.spawnItem = function (key, n, x, y, z, spread, delay, dmg, ench, extra) {
     var e = {
       dmg: dmg || 0, ench: ench, extra: extra || null,
@@ -1279,7 +1281,7 @@
       }
     });
     this.particles.forEach(function (p) {
-      cube(solid, p.x, p.y, p.z, p.fw ? 0.11 : 0.08, 0, function () { return 0; }, function () { return p.c; }, p.glow ? [15, 15] : w.lightLevels(p.x, p.y, p.z));
+      cube(solid, p.x, p.y, p.z, p.sz || (p.fw ? 0.11 : 0.08), 0, function () { return 0; }, function () { return p.c; }, p.glow ? [15, 15] : w.lightLevels(p.x, p.y, p.z));
     });
     // 落ちてくる砂・砂利（ブロックと同じ大きさ）
     this.falling.forEach(function (f) {
@@ -1345,7 +1347,7 @@
       bar = '<span class="dur"><i style="width:' + Math.round(left * 100) + '%;background:hsl(' + Math.round(left * 110) + ',55%,48%)"></i></span>';
     }
     var gl = s.ench && Object.keys(s.ench).length ? ' class="ench"' : '';
-    return '<img src="' + WG.iconURL(s.key) + '" alt=""' + gl + '>' + (s.n > 1 ? '<span class="n">' + s.n + '</span>' : '') + bar;
+    return '<img src="' + (WG.stackIconURL ? WG.stackIconURL(s) : WG.iconURL(s.key)) + '" alt=""' + gl + '>' + (s.n > 1 ? '<span class="n">' + s.n + '</span>' : '') + bar;
   }
 
   Game.prototype.updateHud = function () {
@@ -1379,7 +1381,7 @@
     var held = inv.held();
     if (prevSel !== inv.sel || prevVer !== inv.version) {
       if (held && (prevSel !== inv.sel || this.lastName !== held.key)) {
-        ui.itemName.textContent = WG.itemName(held.key);
+        ui.itemName.textContent = held.name || WG.itemName(held.key);
         ui.itemName.classList.remove('fade'); void ui.itemName.offsetWidth; ui.itemName.classList.add('fade');
       }
       this.lastName = held ? held.key : null;
@@ -1428,7 +1430,7 @@
 
   WG.slotHTMLFull = function (c, i, s, extra) { return slot(c, i, s, extra); };
   function slot(c, i, s, extra) {
-    var tt = s ? WG.itemName(s.key) + (s.ench && Object.keys(s.ench).length ? '（' + WG.enchText(s.ench) + '）' : '') : '';
+    var tt = s ? (s.name || WG.itemName(s.key)) + (s.ench && Object.keys(s.ench).length ? '（' + WG.enchText(s.ench) + '）' : '') + (WG.stackInfo ? WG.stackInfo(s) : '') : '';
     return '<div class="slot' + (extra || '') + '" data-c="' + c + '" data-i="' + i + '"' + (s ? ' title="' + tt + '"' : '') + '>' + slotHTML(s) + '</div>';
   }
 
@@ -1553,11 +1555,11 @@
       if (shift) {
         if (c === 'res') {
           for (var guard = 0; guard < 64 && this.craftResult && this.space(this.craftResult.key) >= this.craftResult.n; guard++) {
-            inv.add(this.craftResult.key, this.craftResult.n); this.consumeCraft();
+            inv.add(this.craftResult.key, this.craftResult.n, 0, null, WG.itemExtra(this.craftResult)); this.consumeCraft();
           }
         } else { var moved = inv.add(r.key, r.n); r.n -= moved; if (r.n <= 0) this.furnace().slots[2] = null; }
-      } else if (!cur || (cur.key === r.key && cur.n + r.n <= ITEMS[r.key].max)) {
-        if (cur) cur.n += r.n; else this.cursor = { key: r.key, n: r.n };
+      } else if (!cur || (cur.key === r.key && WG.sameExtra(cur, r) && cur.n + r.n <= ITEMS[r.key].max)) {
+        if (cur) cur.n += r.n; else this.cursor = Object.assign({}, r);
         if (c === 'res') this.consumeCraft(); else this.furnace().slots[2] = null;
       }
       inv.changed(); this.renderInventory();
@@ -1572,15 +1574,15 @@
     } else if (button === 0) {
       if (!cur) { this.cursor = sl; this.setSlot(c, i, null); }
       else if (!sl) { this.setSlot(c, i, cur); this.cursor = null; }
-      else if (sl.key === cur.key) {
+      else if (sl.key === cur.key && WG.sameExtra(sl, cur)) {
         var m = Math.min(ITEMS[sl.key].max - sl.n, cur.n);
         sl.n += m; cur.n -= m; if (cur.n <= 0) this.cursor = null;
       } else { this.setSlot(c, i, cur); this.cursor = sl; }
     } else if (button === 2) {
       if (!cur && sl && sl.n === 1) { this.cursor = sl; this.setSlot(c, i, null); }
-      else if (!cur && sl) { var half = Math.ceil(sl.n / 2); this.cursor = { key: sl.key, n: half }; sl.n -= half; if (sl.n <= 0) this.setSlot(c, i, null); }
-      else if (cur && (!sl || (sl.key === cur.key && sl.n < ITEMS[sl.key].max))) {
-        if (!sl) this.setSlot(c, i, { key: cur.key, n: 1 }); else sl.n++;
+      else if (!cur && sl) { var half = Math.ceil(sl.n / 2); this.cursor = Object.assign({}, sl, { n: half }); sl.n -= half; if (sl.n <= 0) this.setSlot(c, i, null); }
+      else if (cur && (!sl || (sl.key === cur.key && WG.sameExtra(sl, cur) && sl.n < ITEMS[sl.key].max))) {
+        if (!sl) this.setSlot(c, i, Object.assign({}, cur, { n: 1 })); else sl.n++;
         cur.n--; if (cur.n <= 0) this.cursor = null;
       } else if (cur && sl) { this.setSlot(c, i, cur); this.cursor = sl; }
     }
@@ -1593,7 +1595,7 @@
   Game.prototype.shiftMove = function (c, i, sl) {
     var inv = this.inv, s = inv.slots;
     if (c !== 'inv') {
-      var moved = inv.add(sl.key, sl.n, sl.dmg, sl.ench);
+      var moved = inv.add(sl.key, sl.n, sl.dmg, sl.ench, WG.itemExtra(sl));
       sl.n -= moved; if (sl.n <= 0) this.setSlot(c, i, null);
       return;
     }

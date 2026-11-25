@@ -278,6 +278,18 @@
   .rb-none { grid-column: 1 / -1; padding: 6px 0; }
   .slot img.ghost { opacity: 0.38; filter: grayscale(0.4); }
   .slot.ghosted { background: rgba(90, 36, 32, 0.5); }
+  /* 機織り機の模様の見本・できあがりの見本、金床の名前の欄 */
+  .loompats { display: grid; grid-template-columns: repeat(6, 36px); gap: 4px; max-height: 214px; overflow-y: auto; padding: 2px 6px 2px 2px; }
+  .slot.lpat { width: 36px; height: 68px; cursor: pointer; }
+  .slot.lpat img { inset: 1px; width: 32px; height: 64px; }
+  .slot.lpat:hover { background: rgba(70, 74, 78, 0.8); }
+  .slot.lpat.on { border: 2px solid #d9c690; }
+  .loomprev { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 64px; }
+  .loomprev > img { width: 64px; height: 128px; image-rendering: pixelated; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.35)); }
+  .anvilname { margin: 0 0 10px; }
+  .an-name { width: 236px; padding: 6px 8px; font: inherit; font-size: 13px; color: #f1efe9; background: rgba(16, 17, 19, 0.85); border: 1px solid #55585e; border-radius: 2px; }
+  .an-name:focus { outline: none; border-color: #b9b4a8; }
+  .an-name:disabled { opacity: 0.5; }
   body.touchplay .rb-list { max-height: 46vh; }
   @media (max-width: 720px) { .rbook { width: 172px; } .rb-list { grid-template-columns: repeat(4, 38px); } }
   /* スマホ：インベントリは枠を小さくして、横向きの画面に収める */
@@ -512,6 +524,7 @@
 <script src="js/colors.js"></script>
 <script src="js/biomes.js"></script>
 <script src="js/caves.js"></script>
+<script src="js/workshop.js"></script>
 <script src="js/mobskins.js"></script>
 <script src="js/recipebook.js"></script>
 <script src="js/main.js"></script>

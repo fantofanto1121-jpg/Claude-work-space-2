@@ -1487,5 +1487,47 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   check(Object.keys(cnt).length === 6 && fell && w.block(3, 11, 3) === B.CAVE_VINES, '繁茂した洞窟と鍾乳洞が生まれる（' + Object.keys(cnt).length + ' 種）、付け根を壊すと鍾乳石が落ちて当たる、光るベリーを天井に植える');
 })();
 
+// ---- ロードマップ 第 5 段階：砥石・金床・機織り機・額縁の地図・花火の星 ----
+console.log('\n道具と作業台');
+(function () {
+  // 砥石
+  var r1 = WG.grindResult({ key: 'DIAMOND_SWORD', n: 1, dmg: 40, ench: { SHARPNESS: 3 }, name: '風切り' }, null);
+  var r2 = WG.grindResult(null, { key: 'ENCHANTED_BOOK', n: 1, ench: { PROTECTION: 2 } });
+  var dur = WG.ITEMS.IRON_PICKAXE.dur, r3 = WG.grindResult({ key: 'IRON_PICKAXE', n: 1, dmg: dur - 50 }, { key: 'IRON_PICKAXE', n: 1, dmg: dur - 60 });
+  check(r1 && !r1.item.ench && r1.item.dmg === 40 && r1.item.name === '風切り' && r1.xp > 0 && r2 && r2.item.key === 'BOOK' && r3 && r3.item.dmg === dur - 110 - Math.floor(dur * 0.05) && !WG.grindResult({ key: 'STICK', n: 1 }, null),
+    '砥石：エンチャントを外して経験値（' + (r1 && r1.xp) + '）、本は普通の本に、同じ道具 2 つで直る（' + (r3 && r3.item.dmg) + '）');
+  // 金床：名前と傷み
+  var a = { key: 'IRON_SWORD', n: 1 }, nm = WG.anvilWithName(a, null, '銀の<剣>'), same = WG.anvilWithName(a, null, WG.itemName('IRON_SWORD'));
+  var w = flatWorld(function () { return 0; }); w.setBlock(0, 0, 0, B.ANVIL);
+  var seq = [WG.anvilWear(w, 0, 0, 0, 0.5), WG.anvilWear(w, 0, 0, 0, 0.05), WG.anvilWear(w, 0, 0, 0, 0.05), WG.anvilWear(w, 0, 0, 0, 0.05)];
+  check(nm && nm.item.name === '銀の剣' && nm.cost === 1 && !same && seq[0] === B.ANVIL && seq[1] === B.CHIPPED_ANVIL && seq[2] === B.DAMAGED_ANVIL && seq[3] === B.AIR,
+    '金床：名前を付ける（費用 1、記号は除く）・使うと 欠けた → 壊れかけ → 壊れる');
+  // 機織り機の模様
+  var P = WG.BANNER_PATTERNS, bad = P.filter(function (p) { return !p[2].length || p[2].some(function (r) { return r[0] < 0 || r[1] < 0 || r[2] > 14 || r[3] > 28 || r[2] <= r[0] || r[3] <= r[1]; }); });
+  var circ = WG.bannerClothColor('WHITE', [{ p: 'circle', c: 'RED' }], 7, 14), edge = WG.bannerClothColor('WHITE', [{ p: 'circle', c: 'RED' }], 0.5, 0.5);
+  check(P.length >= 30 && !bad.length && circ !== edge, '旗の模様：' + P.length + ' 種類（形が布の中に収まる）、円の中と外で色が違う');
+  // 花火の星とロケット花火
+  var star = WG.fireworkCraft([{ key: 'GUNPOWDER', n: 1 }, { key: 'RED_DYE', n: 1 }, { key: 'BLUE_DYE', n: 1 }, { key: 'GOLD_NUGGET', n: 1 }, { key: 'DIAMOND', n: 1 }, null]);
+  var fade = star && WG.fireworkCraft([{ key: 'FIREWORK_STAR', n: 1, star: star.star }, { key: 'YELLOW_DYE', n: 1 }]);
+  var rocket = fade && WG.fireworkCraft([{ key: 'PAPER', n: 1 }, { key: 'GUNPOWDER', n: 1 }, { key: 'GUNPOWDER', n: 1 }, { key: 'FIREWORK_STAR', n: 1, star: fade.star }]);
+  var plain = WG.fireworkCraft([{ key: 'PAPER', n: 1 }, { key: 'GUNPOWDER', n: 1 }]), junk = WG.fireworkCraft([{ key: 'GUNPOWDER', n: 1 }, { key: 'RED_DYE', n: 1 }, { key: 'STICK', n: 1 }]);
+  check(star && star.star.s === 'star' && star.star.t && star.star.c.join() === 'RED,BLUE' && fade.star.f.join() === 'YELLOW' && rocket && rocket.n === 3 && rocket.fw.flight === 2 && rocket.fw.stars.length === 1 && !plain && !junk,
+    '花火：星（色・形・尾）、消える色、飛ぶ高さ 2 のロケット花火');
+  var g = playGame(flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }));
+  g.craftN = 2; g.craft = [{ key: 'PAPER', n: 1 }, { key: 'GUNPOWDER', n: 1 }, { key: 'FIREWORK_STAR', n: 1, star: { c: ['LIME'], s: 'ring' } }, null]; g.updateCraft();
+  var cr = g.craftResult;
+  g.particles = []; WG.fireworkBurst(g, { x: 0, y: 30, z: 0 }, { c: ['LIME', 'PINK'], s: 'large', f: ['WHITE'], k: true });
+  var nPart = g.particles.length;
+  for (var i = 0; i < 30; i++) { g.particles.forEach(function (p) { p.life--; }); g.tickExtra(); }
+  var faded = g.particles.some(function (p) { return p.fwx && p.c[0] > 200 && p.c[2] > 200; });
+  var stack1 = { key: 'FIREWORK_STAR', n: 1, star: { c: ['RED'] } }, stack2 = { key: 'FIREWORK_STAR', n: 1, star: { c: ['BLUE'] } };
+  check(cr && cr.key === 'FIREWORK_ROCKET' && cr.fw.stars[0].s === 'ring' && nPart > 140 && faded && !WG.sameExtra(stack1, stack2) && WG.sameExtra(stack1, JSON.parse(JSON.stringify(stack1))),
+    '花火：作業台で作れる・大きな玉が ' + nPart + ' 粒で開き、消える色へ変わる・違う星は重ならない');
+  // 額縁の地図の色
+  var mw = new WG.World('map5', 'overworld'), px = WG.mapPixels(mw, { x: 0, z: 0, scale: 0 }), kinds = {};
+  for (var q = 0; q < 64 * 64; q++) kinds[px[q * 4] + ',' + px[q * 4 + 1] + ',' + px[q * 4 + 2]] = 1;
+  check(px.length === 64 * 64 * 4 && px[3] === 255 && Object.keys(kinds).length > 4, '額縁の地図：64×64 で描け、地形の色が出る（' + Object.keys(kinds).length + ' 色）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
