@@ -524,7 +524,7 @@ def main():
     out_png = sys.argv[1] if len(sys.argv) > 1 else None
     info = json.loads(subprocess.run(['node', os.path.join(HERE, 'colors.js')], capture_output=True, text=True, check=True).stdout)
     T = {}
-    EXTRA_COL = {'CHERRY_PLANKS': '#e2b4ac', 'CHERRY_LOG': '#4a2a34', 'CHERRY_LEAVES': '#eaa6c2', 'MANGROVE_PLANKS': '#7a3632', 'MANGROVE_LOG': '#54402e', 'MANGROVE_LEAVES': '#4e7e34'}
+    EXTRA_COL = {'CHERRY_PLANKS': '#e2b4ac', 'CHERRY_LOG': '#4a2a34', 'CHERRY_LEAVES': '#eaa6c2', 'MANGROVE_PLANKS': '#7a3632', 'MANGROVE_LOG': '#54402e', 'MANGROVE_LEAVES': '#4e7e34', 'CRIMSON_PLANKS': '#7a3a4a', 'WARPED_PLANKS': '#2a6a62'}
     def col(k, face='side'):
         if k not in info: return hx(EXTRA_COL[k])   # 新しいブロック（古い 8×8 の見た目がないもの）
         return hx(info[k][face])
@@ -683,7 +683,7 @@ def main():
                      '.a.......b......', '.ac......b..l...', '.a.......b.l....', '.a......lb......', 'la.......b......', '.a.......bc.....', '.a.......b......', '.a.......b......'],
                     {'a': [136, 194, 90], 'b': [116, 174, 72], 'c': [170, 220, 120], 'l': [96, 156, 60]})
     put('SUGAR_CANE', sc_, cut=sc_)
-    for w in ['OAK', 'SPRUCE', 'ACACIA', 'BIRCH', 'JUNGLE', 'CHERRY', 'MANGROVE']:
+    for w in ['OAK', 'SPRUCE', 'ACACIA', 'BIRCH', 'JUNGLE', 'CHERRY', 'MANGROVE', 'CRIMSON', 'WARPED']:
         pc = col(w + '_PLANKS')
         for u, up in [('L', False), ('U', True)]:
             d = door(pc, up)
@@ -1039,7 +1039,7 @@ def main():
         for (x, y) in [(3, 2), (2, 3), (4, 2), (2, 4), (12, 11), (11, 12)]: g2.set(x, y, mixc(base, [255, 255, 255], 0.6))
         put(k + '_STAINED_GLASS', g2, cut=g2, all_faces=True)
     # トラップドア（窓の穴のある板）と鉄のトラップドア、鉄格子
-    for wd_, c in [('OAK', col('OAK_PLANKS')), ('SPRUCE', col('SPRUCE_PLANKS')), ('ACACIA', col('ACACIA_PLANKS')), ('BIRCH', col('BIRCH_PLANKS')), ('JUNGLE', col('JUNGLE_PLANKS')), ('CHERRY', col('CHERRY_PLANKS')), ('MANGROVE', col('MANGROVE_PLANKS')), ('IRON', [196, 196, 200])]:
+    for wd_, c in [('OAK', col('OAK_PLANKS')), ('SPRUCE', col('SPRUCE_PLANKS')), ('ACACIA', col('ACACIA_PLANKS')), ('BIRCH', col('BIRCH_PLANKS')), ('JUNGLE', col('JUNGLE_PLANKS')), ('CHERRY', col('CHERRY_PLANKS')), ('MANGROVE', col('MANGROVE_PLANKS')), ('CRIMSON', col('CRIMSON_PLANKS')), ('WARPED', col('WARPED_PLANKS')), ('IRON', [196, 196, 200])]:
         td = Img(alpha=True)
         for y in range(N):
             for x in range(N):
@@ -1920,6 +1920,63 @@ def main():
         for (x, y) in cracks:
             ca.set(x, y, [26, 26, 30]); ca.set(x + 1, y, sc(anv.get(x + 1, y), 1.25))
         put(k, ca)
+
+    # ---- ロードマップ 第 7 段階：菌・つる・骨ブロック・色付きの貝の箱 ----
+    def fungus(cap, spot, stem):
+        rows = ['................', '................', '................', '................', '.....cccccc.....', '....cccsccccc...', '...ccsccccsccc..', '...cccccccccc...',
+                '.....dddddd.....', '.......ss.......', '.......ss.......', '......ss........', '......ss........', '.......ss.......', '.......ss.......', '......ssss......']
+        return plant_cut(rows, {'c': cap, 's': stem, 'd': sc(hx(cap) if isinstance(cap, str) else cap, 0.7), 'p': spot})
+    fc = fungus([170, 40, 40], [240, 170, 60], [216, 190, 150])
+    for (x, y) in [(6, 5), (10, 6), (5, 6)]: fc.set(x, y, [246, 176, 70])
+    put('CRIMSON_FUNGUS', fc, cut=fc)
+    fw = fungus([36, 140, 124], [240, 140, 40], [216, 190, 150])
+    for (x, y) in [(7, 4), (11, 6), (4, 6)]: fw.set(x, y, [240, 136, 40])
+    put('WARPED_FUNGUS', fw, cut=fw)
+    def nvine(base, hi, up):
+        img = Img(alpha=True)
+        for x0 in (4, 10):
+            for y in range(N):
+                yy = y if up else y
+                xx = x0 + (1 if ((y + x0) // 3) % 2 else 0)
+                img.set(xx, yy, sc(base, 0.85 + 0.25 * ((hsh(701, x0, y) % 3) / 2)))
+                if (y + x0) % 4 == 0: img.set(xx + (1 if up else -1), yy, hi)
+                if (y + x0) % 7 == 3: img.set(xx - 1, yy, sc(base, 0.7))
+        return img
+    wv = nvine([150, 30, 36], [200, 60, 50], False); put('WEEPING_VINES', wv, cut=wv)
+    tv = nvine([30, 150, 132], [70, 200, 170], True); put('TWISTING_VINES', tv, cut=tv)
+    bs_ = Img(); bt_ = Img()
+    for y in range(N):
+        for x in range(N):
+            n = 0.94 + 0.08 * ((hsh(702, x, y) % 3) / 2)
+            bs_.set(x, y, sc([226, 222, 206], n * (0.86 if x in (0, 15) else 1.04 if x in (1, 14) else 1.0)))
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            bt_.set(x, y, sc([226, 222, 206], n) if d > 5.2 else sc([196, 188, 166], n) if d > 3.4 else sc([150, 140, 120], n))
+    put('BONE_BLOCK', bs_, bt_, bt_)
+    for k, hx_ in C16H.items():
+        base = hx(hx_)
+        sbx = Img(); sbt = Img()
+        for y in range(N):
+            for x in range(N):
+                seam = y in (7, 8)
+                n = (1.1 if (x + (y // 4)) % 4 == 0 else 1.0) * (0.93 + 0.1 * ((hsh(703, x, y) % 3) / 2))
+                sbx.set(x, y, sc(base, 0.55) if seam else sc(base, n))
+                edge = x in (0, 15) or y in (0, 15)
+                sbt.set(x, y, sc(base, 0.7) if edge else sc(base, 1.08 if (x // 4 + y // 4) % 2 == 0 else 0.96))
+        put(k + '_SHELL_BOX', sbx, sbt, sbt)
+    # コーラス：紫の茎（節のある）と、花びらの先
+    chp = Img()
+    for y in range(N):
+        for x in range(N):
+            n = 0.9 + 0.14 * ((hsh(704, x, y) % 3) / 2)
+            chp.set(x, y, sc([120, 88, 128], n * (1.12 if (x + y * 3) % 7 == 0 else 0.86 if (x * 5 + y) % 9 == 0 else 1.0)))
+    put('CHORUS_PLANT', chp)
+    chf = Img(); chft = Img()
+    for y in range(N):
+        for x in range(N):
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            chf.set(x, y, sc([176, 150, 186], 1.1 if d < 3 else 0.86 if x in (0, 15) or y in (0, 15) else 1.0))
+            chft.set(x, y, [230, 212, 236] if d < 2.4 else sc([186, 156, 196], 1.06 if (x + y) % 3 == 0 else 0.94))
+    put('CHORUS_FLOWER', chf, chft, chf)
 
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():

@@ -258,7 +258,7 @@
     if (id === B.COPPER_BULB) return 0;
     if ((m = /^COMPOSTER_(\d)$/.exec(key))) return +m[1];
     if (/^ITEM_FRAME_/.test(key)) return wd.frames && wd.frames.get(k) ? 1 : 0;
-    if ((id === B.BARREL || id === B.SHELL_BOX) && wd.boxes) {
+    if ((id === B.BARREL || /SHELL_BOX$/.test(WG.BLOCKS[id].key)) && wd.boxes) {
       var c = wd.boxes.get(k) || [], f = 0, any = false;
       c.forEach(function (s) { if (s) { f += s.n / (ITEMS[s.key] ? ITEMS[s.key].max : 64); any = true; } });
       return any ? Math.floor(1 + f / 27 * 14) : 0;

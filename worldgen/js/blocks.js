@@ -63,8 +63,8 @@
     ['END_STONE', 'エンドストーン', '#d8d5a6', 'solid'],
     ['OBSIDIAN', '黒曜石', '#221b31', 'solid'],
     ['END_PORTAL_FRAME', 'エンドポータルフレーム', '#4f6d60', 'solid'],
-    ['CHORUS_PLANT', 'コーラスプラント', '#6b5173', 'solid'],
-    ['CHORUS_FLOWER', 'コーラスフラワー', '#9c85a3', 'solid'],
+    ['CHORUS_PLANT', 'コーラスプラント', '#6b5173', 'chorus'],
+    ['CHORUS_FLOWER', 'コーラスフラワー', '#9c85a3', 'chorus'],
     ['COBBLED_DEEPSLATE', '丸石状の深層岩', '#4d4d52', 'solid'],
     // クラフトで作るブロック
     ['OAK_PLANKS', 'オークの板材', '#a5824f', 'solid'],
@@ -388,6 +388,21 @@
   ALIAS.MOSS_CARPET = 'MOSS_BLOCK'; ALIAS.POINTED_DRIPSTONE_UP_MID = ALIAS.POINTED_DRIPSTONE_DOWN_TIP = ALIAS.POINTED_DRIPSTONE_DOWN_MID = 'POINTED_DRIPSTONE_UP_TIP';
   // ロードマップ 第 5 段階：砥石、使って傷んだ金床（2 段階）
   DEF.push(['GRINDSTONE', '砥石', '#8c8a86', 'grindstone'], ['CHIPPED_ANVIL', '欠けた金床', '#4a4a4c', 'anvil'], ['DAMAGED_ANVIL', '壊れかけの金床', '#4a4a4c', 'anvil']);
+  // ロードマップ 第 7 段階：真紅と歪んだ木の建材（板材と幹は前からある）、菌、垂れるつる・ねじれたつる、骨ブロック、色付きの貝の箱
+  var NETHER_WOODS = [['CRIMSON', '真紅の木', '#7a3a4a'], ['WARPED', '歪んだ木', '#2a6a62']];
+  NETHER_WOODS.forEach(function (w) {
+    DIR4.forEach(function (d) { ['C', 'O'].forEach(function (o) { ['L', 'U'].forEach(function (h) { DEF.push([w[0] + '_DOOR_' + d + o + h, w[1] + 'のドア', w[2], 'door']); }); }); });
+    DEF.push([w[0] + '_FENCE', w[1] + 'の柵', w[2], 'fence']); ALIAS[w[0] + '_FENCE'] = w[0] + '_PLANKS';
+    DIR4.forEach(function (d) { ['', '_T'].forEach(function (t) { DEF.push([w[0] + '_STAIRS_' + d + t, w[1] + 'の階段', w[2], 'stairs']); ALIAS[w[0] + '_STAIRS_' + d + t] = w[0] + '_PLANKS'; }); });
+    DEF.push([w[0] + '_SLAB', w[1] + 'のハーフブロック', w[2], 'slab'], [w[0] + '_SLAB_TOP', w[1] + 'のハーフブロック', w[2], 'slab'], [w[0] + '_SLAB_DOUBLE', w[1] + 'のハーフブロック（2 段）', w[2], 'solid']);
+    ALIAS[w[0] + '_SLAB'] = ALIAS[w[0] + '_SLAB_TOP'] = ALIAS[w[0] + '_SLAB_DOUBLE'] = w[0] + '_PLANKS';
+    ['B', 'T', 'ON', 'OE', 'OS', 'OW'].forEach(function (st) { DEF.push([w[0] + '_TRAPDOOR_' + st, w[1] + 'のトラップドア', w[2], 'trapdoor']); ALIAS[w[0] + '_TRAPDOOR_' + st] = w[0] + '_TRAPDOOR'; });
+    ['X', 'Z', 'XO', 'ZO'].forEach(function (st) { DEF.push([w[0] + '_FENCE_GATE_' + st, w[1] + 'のフェンスゲート', w[2], 'gate']); ALIAS[w[0] + '_FENCE_GATE_' + st] = w[0] + '_PLANKS'; });
+  });
+  NETHER_WOODS.forEach(function (w) { WOODS.push([w[0], w[1], w[2]]); SHAPE_MATS.push([w[0], w[1] + 'の', w[0] + '_PLANKS', w[2]]); });
+  DEF.push(['CRIMSON_FUNGUS', '真紅のキノコ', '#a02a2a', 'plant'], ['WARPED_FUNGUS', '歪んだキノコ', '#2a8a7a', 'plant'], ['WEEPING_VINES', '垂れるつる', '#8a1e22', 'plant'],
+    ['TWISTING_VINES', 'ねじれたつる', '#1e8a7a', 'plant'], ['BONE_BLOCK', '骨ブロック', '#e0dccb', 'solid']);
+  COLORS16.forEach(function (c) { DEF.push([c[0] + '_SHELL_BOX', c[1] + 'の貝の箱', c[2], 'solid']); });
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -540,13 +555,13 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : k === 'chorus' ? 1 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, stand: 1,
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, stand: 1,
     hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1, azalea: 1, bigdrip: 1, drip: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
@@ -634,6 +649,13 @@
     if (k === 'daylight') return [[0, 0, 0, 16, 6, 16]];
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
+    // コーラスプラント：太い茎と、横の隣のコーラスへの枝。コーラスフラワーは少し小さな塊
+    if (k === 'chorus') {
+      if (key === 'CHORUS_FLOWER') return [[2, 0, 2, 14, 14, 14, id]];
+      var cb2 = [[4, 0, 4, 12, 16, 12, id]], isC = function (n) { return n === B.CHORUS_PLANT || n === B.CHORUS_FLOWER; };
+      if (nb) { if (isC(nb(1, 0))) cb2.push([12, 4, 4, 16, 12, 12, id]); if (isC(nb(-1, 0))) cb2.push([0, 4, 4, 4, 12, 12, id]); if (isC(nb(0, 1))) cb2.push([4, 4, 12, 12, 12, 16, id]); if (isC(nb(0, -1))) cb2.push([4, 4, 0, 12, 12, 4, id]); }
+      return cb2;
+    }
     // 砥石：2 本の脚（濃いオーク）に支えられた石の円盤
     if (k === 'grindstone') return [[4, 4, 2, 12, 16, 14, id], [2, 0, 6, 4, 7, 10, B.DARK_OAK_LOG], [12, 0, 6, 14, 7, 10, B.DARK_OAK_LOG], [2, 7, 5, 4, 13, 11, B.DARK_OAK_PLANKS], [12, 7, 5, 14, 13, 11, B.DARK_OAK_PLANKS]];
     // ランタン：光る胴と、上の金具

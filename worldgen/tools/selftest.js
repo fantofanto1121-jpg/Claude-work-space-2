@@ -1580,5 +1580,38 @@ console.log('\n動きと体験');
   check(WG.runCommand(g5, '/difficulty hard') === '難易度をハードにしました' && WG.difficultyOf(g5) === 'hard', 'コマンド /difficulty で難易度を変えられる');
 })();
 
+// ---- ロードマップ 第 7 段階：ネザーとエンドの残り ----
+console.log('\nネザーとエンドの残り');
+(function () {
+  var nw = new WG.World('7', 'nether'), cnt = {};
+  for (var cx = -8; cx < 8; cx++) for (var cz = -8; cz < 8; cz++) {
+    var bl = nw.gen.generate(cx, cz).blocks;
+    for (var i = 0; i < bl.length; i++) { var k = WG.BLOCKS[bl[i]].key; if (/FUNGUS|VINES|BONE_BLOCK/.test(k)) cnt[k] = (cnt[k] || 0) + 1; }
+  }
+  check(cnt.CRIMSON_FUNGUS > 0 && cnt.WARPED_FUNGUS > 0 && cnt.WEEPING_VINES > 0 && cnt.TWISTING_VINES > 0 && cnt.BONE_BLOCK > 0, 'ネザー：キノコ・垂れるつる・ねじれたつる・骨の化石が生える（' + JSON.stringify(cnt) + '）');
+  // コーラスの木：横に枝分かれしている
+  var ew = new WG.World('7', 'end'), branch = 0, plants = 0;
+  for (cx = -40; cx < 40; cx++) for (cz = -3; cz < 3; cz++) {
+    var eb = ew.gen.generate(cx, cz).blocks;
+    for (i = 0; i < eb.length; i++) {
+      if (eb[i] !== B.CHORUS_PLANT) continue;
+      plants++;
+      var x = i & 15, z = (i >> 4) & 15, y = i >> 8;
+      if ((x < 15 && eb[i + 1] === B.CHORUS_PLANT) || (z < 15 && eb[i + 16] === B.CHORUS_PLANT)) { if (eb[((y - 1) << 8) | (i & 255)] === B.AIR) branch++; }
+    }
+  }
+  var shape = WG.blockBoxes ? WG.blockBoxes(B.CHORUS_PLANT, function (dx, dz) { return dx === 1 ? B.CHORUS_PLANT : 0; }, false) : null;
+  check(plants > 50 && branch > 3 && (!shape || shape.length === 2), 'エンド：コーラスの木が枝分かれする（茎 ' + plants + '・横の枝 ' + branch + '）、枝でつながる形');
+  // 貝の箱を染める（中身はそのまま）・番人を染める
+  var r = WG.shellBoxDye([{ key: 'SHELL_BOX', n: 1, box: [{ key: 'DIAMOND', n: 3 }] }, { key: 'LIME_DYE', n: 1 }]), same = WG.shellBoxDye([{ key: 'LIME_SHELL_BOX', n: 1 }, { key: 'LIME_DYE', n: 1 }]);
+  check(r && r.key === 'LIME_SHELL_BOX' && r.box[0].key === 'DIAMOND' && !same && WG.ITEMS.LIME_SHELL_BOX && WG.ITEMS.LIME_SHELL_BOX.max === 1, '貝の箱：染料で 16 色に、中身は残る');
+  // 真紅と歪んだ木の建材・巨大なキノコ
+  var keys = ['DOOR', 'FENCE', 'STAIRS', 'SLAB', 'TRAPDOOR', 'FENCE_GATE'], ok = ['CRIMSON', 'WARPED'].every(function (w) { return keys.every(function (k) { return WG.ITEMS[w + '_' + k] && WG.Craft.SHAPED.some(function (q) { return q[2] === w + '_' + k; }); }); });
+  var fw = flatWorld(function (x, y, z) { return y === 10 ? B.CRIMSON_NYLIUM : y < 10 ? B.NETHERRACK : 0; }), stem = 0, wart = 0;
+  var grown = WG.growHugeFungus(fw, 0, 11, 0, true, function () { return 0.5; });
+  for (var yy = 11; yy < 25; yy++) for (var dx = -3; dx <= 3; dx++) for (var dz = -3; dz <= 3; dz++) { var id = fw.block(dx, yy, dz); if (id === B.CRIMSON_STEM) stem++; if (id === B.NETHER_WART_BLOCK) wart++; }
+  check(ok && grown && stem >= 4 && wart > 20, '真紅と歪んだ木：ドア・柵・階段・ハーフブロック・トラップドア・フェンスゲートを作れる。骨粉で巨大なキノコ（幹 ' + stem + '・かさ ' + wart + '）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

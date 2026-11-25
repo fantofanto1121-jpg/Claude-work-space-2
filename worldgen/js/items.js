@@ -46,7 +46,7 @@
     ['RED_MUSHROOM', 0, 'RED_MUSHROOM'], ['COBWEB', 4, 'STRING'], ['FIRE', 0, null]);
   for (var cs = 0; cs < 8; cs++) BLOCK_DATA.push(['WHEAT_' + cs, 0, 'WHEAT_SEEDS']);
   for (cs = 0; cs < 4; cs++) BLOCK_DATA.push(['CARROTS_' + cs, 0, 'CARROT'], ['POTATOES_' + cs, 0, 'POTATO']);
-  var MAT_HARD = { CHERRY: 2, MANGROVE: 2, OAK: 2, SPRUCE: 2, ACACIA: 2, BIRCH: 2, JUNGLE: 2, COBBLESTONE: 2, STONE_BRICK: 1.5, SANDSTONE: 0.8, BRICK: 2, DARK_OAK: 2, NETHER_BRICK: 2, PURPUR: 1.5, PRISMARINE_BRICK: 1.5, BLACKSTONE_BRICK: 1.5, END_STONE_BRICK: 3 };
+  var MAT_HARD = { CHERRY: 2, MANGROVE: 2, CRIMSON: 2, WARPED: 2, OAK: 2, SPRUCE: 2, ACACIA: 2, BIRCH: 2, JUNGLE: 2, COBBLESTONE: 2, STONE_BRICK: 1.5, SANDSTONE: 0.8, BRICK: 2, DARK_OAK: 2, NETHER_BRICK: 2, PURPUR: 1.5, PRISMARINE_BRICK: 1.5, BLACKSTONE_BRICK: 1.5, END_STONE_BRICK: 3 };
   WG.WOODS.forEach(function (w) {
     WG.DIR4.forEach(function (d) {
       ['C', 'O'].forEach(function (o) { BLOCK_DATA.push([w[0] + '_DOOR_' + d + o + 'L', 3, w[0] + '_DOOR'], [w[0] + '_DOOR_' + d + o + 'U', 3, null]); });
@@ -191,7 +191,7 @@
   'DIRT GRASS SAND GRAVEL CLAY SOUL_SAND SOUL_SOIL FARMLAND FARMLAND_MOIST'.split(' ').forEach(function (k) { FAST[k] = 'shovel'; });
   WG.BLOCKS.forEach(function (b) {
     var k = b.key;
-    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE|CHERRY|MANGROVE)_(DOOR_|FENCE|STAIRS_|SLAB|TRAPDOOR_)/.test(k) || /^(WALL_)?SIGN_|^BARREL$|^LOOM$/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k) || /PUMPKIN$/.test(k)) FAST[k] = 'axe';
+    if (/^(OAK|SPRUCE|ACACIA|BIRCH|JUNGLE|CHERRY|MANGROVE|CRIMSON|WARPED)_(DOOR_|FENCE|STAIRS_|SLAB|TRAPDOOR_)/.test(k) || /^(WALL_)?SIGN_|^BARREL$|^LOOM$/.test(k) || /^LADDER_/.test(k) || k === 'NOTE_BLOCK' || /^DAYLIGHT_DETECTOR/.test(k) || /PUMPKIN$/.test(k)) FAST[k] = 'axe';
   });
 
   // 道具：素材ごとの速さ・段階・耐久値（Minecraft の値）

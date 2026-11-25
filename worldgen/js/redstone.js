@@ -397,7 +397,7 @@
   // ---- ピストン ----
   // 押せないもの：岩盤・黒曜石・ポータル枠・スポナー・中身のあるもの（チェスト・かまど）・伸びたピストン・テーブル類
   var FIXED = ['BEDROCK', 'OBSIDIAN', 'END_PORTAL_FRAME', 'SPAWNER', 'CHEST', 'TRAPPED_CHEST', 'FURNACE', 'FURNACE_LIT', 'ENCHANTING_TABLE', 'BREWING_STAND',
-    'BEACON', 'BARREL', 'SHELL_BOX', 'LINKED_CHEST', 'CRYING_OBSIDIAN', 'END_GATEWAY', 'END_PORTAL', 'MOVING_PISTON', 'BLAST_FURNACE', 'BLAST_FURNACE_LIT', 'SMOKER', 'SMOKER_LIT'];
+    'BEACON', 'BARREL', 'SHELL_BOX', 'LINKED_CHEST', 'CRYING_OBSIDIAN', 'END_GATEWAY', 'END_PORTAL', 'MOVING_PISTON', 'BLAST_FURNACE', 'BLAST_FURNACE_LIT', 'SMOKER', 'SMOKER_LIT'].concat(WG.COLORS16.map(function (c) { return c[0] + '_SHELL_BOX'; }));
   // 押されると壊れるもの
   var BREAKS = { plant: 1, deco: 1, crop: 1, wire: 1, fire: 1, web: 1, cane: 1, ladder: 1, door: 1, rtorch: 1, lever: 1, button: 1, plate: 1, repeater: 1, bed: 1 };
   function movable(id) {

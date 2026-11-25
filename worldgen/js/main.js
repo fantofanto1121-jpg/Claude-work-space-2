@@ -347,6 +347,7 @@
   function walkStatus(w, pending) {
     var p = w.pos, t = 'X ' + p[0].toFixed(1) + '　Y ' + p[1].toFixed(1) + '　Z ' + p[2].toFixed(1) + '　' + w.facing() + '向き';
     if (state.dim === 'overworld') t += '　（' + WG.BIOMES[world().biomeAt(Math.floor(p[0]), Math.floor(p[2]))].name + '）';
+    else if (state.dim === 'nether' && WG.NETHER_BIOMES && world().gen.biomeAt) t += '　（' + WG.NETHER_BIOMES[world().gen.biomeAt(Math.floor(p[0]), Math.floor(p[2]))] + '）';
     if (w.flying) t += '　飛行中';
     var tt = game ? game.timeText() : '';
     if (tt) { t += '　' + tt; $('timeNow').textContent = tt; }

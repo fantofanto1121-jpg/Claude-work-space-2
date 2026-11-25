@@ -133,9 +133,9 @@
       if (surv) this.inv.take(this.inv.sel, 1);
       return;
     }
-    var box = held.key === 'SHELL_BOX' && held.box ? held.box : null;
+    var box = /SHELL_BOX$/.test(held.key) && held.box ? held.box : null;
     var r = place.apply(this, arguments);
-    if (box && wd.block(x, y, z) === B.SHELL_BOX) store(wd, 'boxes').set(k, JSON.parse(JSON.stringify(box)));
+    if (box && /SHELL_BOX$/.test(WG.BLOCKS[wd.block(x, y, z)].key)) store(wd, 'boxes').set(k, JSON.parse(JSON.stringify(box)));
     return r;
   };
 
@@ -180,7 +180,7 @@
     if (bk === 'FLOWER_POT' && held && POTTABLE[held.key]) { wd.setBlock(t.x, t.y, t.z, B['POTTED_' + held.key]); if (surv) this.inv.take(this.inv.sel, 1); remesh(this, t.x, t.z); done(); return; }
     if ((m = /^POTTED_(\w+)$/.exec(bk)) && !held) { this.inv.add(m[1], 1); wd.setBlock(t.x, t.y, t.z, B.FLOWER_POT); remesh(this, t.x, t.z); done(); return; }
     // 入れ物・機織り機・ビーコン
-    var box = { BARREL: '樽', SHELL_BOX: '貝の箱', LINKED_CHEST: 'つながったチェスト' }[bk];
+    var box = { BARREL: '樽', SHELL_BOX: '貝の箱', LINKED_CHEST: 'つながったチェスト' }[bk] || (/_SHELL_BOX$/.test(bk) ? WG.blockName(id) : null);
     if (box) { done(); this.boxKey = bk === 'LINKED_CHEST' ? 'ender' : k; this.boxTitle = box; this.openInventory('box'); if (WG.Sound) WG.Sound.play('door', t.x + 0.5, t.y + 0.5, t.z + 0.5); return; }
     if (bk === 'LOOM') { done(); this.workSlots = [null, null]; this.loomPick = -1; this.openInventory('loom'); return; }
     if (bk === 'BEACON') { done(); this.workSlots = [null, null]; this.beaconKey = k; this.openInventory('beacon'); return; }
@@ -198,7 +198,7 @@
     var r = breakBlock.call(this, x, y, z, harvest);
     if (wd.block(x, y, z) === id) return r;   // 壊れなかった（アドベンチャーなど）
     if (bk === 'BARREL' && boxes && boxes.get(k)) { boxes.get(k).forEach(function (s) { if (s) drop(s.key, s.n, s); }); boxes.delete(k); }
-    if (bk === 'SHELL_BOX') { var c = boxes && boxes.get(k), full = c && c.some(Boolean); drop('SHELL_BOX', 1, full ? { box: c } : null); if (boxes) boxes.delete(k); }
+    if (/SHELL_BOX$/.test(bk)) { var c = boxes && boxes.get(k), full = c && c.some(Boolean); drop(bk, 1, full ? { box: c } : null); if (boxes) boxes.delete(k); }
     if (/^ITEM_FRAME_/.test(bk) && frames && frames.get(k)) { var fi = frames.get(k); drop(fi.key, 1, fi); frames.delete(k); }
     if (/^(WALL_)?SIGN_/.test(bk) && wd.signs) wd.signs.delete(k);
     if (/^(WALL_)?BANNER_/.test(bk) && banners && banners.get(k)) { var bn = banners.get(k); drop(bn.color + '_BANNER', 1, bn.layers.length ? { layers: bn.layers } : null); banners.delete(k); }
@@ -273,7 +273,7 @@
   Game.prototype.getExtraSlot = function (c, i) { if (c === 'bx') return this.boxSlots()[i]; return getExtraSlot.call(this, c, i); };
   var setExtraSlot = Game.prototype.setExtraSlot;
   Game.prototype.setExtraSlot = function (c, i, v) {
-    if (c === 'bx') { if (v && this.boxKey !== 'ender' && v.key === 'SHELL_BOX' && WG.BLOCKS[this.world.block.apply(this.world, this.boxKey.split(',').map(Number))].key === 'SHELL_BOX') return false; this.boxSlots()[i] = v; return true; }
+    if (c === 'bx') { if (v && this.boxKey !== 'ender' && /SHELL_BOX$/.test(v.key) && /SHELL_BOX$/.test(WG.BLOCKS[this.world.block.apply(this.world, this.boxKey.split(',').map(Number))].key)) return false; this.boxSlots()[i] = v; return true; }
     return setExtraSlot.call(this, c, i, v);
   };
   var clickExtra = Game.prototype.clickExtra;
