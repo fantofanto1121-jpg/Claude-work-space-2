@@ -59,6 +59,7 @@
     // 凍った川：水面が氷
     for (i = 0; i < 256; i++) if (bio[i] === BI.FROZEN_RIVER && hm[i] < SEA && bl[((SEA - MINY) << 8) | i] === B.WATER) bl[((SEA - MINY) << 8) | i] = B.ICE;
     var cb = bio[(8 << 4) | 8], ch = hm[(8 << 4) | 8];
+    var ckey = WG.BIOMES[cb].key, pkey = (WG.BIOME_PARENT && WG.BIOME_PARENT[ckey]) || ckey;   // 変わり種のバイオームは、元のバイオームとして扱う
     // 氷山
     if ((cb === BI.FROZEN_OCEAN || cb === BI.COLD_OCEAN) && ch < SEA - 5 && hash(seed, cx, 1, cz, 1101) % 5 === 0) {
       var R = 4 + hash(seed, cx, 2, cz, 1101) % 3, top = 6 + hash(seed, cx, 3, cz, 1101) % 9, ox = 8, oz = 8;
@@ -75,7 +76,7 @@
       }
     }
     // 溶岩の湖（乾いた陸、まれに）
-    if ((cb === BI.DESERT || cb === BI.SAVANNA || cb === BI.BADLANDS || cb === BI.PLAINS || cb === BI.ROCKY_MOUNTAIN) && ch > SEA + 3 && ch < 140 && hash(seed, cx, 4, cz, 1104) % 28 === 0) {
+    if (/^(desert|savanna|badlands|plains|rocky_mountain)$/.test(pkey) && ch > SEA + 3 && ch < 140 && hash(seed, cx, 4, cz, 1104) % 28 === 0) {
       var L = ch, rx = 3 + hash(seed, cx, 5, cz, 1104) % 2, rz = 3 + hash(seed, cx, 6, cz, 1104) % 2, ok = true, cells = [];
       for (dz = -rz; dz <= rz; dz++) for (dx = -rx; dx <= rx; dx++) {
         var e = (dx * dx) / (rx * rx) + (dz * dz) / (rz * rz);
@@ -100,7 +101,7 @@
       }
     }
     // 化石（地下 y 15〜45）
-    if ((cb === BI.DESERT || cb === BI.SWAMP || cb === BI.BADLANDS || cb === BI.MANGROVE_SWAMP) && hash(seed, cx, 9, cz, 1106) % 12 === 0) {
+    if (/^(desert|swamp|badlands|mangrove_swamp)$/.test(pkey) && hash(seed, cx, 9, cz, 1106) % 12 === 0) {
       var fy = 15 + hash(seed, cx, 10, cz, 1106) % 30, coal = hash(seed, cx, 11, cz, 1106) % 3 === 0, len = 7 + hash(seed, cx, 12, cz, 1106) % 4, alongX = hash(seed, cx, 13, cz, 1106) % 2;
       var bone = function (a, yy, s) { var px = alongX ? 3 + a : 8 + s, pz = alongX ? 8 + s : 3 + a, cur = get(px, yy, pz); if (cur > 0 && cur !== B.WATER && cur !== B.LAVA && cur !== B.BEDROCK) set(px, yy, pz, coal && hash(seed, x0 + px, yy, z0 + pz, 1107) % 3 === 0 ? B.COAL_ORE : B.BONE_BLOCK); };
       for (var a = 0; a < len; a++) {

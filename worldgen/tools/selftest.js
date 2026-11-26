@@ -1462,7 +1462,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
 (function () {
   console.log('\n[新しいバイオーム]');
   var wd = new WG.World('7', 'overworld'), want = { cherry_grove: /CHERRY_LOG|PINK_PETALS/, mangrove_swamp: /MANGROVE_ROOTS/, badlands: /ORANGE_TERRACOTTA/, mushroom_fields: /MYCELIUM/ }, ok = [];
-  var at = { badlands: [42, 23], cherry_grove: [9, -96], mangrove_swamp: [-252, -478], mushroom_fields: [1002, 822] };
+  var at = { badlands: [372, 644], cherry_grove: [9, -96], mangrove_swamp: [-252, -478], mushroom_fields: [1002, 822] };
   Object.keys(at).forEach(function (k) {
     var p = at[k], b = WG.BIOMES[wd.gen.column(p[0], p[1]).b].key, ch = wd.chunk(p[0] >> 4, p[1] >> 4), hit = false;
     for (var i = 0; i < ch.blocks.length && !hit; i++) if (want[k].test(WG.BLOCKS[ch.blocks[i]].key)) hit = true;
@@ -1707,6 +1707,34 @@ console.log('\n地上のバイオーム その 1');
   var dye = WG.Craft.match(['PEONY'], 2), coarse = WG.Craft.match(['DIRT', 'GRAVEL', 'GRAVEL', 'DIRT'], 2), bam = WG.Craft.match(['BAMBOO_BLOCK'], 2);
   check(path && placed && gone && tallg && dye && dye.key === 'PINK_DYE' && coarse && coarse.n === 4 && bam && bam.key === 'BAMBOO_PLANKS',
     'シャベルで土の道、背の高い花は 2 段で置けて片方を壊すと両方なくなる、骨粉で背の高い草、花から染料、粗い土・竹の板材');
+})();
+
+// ---- ロードマップ 第 12 段階：地上のバイオーム その 2 ----
+console.log('\n地上のバイオーム その 2');
+(function () {
+  var g = new WG.World('7', 'overworld').gen;
+  var at = { meadow: [-2456, -376, /TALL_GRASS|CORNFLOWER|ALLIUM|BLUET|DAISY/], grove: [-2472, 232, /SNOW_LAYER/], snowy_slopes: [-2968, -2360, /POWDER_SNOW/], frozen_peaks: [-2344, 216, /PACKED_ICE/],
+    jagged_peaks: [-2264, 488, /^SNOW$/], windswept_hills: [-2808, 1336, /GRAVEL/], eroded_badlands: [-776, -1672, /TERRACOTTA/], wooded_badlands: [-1704, -1096, /OAK_LOG/], pale_garden: [-2896, -1168, /PALE_HANGING_MOSS/] }, ok = [];
+  Object.keys(at).forEach(function (k) {
+    var p = at[k], b = WG.BIOMES[g.column(p[0], p[1]).b].key, hit = false;
+    for (var dx = -1; dx <= 1 && !hit; dx++) for (var dz = -1; dz <= 1 && !hit; dz++) { var bl = g.generate((p[0] >> 4) + dx, (p[1] >> 4) + dz, true).blocks; for (var i = 0; i < bl.length && !hit; i++) if (p[2].test(WG.BLOCKS[bl[i]].key)) hit = true; }
+    if (b === k && hit) ok.push(WG.BIOMES.filter(function (q) { return q.key === k; })[0].name);
+  });
+  check(ok.length === 9, '新しいバイオーム 9 つ（' + ok.join('・') + '）と、それぞれの地面・木・草花');
+  // ディープダーク・ヒカリゴケ
+  var sc = 0, lich = 0;
+  for (var cx = -1; cx <= 1; cx++) { var bl = g.generate((-1989 >> 4) + cx, -235 >> 4, false).blocks; for (var i = 0; i < bl.length; i++) if (bl[i] === B.SCULK) sc++; }
+  for (cx = 0; cx < 6; cx++) { var b2 = g.generate(cx, 3, false).blocks; for (i = 0; i < b2.length; i++) if (b2[i] === B.GLOW_LICHEN || b2[i] === B.GLOW_LICHEN_C) lich++; }
+  check(sc > 200 && lich > 0 && WG.LIGHT_EMIT[B.GLOW_LICHEN] === 7, '古代都市のまわりにスカルクが広がる（' + sc + '）、洞窟にヒカリゴケ（' + lich + '、明るさ 7）');
+  // 粉雪：沈む・凍える・革の靴なら上に立てる
+  var w = flatWorld(function (x, y, z) { return y <= 5 ? B.STONE : y <= 10 ? B.POWDER_SNOW : 0; }), gm = playGame(w);
+  gm.walker.pos = [0.5, 11, 0.5]; gm.walker.prev = gm.walker.pos.slice(); gm.health = 20;
+  for (i = 0; i < 260; i++) { gm.walker.tick(); }
+  var sank = gm.walker.pos[1] < 9, cold = gm.frozen >= 140 && gm.health < 20;
+  var w2 = flatWorld(function (x, y, z) { return y <= 5 ? B.STONE : y <= 10 ? B.POWDER_SNOW : 0; }), g2 = playGame(w2);
+  g2.armor[3] = { key: 'LEATHER_BOOTS', n: 1 }; g2.walker.pos = [0.5, 11, 0.5]; g2.walker.prev = g2.walker.pos.slice();
+  for (i = 0; i < 100; i++) g2.walker.tick();
+  check(sank && cold && g2.walker.pos[1] > 10.6, '粉雪：沈んで（y ' + gm.walker.pos[1].toFixed(1) + '）凍えて傷つく、革の靴なら上に立てる（y ' + g2.walker.pos[1].toFixed(1) + '）');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));

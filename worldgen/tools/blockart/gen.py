@@ -2122,6 +2122,41 @@ def main():
             bm.set(x, y, sc([196, 170, 70], 0.7 if edge else (1.05 if ((x if cell else y) % 2) else 0.92)))
     put('BAMBOO_PLANKS', bp); put('BAMBOO_MOSAIC', bm)
 
+    # ---- ロードマップ 第 12 段階：青白いオーク・青白い苔・垂れ根・ヒカリゴケ・粉雪 ----
+    put('PALE_OAK_PLANKS', planks([224, 216, 210], 760))
+    put('PALE_OAK_LOG', log_side([74, 68, 64], 761), log_top([74, 68, 64], [224, 216, 210], 762))
+    put('PALE_OAK_LEAVES', leaves([150, 160, 150], 763))
+    pm = Img()
+    for y in range(N):
+        for x in range(N): pm.set(x, y, sc([138, 148, 136], 0.86 + 0.18 * ((hsh(764, x, y) % 4) / 3) + (0.06 if (x + y * 3) % 7 == 0 else 0)))
+    put('PALE_MOSS_BLOCK', pm)
+    hm_ = Img(alpha=True)
+    for x0 in (3, 7, 12):
+        ln = 9 + hsh(765, x0) % 7
+        for y in range(ln):
+            hm_.set(x0 + ((y // 3) % 2), y, sc([150, 160, 148], 1.0 - y * 0.02))
+            if y % 3 == 1: hm_.set(x0 - 1, y, [176, 184, 172])
+    put('PALE_HANGING_MOSS', hm_, cut=hm_)
+    hr = Img(alpha=True)
+    for x0 in (4, 8, 11):
+        ln = 8 + hsh(766, x0) % 7
+        for y in range(ln):
+            hr.set(x0 + (1 if (y // 4) % 2 else 0), y, [168, 124, 88] if y % 5 else [196, 154, 112])
+            if y % 6 == 3: hr.set(x0 + 2, y + 1, [150, 108, 76])
+    put('HANGING_ROOTS', hr, cut=hr)
+    gl = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            hv = hsh(767, x, y) % 11
+            if hv < 4: gl.set(x, y, [120, 168, 140] if hv else [196, 232, 208])
+    put('GLOW_LICHEN', gl, cut=gl, all_faces=True)
+    psn = Img()
+    for y in range(N):
+        for x in range(N): psn.set(x, y, sc([244, 248, 252], 0.95 + 0.06 * ((hsh(768, x, y) % 3) / 2)) if hsh(769, x, y) % 13 else [222, 232, 244])
+    put('POWDER_SNOW', psn)
+    pz = sapling('bush', [168, 178, 164], [74, 68, 64])
+    put('PALE_OAK_SAPLING', pz, cut=pz)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

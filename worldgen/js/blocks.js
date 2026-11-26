@@ -423,6 +423,13 @@
   TALL_PLANTS.forEach(function (q) { DEF.push([q[0] + '_L', q[1], q[2], 'plant'], [q[0] + '_U', q[1], q[2], 'plant']); });
   DEF.push(['BAMBOO_BLOCK', '竹ブロック', '#8a9a2e', 'solid'], ['BAMBOO_PLANKS', '竹の板材', '#c8b04a', 'solid'], ['BAMBOO_MOSAIC', '竹のモザイク', '#c0a844', 'solid']);
   WG.TALL_PLANTS = TALL_PLANTS;
+  // ロードマップ 第 12 段階：青白い庭の木と苔、垂れ根、ヒカリゴケ（床・天井）、粉雪
+  DEF.push(['PALE_OAK_LOG', '青白いオークの原木', '#4a4440', 'solid'], ['PALE_OAK_LEAVES', '青白いオークの葉', '#9aa49a', 'solid'], ['PALE_OAK_PLANKS', '青白いオークの板材', '#e0d8d2', 'solid'],
+    ['PALE_OAK_SAPLING', '青白いオークの苗木', '#a8b0a4', 'plant'], ['PALE_MOSS_BLOCK', '青白い苔ブロック', '#8a9488', 'solid'], ['PALE_MOSS_CARPET', '青白い苔のじゅうたん', '#8a9488', 'carpet'],
+    ['PALE_HANGING_MOSS', '垂れる青白い苔', '#8a9488', 'plant'], ['HANGING_ROOTS', '垂れ根', '#a07a5a', 'plant'], ['GLOW_LICHEN', 'ヒカリゴケ', '#7aa08a', 'carpet'], ['GLOW_LICHEN_C', 'ヒカリゴケ', '#7aa08a', 'ceilcarpet'],
+    ['POWDER_SNOW', '粉雪', '#f4f8fc', 'solid']);
+  ALIAS.PALE_MOSS_CARPET = 'PALE_MOSS_BLOCK'; ALIAS.GLOW_LICHEN_C = 'GLOW_LICHEN';
+  SAPLINGS.push(['PALE_OAK', '青白いオークの苗木', '#a8b0a4']);
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -563,7 +570,7 @@
   LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
-  LIGHT_EMIT[B.CAVE_VINES_LIT] = 14; LIGHT_EMIT[B.SPORE_BLOSSOM] = 2;
+  LIGHT_EMIT[B.CAVE_VINES_LIT] = 14; LIGHT_EMIT[B.SPORE_BLOSSOM] = 2; LIGHT_EMIT[B.GLOW_LICHEN] = LIGHT_EMIT[B.GLOW_LICHEN_C] = 7;
   LIGHT_EMIT[B.TRIAL_SPAWNER] = 4; LIGHT_EMIT[B.TRIAL_SPAWNER_ACTIVE] = 8; LIGHT_EMIT[B.VAULT] = 6; LIGHT_EMIT[B.CONDUIT] = 15;
   LIGHT_EMIT[B.SOUL_LANTERN] = 10; LIGHT_EMIT[B.CRYING_OBSIDIAN] = 10; LIGHT_EMIT[B.MAGMA_BLOCK] = 3; LIGHT_EMIT[B.SCULK_SHRIEKER] = 1;
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
@@ -577,14 +584,18 @@
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
       k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : k === 'chorus' ? 1 : k === 'path' ? 15 / 16 : 0;
   });
+  COLLIDE[B.POWDER_SNOW] = 0;   // 粉雪には沈む（js/biomes3.js）
+  LIST.forEach(function (b) { var k = b.kind;
+    if (k === 'ceilcarpet') COLLIDE[b.id] = 0;
+  });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, path: 1, stand: 1,
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, path: 1, ceilcarpet: 1, stand: 1,
     hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1, azalea: 1, bigdrip: 1, drip: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
+  var NOCOLLIDE = { ceilcarpet: 1, lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -670,6 +681,7 @@
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
     if (k === 'path') return [[0, 0, 0, 16, 15, 16, id]];
+    if (k === 'ceilcarpet') return [[0, 15, 0, 16, 16, 16, id]];
     // コーラスプラント：太い茎と、横の隣のコーラスへの枝。コーラスフラワーは少し小さな塊
     if (k === 'chorus') {
       if (key === 'CHORUS_FLOWER') return [[2, 0, 2, 14, 14, 14, id]];

@@ -510,6 +510,7 @@
     this.view.ambient = this.nightVision ? 0.9 : WG.AMBIENT[this.world.dimKey] || 0;   // 暗視：暗い所もよく見える
     if (WG.isWater(eyeId)) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
     else if (WG.isLava(eyeId)) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }
+    else if (WG.FOG_BLOCK && WG.FOG_BLOCK[eyeId]) { fp.fogColor = WG.FOG_BLOCK[eyeId].c; fp.fogNear = 0; fp.fogFar = WG.FOG_BLOCK[eyeId].far; }   // 粉雪の中（js/biomes3.js）
     this.view.fp = fp;
     this.view.outline = this.target ? [this.target.x, this.target.y, this.target.z] : null;
     this.view.res = 1;

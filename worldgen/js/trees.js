@@ -25,7 +25,7 @@
   });
   WG.SAPLING_TYPE = SAP;
   blockItem('DARK_OAK_LEAVES', 0.2, null);
-  var LEAF_SAP = { OAK_LEAVES: 'OAK', SPRUCE_LEAVES: 'SPRUCE', BIRCH_LEAVES: 'BIRCH', JUNGLE_LEAVES: 'JUNGLE', ACACIA_LEAVES: 'ACACIA', CHERRY_LEAVES: 'CHERRY', DARK_OAK_LEAVES: 'DARK_OAK', MANGROVE_LEAVES: 'MANGROVE' };
+  var LEAF_SAP = { OAK_LEAVES: 'OAK', SPRUCE_LEAVES: 'SPRUCE', BIRCH_LEAVES: 'BIRCH', JUNGLE_LEAVES: 'JUNGLE', ACACIA_LEAVES: 'ACACIA', CHERRY_LEAVES: 'CHERRY', DARK_OAK_LEAVES: 'DARK_OAK', MANGROVE_LEAVES: 'MANGROVE', PALE_OAK_LEAVES: 'PALE_OAK' };
   function isLeaf(id) { return LEAF_SAP[keyOf(id)] != null; }
   function isLog(id) { return /(_LOG|_WOOD|_STEM|_HYPHAE)$/.test(keyOf(id)) && id !== B.MUSHROOM_STEM; }
   WG.isLogBlock = isLog;
@@ -48,25 +48,26 @@
   WG.SAPLING_GROUND = GROUND;
   function canGrowInto(id) { return id === B.AIR || isLeaf(id) || SAP[id] != null || WG.blockKind(id) === 'plant' || id === B.SNOW_LAYER; }
   // 濃いオーク：2×2 の太い幹と、横に広く平たい葉
-  function darkOak(put, x, y, z, rnd) {
+  function darkOak(put, x, y, z, rnd, LOG, LEAF) {
+    LOG = LOG || B.DARK_OAK_LOG; LEAF = LEAF || B.DARK_OAK_LEAVES;
     var h = 6 + Math.floor(rnd() * 3), j, dx, dz;
-    for (j = 0; j < h; j++) { put(x, y + j, z, B.DARK_OAK_LOG); put(x + 1, y + j, z, B.DARK_OAK_LOG); put(x, y + j, z + 1, B.DARK_OAK_LOG); put(x + 1, y + j, z + 1, B.DARK_OAK_LOG); }
+    for (j = 0; j < h; j++) { put(x, y + j, z, LOG); put(x + 1, y + j, z, LOG); put(x, y + j, z + 1, LOG); put(x + 1, y + j, z + 1, LOG); }
     var top = y + h, cx = x + 0.5, cz = z + 0.5;
     for (var dy = -2; dy <= 1; dy++) {
       var r = dy === 1 ? 2.2 : dy === -2 ? 3.2 : 4.1;
       for (dz = -5; dz <= 5; dz++) for (dx = -5; dx <= 5; dx++) {
         var ex = x + dx, ez = z + dz, d = Math.max(Math.abs(ex - cx), Math.abs(ez - cz)) + 0.35 * Math.min(Math.abs(ex - cx), Math.abs(ez - cz));
         if (d > r + rnd() * 0.6) continue;
-        put(ex, top + dy, ez, B.DARK_OAK_LEAVES);
+        put(ex, top + dy, ez, LEAF);
       }
     }
     // 枝：幹の横から斜め上へ伸び、先に葉の塊
     for (var b = 0; b < 2 + Math.floor(rnd() * 2); b++) {
       var d4 = [[-1, 0], [2, 0], [0, -1], [0, 2]][Math.floor(rnd() * 4)], by = y + h - 3 - Math.floor(rnd() * 2);
-      put(x + d4[0], by, z + d4[1], B.DARK_OAK_LOG);
+      put(x + d4[0], by, z + d4[1], LOG);
       var tx = x + d4[0] * 2 - (d4[0] > 0 ? 1 : 0), tz = z + d4[1] * 2 - (d4[1] > 0 ? 1 : 0);
-      put(tx, by + 1, tz, B.DARK_OAK_LOG);
-      for (dz = -1; dz <= 1; dz++) for (dx = -1; dx <= 1; dx++) for (var ly = 1; ly <= 2; ly++) if (Math.abs(dx) + Math.abs(dz) + ly < 4) put(tx + dx, by + 1 + ly, tz + dz, B.DARK_OAK_LEAVES);
+      put(tx, by + 1, tz, LOG);
+      for (dz = -1; dz <= 1; dz++) for (dx = -1; dx <= 1; dx++) for (var ly = 1; ly <= 2; ly++) if (Math.abs(dx) + Math.abs(dz) + ly < 4) put(tx + dx, by + 1 + ly, tz + dz, LEAF);
     }
   }
   WG.drawDarkOak = darkOak;
@@ -82,18 +83,20 @@
         wd.setBlock(px, py, pz, nid); cols[(px >> 4) + ',' + (pz >> 4)] = [px, pz]; changed = true;
       }
     };
-    if (type === 'DARK_OAK') {
+    if (type === 'DARK_OAK' || type === 'PALE_OAK') {
+      var pale = type === 'PALE_OAK', sapId = pale ? B.PALE_OAK_SAPLING : B.DARK_OAK_SAPLING;
       // 2×2 に並んだ濃いオークの苗木を探す
       var o = null;
       [[0, 0], [-1, 0], [0, -1], [-1, -1]].forEach(function (q) {
         if (o) return;
         var ox = x + q[0], oz = z + q[1];
-        if ([[0, 0], [1, 0], [0, 1], [1, 1]].every(function (d) { return wd.block(ox + d[0], y, oz + d[1]) === B.DARK_OAK_SAPLING; })) o = [ox, oz];
+        if ([[0, 0], [1, 0], [0, 1], [1, 1]].every(function (d) { return wd.block(ox + d[0], y, oz + d[1]) === sapId; })) o = [ox, oz];
       });
       if (!o) return false;
       for (var j = 1; j <= 7; j++) for (var a = 0; a < 2; a++) for (var c = 0; c < 2; c++) if (!canGrowInto(wd.block(o[0] + a, y + j, o[1] + c))) return false;
       [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (d) { wd.setBlock(o[0] + d[0], y, o[1] + d[1], B.AIR); });
-      darkOak(put, o[0], y, o[1], rnd);
+      darkOak(put, o[0], y, o[1], rnd, pale ? B.PALE_OAK_LOG : null, pale ? B.PALE_OAK_LEAVES : null);
+      if (pale) for (var hx = -4; hx <= 5; hx++) for (var hz = -4; hz <= 5; hz++) for (var hy = y + 12; hy > y + 3; hy--) { if (wd.block(o[0] + hx, hy, o[1] + hz) === B.PALE_OAK_LEAVES && wd.block(o[0] + hx, hy - 1, o[1] + hz) === B.AIR && rnd() < 0.25) { put(o[0] + hx, hy - 1, o[1] + hz, B.PALE_HANGING_MOSS); break; } }
     } else {
       var t = WG.TREE_KIND[type];
       if (t == null || !WG.drawTree) return false;
