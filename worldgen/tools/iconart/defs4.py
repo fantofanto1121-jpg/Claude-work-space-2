@@ -314,3 +314,22 @@ for _k, _cr in [('CHIPPED_ANVIL', [(5, 3), (6, 4), (6, 5), (10, 4)]), ('DAMAGED_
 D['FIREWORK_STAR'] = (['................', '................', '................', '.......AA.......', '.....AAAAAA.....', '....AAAAAAAA....', '....AAAAAAAA....', '...AAAAAAAAAA...',
                        '...AAAAAAAAAA...', '....AAAAAAAA....', '....AAAAAAAA....', '.....AAAAAA.....', '.......AA.......'],
                       {'A': ramp_from('#4a4a50')}, {'r': '#e04040', 'y': '#f0d040', 'b': '#4080e0'}, [(6, 5, 'r'), (9, 6, 'y'), (5, 8, 'b'), (8, 9, 'r'), (10, 9, 'b'), (7, 7, 'y')])
+
+# ---- ロードマップ 第 14 段階：新しい生き物のスポーンエッグと、光るイカスミ・古代の種・鎧のかけら・オオカミの鎧・輝く額縁 ----
+for _k, (_a, _b) in {'DOLPHIN': ('#7a8a9a', '#c8d0d8'), 'GLOW_SQUID': ('#2a6a70', '#78f0d8'), 'OCELOT': ('#d8b050', '#5a3a1a'), 'MULE': ('#5a3a24', '#2a1a10'),
+                     'ZOMBIE_HORSE': ('#4a6a3a', '#a8c898'), 'SKELETON_HORSE': ('#d8d6cc', '#8a887e'), 'TRADER_LLAMA': ('#e0cca4', '#3a5ab0'), 'CARRIER_SPIRIT': ('#7ac8f0', '#e0f4ff'),
+                     'BIG_NOSE': ('#a84a32', '#5a8a3a'), 'ARMOR_ROLLER': ('#c89a88', '#7a5a4a'), 'COD': ('#a89a7a', '#d8d0b8'), 'SALMON': ('#b84a3a', '#5a6a5a'),
+                     'PUFFERFISH': ('#e0b840', '#4a9ab0'), 'TROPICAL': ('#f08a20', '#f4f4f0')}.items():
+    D['SPAWN_EGG_' + _k] = (EGG, {'A': ramp_from(_a), 'B': ramp_from(_b)}, {}, [], [(x, y, 'B') for x, y in SPOTS])
+D['GLOW_INK_SAC'] = (['................', '................', '......AAAA......', '.....AAAAAA.....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '.....AAAAAA.....',
+                      '......AAAA......', '.......AA.......', '......A..A......', '.....A....A.....'], {'A': ramp_from('#2a8a86')}, {'g': '#a8fff0'}, [(6, 3, 'g'), (5, 5, 'g'), (8, 4, 'g'), (9, 6, 'g'), (7, 7, 'g')])
+D['TORCHFLOWER_SEEDS'] = (['................', '................', '................', '................', '......A.........', '.....AAA...A....', '......A...AAA...', '...........A....',
+                           '....A...........', '...AAA....A.....', '....A....AAA....', '..........A.....'], {'A': ramp_from('#b07a3a')})
+D['PITCHER_POD'] = (['................', '................', '.......SS.......', '......SS........', '.....AAAA.......', '....AAAAAA......', '....AAAAAAA.....', '....AAAAAAA.....',
+                     '.....AAAAAA.....', '......AAAA......', '.......AA.......'], {'A': ramp_from('#4a8a90'), 'S': ramp_from('#6a9a4a')})
+D['ROLL_SCUTE'] = (['................', '................', '.....AAAAAA.....', '....AAAAAAAA....', '...AAAAAAAAAA...', '...AABAABAAAA...', '...AAAAAAAAAA...', '....AAAAAAAA....',
+                    '.....AAAAAA.....', '......AAAA......'], {'A': ramp_from('#c89a88'), 'B': ramp_from('#8a6858')})
+D['WOLF_ARMOR'] = (['................', '................', '....AAAAAAAA....', '...AAAAAAAAAA...', '..AAABAAAABAAA..', '..AAAAAAAAAAAA..', '..AAABAAAABAAA..', '..AAAAAAAAAAAA..',
+                    '...AA......AA...', '...AA......AA...', '...BB......BB...'], {'A': ramp_from('#b08878'), 'B': ramp_from('#7a5a4a')})
+_f = D['ITEM_FRAME']
+D['GLOW_ITEM_FRAME'] = (_f[0], dict(_f[1], A=ramp_from('#c8a040'), B=ramp_from('#3a5a54')), *_f[2:])

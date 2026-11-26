@@ -141,6 +141,7 @@
     else if ((m = /^(\w+)_FENCE_GATE_/.exec(k))) BLOCK_DATA.push([k, 2, m[1] + '_FENCE_GATE']);
     else if (/^(WALL_)?SIGN_/.test(k)) BLOCK_DATA.push([k, 1, 'SIGN']);
     else if (/^ITEM_FRAME_/.test(k)) BLOCK_DATA.push([k, 0, 'ITEM_FRAME']);
+    else if (/^GLOW_ITEM_FRAME_/.test(k)) BLOCK_DATA.push([k, 0, 'GLOW_ITEM_FRAME']);
     else if (/^PAINTING_/.test(k)) BLOCK_DATA.push([k, 0, null]);
     else if (/^(WALL_)?BANNER_/.test(k)) BLOCK_DATA.push([k, 1, null]);
     else if (/^POTTED_/.test(k)) BLOCK_DATA.push([k, 0, 'FLOWER_POT']);

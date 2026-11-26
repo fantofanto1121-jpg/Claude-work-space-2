@@ -654,7 +654,7 @@
     if (wd.dimKey === 'overworld') {
       var c = near(12, 28), y;
       // 魚の群れ（水の中、3〜5 匹）
-      if (count('FISH') < 12) for (y = Math.floor(p[1]) + 8; y > p[1] - 16; y--) {
+      if (this.list.filter(function (q) { return TYPES[q.type] && TYPES[q.type].fish; }).length < 12) for (y = Math.floor(p[1]) + 8; y > p[1] - 16; y--) {   // 魚の種類をまとめて数える
         if (WG.isWater(wd.block(c[0], y, c[1])) && WG.isWater(wd.block(c[0], y - 1, c[1]))) {
           var lead = this.spawn('FISH', c[0] + 0.5, y - 0.5, c[1] + 0.5), key = lead.fishKey, tint = lead.tint;
           for (var i = 0; i < 2 + Math.floor(Math.random() * 3); i++) { var f = this.spawn('FISH', c[0] + 0.5 + Math.random(), y - 0.5, c[1] + 0.5 + Math.random()); f.lead = lead; f.fishKey = key; f.tint = tint; }

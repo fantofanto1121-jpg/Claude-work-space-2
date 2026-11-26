@@ -430,6 +430,10 @@
     ['POWDER_SNOW', '粉雪', '#f4f8fc', 'solid']);
   ALIAS.PALE_MOSS_CARPET = 'PALE_MOSS_BLOCK'; ALIAS.GLOW_LICHEN_C = 'GLOW_LICHEN';
   SAPLINGS.push(['PALE_OAK', '青白いオークの苗木', '#a8b0a4']);
+  // ロードマップ 第 14 段階：輝く額縁、古代の花（トーチフラワー・ピッチャープラントと、その育つ途中）
+  DIR4.forEach(function (d) { DEF.push(['GLOW_ITEM_FRAME_' + d, '輝く額縁', '#8a7a4e', 'frame']); ALIAS['GLOW_ITEM_FRAME_' + d] = 'GLOW_ITEM_FRAME'; });
+  DEF.push(['TORCHFLOWER', 'トーチフラワー', '#f08a30', 'plant'], ['TORCHFLOWER_CROP_0', 'トーチフラワーの芽', '#6a9a3a', 'plant'], ['TORCHFLOWER_CROP_1', 'トーチフラワーのつぼみ', '#8a9a3a', 'plant'],
+    ['PITCHER_CROP_0', 'ピッチャープラントの芽', '#5a8a5a', 'plant'], ['PITCHER_CROP_1', 'ピッチャープラントの芽', '#5a8a5a', 'plant'], ['PITCHER_PLANT_L', 'ピッチャープラント', '#4a8a8a', 'plant'], ['PITCHER_PLANT_U', 'ピッチャープラント', '#4a8aaa', 'plant']);
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;

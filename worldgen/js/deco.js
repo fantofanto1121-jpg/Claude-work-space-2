@@ -109,7 +109,7 @@
     }
     if (it.frame) {
       if (!free || !nrm) return;
-      wd.setBlock(x, y, z, B['ITEM_FRAME_' + nrm]); used(); return;
+      wd.setBlock(x, y, z, B[(it.glow ? 'GLOW_' : '') + 'ITEM_FRAME_' + nrm]); used(); return;
     }
     if (it.painting) {
       if (!free || !nrm) return;
@@ -171,7 +171,7 @@
       return;
     }
     // 額縁に飾る
-    if (/^ITEM_FRAME_/.test(bk)) {
+    if (/^(GLOW_)?ITEM_FRAME_/.test(bk)) {
       var fr = store(wd, 'frames');
       if (!fr.get(k) && held) { var one = Object.assign({}, held, { n: 1 }); fr.set(k, one); if (surv) this.inv.take(this.inv.sel, 1); }
       done(); return;
@@ -194,12 +194,12 @@
     var drop = function (key, n, extra) { self.spawnItem(key, n, x + 0.5, y + 0.4, z + 0.5, 0.1, 10, extra && extra.dmg, extra && extra.ench, extra && WG.itemExtra(extra)); };
     var boxes = wd.boxes, frames = wd.frames, paints = wd.paintings, banners = wd.banners;
     // 中身のある額縁を叩くと、中身だけが落ちて額縁は残る（本家と同じ）
-    if (/^ITEM_FRAME_/.test(bk) && frames && frames.get(k) && this.mode !== 'adventure') { var f0 = frames.get(k); frames.delete(k); if (surv) drop(f0.key, 1, f0); remesh(this, x, z); return; }
+    if (/^(GLOW_)?ITEM_FRAME_/.test(bk) && frames && frames.get(k) && this.mode !== 'adventure') { var f0 = frames.get(k); frames.delete(k); if (surv) drop(f0.key, 1, f0); remesh(this, x, z); return; }
     var r = breakBlock.call(this, x, y, z, harvest);
     if (wd.block(x, y, z) === id) return r;   // 壊れなかった（アドベンチャーなど）
     if (bk === 'BARREL' && boxes && boxes.get(k)) { boxes.get(k).forEach(function (s) { if (s) drop(s.key, s.n, s); }); boxes.delete(k); }
     if (/SHELL_BOX$/.test(bk)) { var c = boxes && boxes.get(k), full = c && c.some(Boolean); drop(bk, 1, full ? { box: c } : null); if (boxes) boxes.delete(k); }
-    if (/^ITEM_FRAME_/.test(bk) && frames && frames.get(k)) { var fi = frames.get(k); drop(fi.key, 1, fi); frames.delete(k); }
+    if (/^(GLOW_)?ITEM_FRAME_/.test(bk) && frames && frames.get(k)) { var fi = frames.get(k); drop(fi.key, 1, fi); frames.delete(k); }
     if (/^(WALL_)?SIGN_/.test(bk) && wd.signs) wd.signs.delete(k);
     if (/^(WALL_)?BANNER_/.test(bk) && banners && banners.get(k)) { var bn = banners.get(k); drop(bn.color + '_BANNER', 1, bn.layers.length ? { layers: bn.layers } : null); banners.delete(k); }
     if (/^POTTED_/.test(bk)) drop(bk.replace('POTTED_', ''), 1);
@@ -358,7 +358,7 @@
       var q = near(k); if (!q) return;
       var f = WG.BLOCKS[wd.block(q[0], q[1], q[2])].key.slice(-1), n = NV[f], R = RIGHT[f], it = ITEMS[s.key];
       if (!n) return;
-      var cx = q[0] + 0.5 - n[0] * (0.5 - 0.075), cz = q[2] + 0.5 - n[1] * (0.5 - 0.075), lt = w.lightLevels(cx + n[0] * 0.5, q[1] + 0.5, cz + n[1] * 0.5);
+      var cx = q[0] + 0.5 - n[0] * (0.5 - 0.075), cz = q[2] + 0.5 - n[1] * (0.5 - 0.075), lt = /^GLOW_/.test(WG.BLOCKS[wd.block(q[0], q[1], q[2])].key) ? [15, 15] : w.lightLevels(cx + n[0] * 0.5, q[1] + 0.5, cz + n[1] * 0.5);   // 輝く額縁の中身は暗くても明るい
       // 地図は額縁いっぱいに描く（js/workshop.js）
       if (s.key === 'FILLED_MAP' && s.map && WG.frameMap && WG.frameMap(wd, solid, s.map, q, n, R, lt)) return;
       var tile = WG.itemIcon16(s.key) || (it && it.block < 0) ? WG.itemTile(s.key) : null;

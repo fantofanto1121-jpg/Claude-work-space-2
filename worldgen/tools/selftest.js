@@ -945,7 +945,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   g.mobs.target = null;
   var wwf = flatWorld(function (x, y, z) { return y <= 2 ? B.STONE : y <= 20 ? B.WATER : 0; }), gw = playGame(wwf); gw.mobs.spawnTick = WG.Mobs.prototype.spawnTick; gw.walker.pos = [0.5, 21, 0.5]; gw.sky = function () { return { dark: 0 }; };
   for (i = 0; i < 300; i++) gw.tick();
-  var fish = gw.mobs.list.filter(function (m) { return m.type === 'FISH'; }), led = fish.filter(function (m) { return m.lead; }).length;
+  var fish = gw.mobs.list.filter(function (m) { return WG.MOB_TYPES[m.type] && WG.MOB_TYPES[m.type].fish; }), led = fish.filter(function (m) { return m.lead; }).length;
   check(honey && cat.tame && fish.length >= 3 && led >= 2, 'ハチの巣箱から瓶ではちみつ（ハチが怒る）、猫は生のタラでなつく、魚は群れで泳ぐ（' + fish.length + ' 匹、うち ' + led + ' 匹が先頭について行く）');
   // 深淵の番人：近くで歩く音を聞きつけて、強く叩く
   g.mobs.list.length = 0; g.health = 20; g.walker.pos = [0.5, 11, 0.5]; g.walker.vel = [0.1, 0, 0]; g.walker.sneak = false;
@@ -1761,6 +1761,34 @@ console.log('\n自分の姿と左手');
   g3.walker.target = { x: 2, y: 10, z: 2, px: 2, py: 11, pz: 2, id: B.STONE }; g3.place();
   check(swapped && dmg === 0 && g.player.offhand.key === 'SHIELD' && !g2.dead && g2.health >= 1 && !g2.player.offhand && g3.world.block(2, 11, 2) === B.TORCH && g3.player.offhand.n === 3 && !g3.inv.slots[0],
     'F で持ち替え、左手の盾で守る、左手のトーテムで倒れない、右手が空なら左手のたいまつを置く');
+})();
+
+// ---- ロードマップ 第 14 段階：生き物 その 1（動物） ----
+console.log('\n生き物 その 1（動物）');
+(function () {
+  var types = ['DOLPHIN', 'GLOW_SQUID', 'OCELOT', 'MULE', 'ZOMBIE_HORSE', 'SKELETON_HORSE', 'TRADER_LLAMA', 'CARRIER_SPIRIT', 'BIG_NOSE', 'ARMOR_ROLLER', 'COD', 'SALMON', 'PUFFERFISH', 'TROPICAL'];
+  var ok = types.filter(function (k) { return WG.MOB_TYPES[k] && WG.MOB_MODELS[k] && WG.MOB_MODELS[k].length && WG.ITEMS['SPAWN_EGG_' + k]; });
+  check(ok.length === types.length, '新しい生き物 ' + ok.length + ' 種（' + ok.map(function (k) { return WG.MOB_TYPES[k].name; }).join('・') + '）');
+  // 魚は海で種類が変わる・フグはふくらむ・運び精は同じものを集める・ヨロイマルはブラシで鎧のかけら
+  var w = flatWorld(function (x, y, z) { return y <= 5 ? B.SAND : y <= 12 ? B.WATER : 0; }), g = playGame(w);
+  w.biomeAt = function () { return WG.BI.WARM_OCEAN; };
+  var f = g.mobs.spawn('FISH', 2.5, 8, 2.5), pf = g.mobs.spawn('PUFFERFISH', 0.5, 11, 0.5);
+  g.walker.pos = [0.5, 11, 0.5]; g.mobs.tick();
+  var w2 = flatWorld(function (x, y, z) { return y <= 10 ? B.GRASS : 0; }), g2 = playGame(w2);
+  var al = g2.mobs.spawn('CARRIER_SPIRIT', 1.5, 12, 1.5); g2.inv.slots[0] = { key: 'APPLE', n: 3 }; g2.inv.sel = 0; g2.mobs.target = { mob: al }; g2.use(); g2.mobs.target = null;
+  g2.spawnItem('APPLE', 5, 6.5, 11.2, 6.5, 0, 0);
+  for (var i = 0; i < 400 && !(al.carry > 0); i++) g2.mobs.tick();
+  var ar = g2.mobs.spawn('ARMOR_ROLLER', 3.5, 11, 3.5); g2.inv.slots[0] = { key: 'BRUSH', n: 1 }; g2.mobs.target = { mob: ar }; var n0 = g2.entities.length; g2.use(); g2.mobs.target = null;
+  var scute = g2.entities.slice(n0).some(function (e) { return e.key === 'ROLL_SCUTE'; });
+  check(/TROPICAL|PUFFERFISH/.test(f.type) && pf.puffed > 0 && al.want === 'APPLE' && al.carry >= 5 && scute,
+    '暖かい海の魚は熱帯魚かフグ、フグは近づくとふくらむ、運び精は渡したリンゴを集める（' + (al.carry || 0) + '）、ヨロイマルはブラシで鎧のかけら');
+  // 古代の種：耕地に植えて骨粉で育つ、輝く額縁、オオカミの鎧
+  var w3 = flatWorld(function (x, y, z) { return y === 10 ? B.FARMLAND_MOIST : y < 10 ? B.DIRT : 0; }), g3 = playGame(w3);
+  g3.inv.slots[0] = { key: 'PITCHER_POD', n: 1 }; g3.inv.sel = 0; g3.walker.target = { x: 1, y: 10, z: 1, px: 1, py: 11, pz: 1, id: B.FARMLAND_MOIST }; g3.use();
+  var planted = w3.block(1, 11, 1) === B.PITCHER_CROP_0; WG.growAncient(g3, 1, 11, 1); WG.growAncient(g3, 1, 11, 1);
+  var grown = w3.block(1, 11, 1) === B.PITCHER_PLANT_L && w3.block(1, 12, 1) === B.PITCHER_PLANT_U;
+  var frame = WG.Craft.match(['ITEM_FRAME', 'GLOW_INK_SAC', null, null], 2), armor = WG.Craft.match(['ROLL_SCUTE', null, null, 'ROLL_SCUTE', 'ROLL_SCUTE', 'ROLL_SCUTE', 'ROLL_SCUTE', null, 'ROLL_SCUTE'], 3);
+  check(planted && grown && frame && frame.key === 'GLOW_ITEM_FRAME' && armor && armor.key === 'WOLF_ARMOR', 'ピッチャーのさやを耕地に植えて骨粉で 2 段のピッチャープラント、輝く額縁、オオカミの鎧を作れる');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
