@@ -243,12 +243,12 @@
     var len = Math.hypot(f, s);
     if (len > 1) { f /= len; s /= len; }
     f *= 0.98; s *= 0.98;
-    if (this.sneak) { f *= 0.3; s *= 0.3; }
+    if (this.sneak) { var snk = Math.min(1, 0.3 * (this.sneakMul || 1)); f *= snk; s *= snk; }   // スニーク速度上昇で速く
     if (this.using) { f *= 0.2; s *= 0.2; }   // 食べている間はゆっくり
 
     var fl = this.fluid(), accel, drag;
     if (this.flying) { accel = this.sprint ? 0.1 : 0.05; drag = 0.91; }
-    else if (fl) { accel = this.swimming ? 0.0287 : 0.02; drag = fl === 'water' ? (this.sprint ? 0.9 : 0.8) : 0.5; }
+    else if (fl) { accel = (this.swimming ? 0.0287 : 0.02) * (fl === 'water' ? this.fluidMul || 1 : 1); drag = fl === 'water' ? Math.min(0.94, (this.sprint ? 0.9 : 0.8) + (this.fluidDrag || 0)) : 0.5; }   // 水中歩行・イルカの好意
     else if (this.onGround) { accel = 0.1 * (this.sprint ? 1.3 : 1) * (this.speedMul || 1); drag = 0.546; }
     else { accel = this.sprint ? 0.026 : 0.02; drag = 0.91; }
 
@@ -301,7 +301,7 @@
 
     if (this.flying) { v[0] *= drag; v[2] *= drag; v[1] *= 0.6; if (this.onGround) this.flying = false; }
     else if (fl) { v[0] *= drag; v[2] *= drag; v[1] = this.swimming ? v[1] * 0.8 : v[1] * drag - 0.02; }
-    else { v[1] = (v[1] - 0.08) * 0.98; v[0] *= drag; v[2] *= drag; }
+    else { v[1] = (v[1] - 0.08) * 0.98; v[0] *= drag; v[2] *= drag; if (this.slowFall && v[1] < -0.06) { v[1] = -0.06; this.fallDist = 0; } }   // 低速落下
 
     // 落ちた高さ（着地したときに知らせる。水の中と飛行中は数えない）
     if (fl || this.flying) this.fallDist = 0;

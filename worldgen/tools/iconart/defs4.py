@@ -403,3 +403,8 @@ D['DISC_FRAGMENT'] = (['................', '................', '..AAAAAA........
 D['MUSIC_DISC_SHARD'] = (DISC, {'A': ramp_from('#26262c'), 'L': ramp_from('#9aa0b0')}, {'k': '#0a0a0c', 'g': '#4a4a56', 'c': '#c8ccd8'}, [(4, 3, 'g'), (3, 4, 'g'), (11, 12, 'g'), (12, 11, 'g'), (9, 2, 'c'), (10, 3, 'c'), (3, 10, 'c')])
 D['POPPED_CHORUS_FRUIT'] = (['................', '................', '.....AAAAA......', '....AAAAAAA.....', '...AABAAABAA....', '...AAAAAAAAA....', '...AAABAAAAA....', '...AAAAAAABA....',
                              '....AAAAAAA.....', '.....AAAAA......', '.......S........', '.......S........'], {'A': ramp_from('#c8a8d8'), 'B': ramp_from('#8a5aa0'), 'S': ramp_from('#6a4a7a')})
+
+# ---- ロードマップ 第 18 段階：怪しげなシチュー ----
+import defs2 as _d2s
+_ms = _d2s.D['MUSHROOM_STEW']
+D['SUSPICIOUS_STEW'] = (_ms[0], dict(_ms[1], C=ramp_from('#8a6a3a')), {'r': '#c42a24', 'y': '#f0d040', 'b': '#5a7ad8', 'g': '#5a8a3a'}, [(5, 5, 'y'), (9, 5, 'r'), (11, 6, 'b'), (7, 6, 'g'), (4, 6, 'b')])

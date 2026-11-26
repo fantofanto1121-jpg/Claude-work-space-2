@@ -680,9 +680,11 @@
           // プレイヤーの矢は生き物に当たる
           for (var mi = 0; mi < this.list.length && !hit; mi++) {
             var mm = this.list[mi], mb = box3(mm);
-            if (mm.dead || a.x < mb[0] || a.x > mb[3] || a.y < mb[1] || a.y > mb[4] || a.z < mb[2] || a.z > mb[5]) continue;
-            this.hurt(mm, a.dmg, [a.x - a.vx, a.z - a.vz, 0.4 + (a.punch || 0) * 0.6]); if (!a.any) mm.byPlayer = true;
+            if (mm.dead || a.x < mb[0] || a.x > mb[3] || a.y < mb[1] || a.y > mb[4] || a.z < mb[2] || a.z > mb[5] || (a.hitSet && a.hitSet.indexOf(mm) >= 0)) continue;
+            this.hurt(mm, a.dmg + (a.impale && (TYPES[mm.type].swims || TYPES[mm.type].fish) ? 2.5 * a.impale : 0), [a.x - a.vx, a.z - a.vz, 0.4 + (a.punch || 0) * 0.6]); if (!a.any) mm.byPlayer = true;
             if (a.flame) mm.fire = Math.max(mm.fire || 0, 100);
+            if (a.onHit) a.onHit(mm);
+            if (a.pierce > 0) { a.pierce--; (a.hitSet || (a.hitSet = [])).push(mm); continue; }   // 貫通：次の生き物へ
             hit = true; a.dead = true;
           }
           // ディスペンサーの矢はプレイヤーにも当たる

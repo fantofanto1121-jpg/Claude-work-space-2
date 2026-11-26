@@ -75,6 +75,7 @@
   ENCH.forEach(function (e) { ENCHANTS[e[0]] = { key: e[0], name: e[1], max: e[2], on: e[3], weight: e[4], min: e[5], step: e[6], treasure: !!e[7] }; });
   // 一緒に付かない組
   var EXCL = [['PROTECTION', 'FIRE_PROTECTION', 'BLAST_PROTECTION', 'PROJECTILE_PROTECTION'], ['SHARPNESS', 'SMITE'], ['SILK_TOUCH', 'FORTUNE'], ['INFINITY', 'MENDING']];
+  WG.ENCH_EXCL = EXCL;
   function compatible(a, b) { return a !== b && !EXCL.some(function (g) { return g.indexOf(a) >= 0 && g.indexOf(b) >= 0; }); }
   var ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
   WG.ENCHANTS = ENCHANTS;
@@ -84,6 +85,7 @@
   function category(key) {
     var it = ITEMS[key];
     if (!it) return null;
+    if (WG.enchCategory && WG.enchCategory(key)) return WG.enchCategory(key);   // トライデント・クロスボウ・メイス（js/enchants18.js）
     if (it.armor != null) return 'armor' + it.armor;
     if (it.tool === 'sword') return 'weapon';
     if (it.tool === 'pickaxe' || it.tool === 'axe' || it.tool === 'shovel' || it.tool === 'hoe') return 'digger';

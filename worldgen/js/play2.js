@@ -188,7 +188,7 @@
   // ---------------- 効果 ----------------
   Game.prototype.addEffect = function (key, ticks, amp) {
     var e = this.effects[key];
-    if (key === 'INSTANT_HEALTH') { this.health = Math.min(20, this.health + (4 << amp)); return; }
+    if (key === 'INSTANT_HEALTH') { this.health = Math.min(this.maxHealth(), this.health + (4 << amp)); return; }
     if (key === 'INSTANT_DAMAGE') { this.damage(6 << amp, true); return; }
     if (!e || e.amp < amp || (e.amp === amp && e.t < ticks)) this.effects[key] = { t: ticks, amp: amp, max: ticks };
     this.inv.changed();
@@ -197,7 +197,7 @@
     var ef = this.effects, self = this, changed = false;
     Object.keys(ef).forEach(function (k) {
       var e = ef[k];
-      if (k === 'REGENERATION' && e.t % Math.max(1, 50 >> e.amp) === 0 && self.health < 20) self.health = Math.min(20, self.health + 1);
+      if (k === 'REGENERATION' && e.t % Math.max(1, 50 >> e.amp) === 0 && self.health < self.maxHealth()) self.health = Math.min(self.maxHealth(), self.health + 1);
       if (k === 'POISON' && e.t % Math.max(1, 25 >> e.amp) === 0 && self.health > 1) self.damage(1, true);
       if (--e.t <= 0) { delete ef[k]; changed = true; }
     });

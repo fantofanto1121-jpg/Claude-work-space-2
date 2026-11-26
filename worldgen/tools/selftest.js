@@ -1926,5 +1926,65 @@ console.log('\n機能とアイテム');
     '竹のいかだ・レコード「かけらの歌」・ポップしたコーラスフルーツの果ての棒、クロスボウで花火を撃つ（ゾンビ ' + hp0 + ' → ' + tz.hp + '）、馬鎧を着せる');
 })();
 
+// ---- ロードマップ 第 18 段階：エンチャントと効果 ----
+console.log('\nエンチャントと効果');
+(function () {
+  var keys = ['THORNS', 'DEPTH_STRIDER', 'FROST_WALKER', 'AQUA_AFFINITY', 'SOUL_SPEED', 'SWIFT_SNEAK', 'SWEEPING_EDGE', 'BANE_OF_ARTHROPODS', 'LOYALTY', 'RIPTIDE', 'CHANNELING', 'IMPALING',
+    'MULTISHOT', 'PIERCING', 'QUICK_CHARGE', 'DENSITY', 'BREACH', 'WIND_BURST', 'BINDING_CURSE', 'VANISHING_CURSE'];
+  var effs = ['HASTE', 'MINING_FATIGUE', 'RESISTANCE', 'NAUSEA', 'BLINDNESS', 'SATURATION', 'HEALTH_BOOST', 'LUCK', 'SLOW_FALLING', 'DOLPHINS_GRACE'];
+  var ok = keys.filter(function (k) { return WG.ENCHANTS[k]; }), oke = effs.filter(function (k) { return WG.EFFECTS[k]; });
+  var r = 0, seed = 7, rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }, got = {};
+  for (var i = 0; i < 60; i++) ['TRIDENT', 'CROSSBOW', 'MACE'].forEach(function (k) { Object.keys(WG.rollEnchants(k, 30, rnd) || {}).forEach(function (e) { got[e] = 1; }); });
+  check(ok.length === keys.length && oke.length === effs.length && WG.enchantable('TRIDENT') && got.LOYALTY && got.PIERCING && got.DENSITY,
+    'エンチャント ' + ok.length + ' 種と効果 ' + oke.length + ' 種、トライデント・クロスボウ・メイスにもエンチャントが付く（' + Object.keys(got).join('・') + '）');
+  var mk = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  // 範囲ダメージ・虫特効・棘の鎧・メイスの密度
+  var g = playGame(mk()); g.mode = 'survival'; g.walker.onGround = true;
+  g.inv.slots[0] = { key: 'IRON_SWORD', n: 1, ench: { SWEEPING_EDGE: 3 } }; g.inv.sel = 0;
+  var z1 = g.mobs.spawn('ZOMBIE', 0.5, 11, 2), z2 = g.mobs.spawn('ZOMBIE', 1.5, 11, 2.3), h2 = z2.hp; g.attack(z1);
+  var sweep = z2.hp < h2;
+  var sp = g.mobs.spawn('SPIDER', 5.5, 11, 5.5), sp2 = g.mobs.spawn('SPIDER', 9.5, 11, 9.5); sp.hp = sp2.hp = 100;
+  g.inv.slots[0] = { key: 'IRON_SWORD', n: 1, ench: { BANE_OF_ARTHROPODS: 5 } }; g.attack(sp); g.inv.slots[0] = { key: 'IRON_SWORD', n: 1 }; g.attack(sp2);
+  var bane = (100 - sp.hp) > (100 - sp2.hp) + 10;
+  g.armor[1] = { key: 'IRON_CHESTPLATE', n: 1, ench: { THORNS: 3 } }; var z3 = g.mobs.spawn('ZOMBIE', 3.5, 11, 0.5), h3 = z3.hp;
+  for (i = 0; i < 40 && z3.hp === h3; i++) { g.invuln = 0; g.health = 20; g.hurtPlayer(2, z3.x, z3.z); }
+  check(sweep && bane && z3.hp < h3, '範囲ダメージ増加でまわりの敵にも当たる、虫特効はクモに強い、棘の鎧で叩いた敵に返す');
+  // クロスボウ：拡散で 3 本、貫通で 2 体を抜ける。トライデントの忠誠
+  var g2 = playGame(mk()); g2.mode = 'creative'; g2.walker.eye = [0.5, 12.5, 0.5]; g2.walker.dir = [0, 0, 1];
+  g2.inv.slots[0] = { key: 'CROSSBOW', n: 1, loaded: true, ench: { MULTISHOT: 1 } }; g2.inv.sel = 0; g2.mouseR = true; g2.cbWait = false;
+  var a0 = g2.mobs.arrows.length; g2.tickCrossbow(g2.inv.slots[0]); var multi = g2.mobs.arrows.length - a0;
+  g2.mobs.arrows.length = 0; g2.inv.slots[0] = { key: 'CROSSBOW', n: 1, loaded: true, ench: { PIERCING: 2 } }; g2.cbWait = false;
+  var p1 = g2.mobs.spawn('ZOMBIE', 0.5, 11, 4.5), p2 = g2.mobs.spawn('ZOMBIE', 0.5, 11, 7.8), q1 = p1.hp, q2 = p2.hp; g2.walker.dir = [0, -0.02, 1];
+  g2.tickCrossbow(g2.inv.slots[0]); for (i = 0; i < 20; i++) g2.mobs.tickArrows();
+  var pierce = p1.hp < q1 && p2.hp < q2;
+  var g3 = playGame(mk()); g3.mode = 'survival'; g3.walker.eye = [0.5, 12.5, 0.5]; g3.walker.dir = [0, -0.3, 0.95];
+  g3.inv.slots[0] = { key: 'TRIDENT', n: 1, ench: { LOYALTY: 3 } }; g3.inv.sel = 0; g3.mouseR = true; for (i = 0; i < 12; i++) g3.tickTrident(g3.inv.slots[0]); g3.mouseR = false; g3.tickTrident(g3.inv.slots[0]);
+  var thrown = !g3.inv.slots[0]; for (i = 0; i < 120 && !g3.inv.slots.some(function (s) { return s && s.key === 'TRIDENT'; }); i++) { g3.mobs.tickArrows(); g3.tick(); }
+  var back = g3.inv.slots.some(function (s) { return s && s.key === 'TRIDENT' && s.ench && s.ench.LOYALTY === 3; });
+  check(multi === 3 && pierce && thrown && back, 'クロスボウの拡散で矢が 3 本、貫通で 2 体を抜ける、忠誠のトライデントは投げると戻ってくる');
+  // 足のエンチャントと呪い
+  var w4 = flatWorld(function (x, y, z) { return y <= 9 ? B.STONE : y === 10 ? B.WATER : 0; }), g4 = playGame(w4); g4.mode = 'survival';
+  w4.setBlock(0, 10, 0, B.STONE); g4.walker.onGround = true; g4.armor[3] = { key: 'DIAMOND_BOOTS', n: 1, ench: { FROST_WALKER: 2 } }; g4.tick();
+  var frozen = w4.block(2, 10, 0) === B.ICE;
+  g4.armor[3] = { key: 'DIAMOND_BOOTS', n: 1, ench: { DEPTH_STRIDER: 3 } }; g4.armor[2] = { key: 'IRON_LEGGINGS', n: 1, ench: { SWIFT_SNEAK: 3 } }; g4.tick();
+  var feet = g4.walker.fluidMul > 2 && g4.walker.sneakMul === 2.5;
+  g4.armor[0] = { key: 'IRON_HELMET', n: 1, ench: { BINDING_CURSE: 1 } }; var el = { dataset: { c: 'arm', i: '0' } }; g4.cursor = null; g4.clickSlot(el, 0, false);
+  var bound = g4.armor[0] && !g4.cursor;
+  g4.inv.slots[5] = { key: 'DIAMOND_SWORD', n: 1, ench: { VANISHING_CURSE: 1 } }; g4.closeInventory = function () {}; var n0 = g4.entities.length; g4.die();
+  var vanished = !g4.entities.slice(n0).some(function (e) { return e.key === 'DIAMOND_SWORD'; });
+  check(frozen && feet && bound && vanished, '氷渡りで水が凍る、水中歩行・スニーク速度上昇、束縛の呪いの防具は外せない、消滅の呪いの物は倒れると消える');
+  // 効果
+  var g5 = playGame(mk()); g5.mode = 'survival'; g5.health = 20;
+  g5.addEffect('RESISTANCE', 200, 1); g5.invuln = 0; g5.damage(10, true); var resist = g5.health === 14;
+  g5.addEffect('HEALTH_BOOST', 200, 0); var boost = g5.maxHealth() === 24;
+  g5.addEffect('SLOW_FALLING', 200, 0); g5.tick(); var hp = g5.health; g5.land(20, B.STONE); var slow = g5.health === hp && g5.walker.slowFall;
+  g5.food = 4; g5.addEffect('SATURATION', 5, 0); g5.tick(); var sat = g5.food > 4;
+  g5.addEffect('TURTLE_MASTER', 200, 0); var turtle = g5.effects.RESISTANCE.amp === 2 && g5.effects.SLOWNESS.amp === 3;
+  var brew = WG.brew('POTION_AWKWARD', 'PHANTOM_MEMBRANE') === 'POTION_SLOW_FALLING' && WG.brew('POTION_SLOW_FALLING', 'REDSTONE') === 'POTION_SLOW_FALLING_LONG';
+  var stew = WG.Craft.match(['BOWL', 'BROWN_MUSHROOM', 'RED_MUSHROOM', 'AZURE_BLUET'], 2);
+  check(resist && boost && slow && sat && turtle && brew && stew && stew.stew === 'AZURE_BLUET',
+    '耐性でダメージが減る、体力増強で最大体力 24、低速落下で落下のダメージなし、満腹度回復、タートルマスター、低速落下のポーションを醸造、怪しげなシチュー');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

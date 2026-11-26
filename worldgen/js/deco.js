@@ -239,7 +239,7 @@
     return lv;
   }
   WG.beaconLevel = beaconLevel;
-  var BEACON_EFFECTS = [['SPEED', 1], ['JUMP_BOOST', 2], ['STRENGTH', 3], ['REGENERATION', 4]];
+  var BEACON_EFFECTS = [['SPEED', 1], ['JUMP_BOOST', 2], ['STRENGTH', 3], ['REGENERATION', 4], ['HASTE', 1], ['RESISTANCE', 2]];
   var PAY = { IRON_INGOT: 1, GOLD_INGOT: 1, DIAMOND: 1, EMERALD: 1, NETHERITE_INGOT: 1 };
   var renderExtraScreen = Game.prototype.renderExtraScreen;
   Game.prototype.renderExtraScreen = function (sc) {

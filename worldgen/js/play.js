@@ -143,7 +143,7 @@
         else if (--this.burnT % 20 === 0) this.damage(1, true, 'fire');
       }
       // 金のリンゴの再生：1.25 秒ごとに 1 回復
-      if (this.regenT > 0) { this.regenT--; if (this.regenT % 25 === 0 && this.health < MAX_HEALTH) this.health = Math.min(MAX_HEALTH, this.health + 1); }
+      if (this.regenT > 0) { this.regenT--; if (this.regenT % 25 === 0 && this.health < this.maxHealth()) this.health = Math.min(this.maxHealth(), this.health + 1); }
       if (w.pos[1] < wd.minY - 64) this.damage(4);
       var e = w.eye || w.pos, eyeId = wd.block(Math.floor(e[0]), Math.floor(e[1]), Math.floor(e[2]));
       if (WG.isWater(eyeId)) {
@@ -296,6 +296,8 @@
   };
 
   // armored なら防具で減らす（生き物・矢・爆発・溶岩・火。落下・おぼれ・空腹は減らない）
+  // 最大体力（体力増強の効果で増える。js/enchants18.js）
+  Game.prototype.maxHealth = function () { return MAX_HEALTH; };
   Game.prototype.damage = function (n, ignoreInvuln, armored) {
     if (this.mode !== 'survival' || this.dead || (this.invuln > 0 && !ignoreInvuln)) return false;
     n = this.modifyDamage(n, armored);
@@ -348,10 +350,10 @@
       if (this.sat > 0) this.sat = Math.max(0, this.sat - 1); else this.food = Math.max(0, this.food - 1);
     }
     this.foodTimer++;
-    if (this.sat > 0 && this.food >= 20 && this.health < MAX_HEALTH) {
-      if (this.foodTimer >= 10) { this.health = Math.min(MAX_HEALTH, this.health + 1); this.exhaust += 6; this.foodTimer = 0; }
-    } else if (this.food >= 18 && this.health < MAX_HEALTH) {
-      if (this.foodTimer >= 80) { this.health = Math.min(MAX_HEALTH, this.health + 1); this.exhaust += 6; this.foodTimer = 0; }
+    if (this.sat > 0 && this.food >= 20 && this.health < this.maxHealth()) {
+      if (this.foodTimer >= 10) { this.health = Math.min(this.maxHealth(), this.health + 1); this.exhaust += 6; this.foodTimer = 0; }
+    } else if (this.food >= 18 && this.health < this.maxHealth()) {
+      if (this.foodTimer >= 80) { this.health = Math.min(this.maxHealth(), this.health + 1); this.exhaust += 6; this.foodTimer = 0; }
     } else if (this.food <= 0) {
       if (this.foodTimer >= 80) { if (this.health > 1) this.damage(1, true); this.foodTimer = 0; }
     } else this.foodTimer = 0;
@@ -1364,7 +1366,7 @@
     for (var i = 0; i < 9; i++) html += '<div class="slot' + (i === inv.sel ? ' sel' : '') + '">' + slotHTML(inv.slots[i]) + '</div>';
     ui.hotbar.innerHTML = html;
     var hu = hearts(), h = '';
-    if (surv) for (i = 0; i < 10; i++) h += '<img src="' + (this.health >= i * 2 + 2 ? hu.full : this.health === i * 2 + 1 ? hu.half : hu.empty) + '" alt="">';
+    if (surv) for (i = 0; i < Math.ceil(this.maxHealth() / 2); i++) h += '<img src="' + (this.health >= i * 2 + 2 ? hu.full : this.health === i * 2 + 1 ? hu.half : hu.empty) + '" alt="">';
     ui.hearts.innerHTML = h;
     // 防御の点（胸当ての絵 10 個、左から）
     var ar = '';
