@@ -2307,6 +2307,66 @@ def main():
                    {'b': [30, 28, 30], 'B': [56, 50, 56], 'k': [12, 10, 12], 's': [52, 70, 40], 'l': [64, 84, 46]})
     put('WITHER_ROSE', wr, cut=wr)
 
+    # ---- ロードマップ 第 17 段階：リスポーンアンカー・ロードストーン・頭・重い核 ----
+    obs = T['OBSIDIAN']['side']
+    for n in range(5):
+        ras = obs.copy(); rat = obs.copy()
+        for y in range(N):
+            for x in range(N):
+                if y in (0, 1, 14, 15) or x in (0, 15): ras.set(x, y, sc([44, 30, 60], 0.9 + 0.2 * ((hsh(820, x, y) % 3) / 2)))
+        for i in range(4):
+            lit = i < n
+            for y in range(4, 12):
+                x = 2 + i * 3 + (1 if i > 1 else 0)
+                c = [200, 120, 255] if lit and y > 4 else [140, 60, 220] if lit else [36, 26, 48]
+                ras.set(x, y, c); ras.set(x + 1, y, sc(c, 0.8))
+        for y in range(N):
+            for x in range(N):
+                ring = 2 <= x <= 13 and 2 <= y <= 13 and not (4 <= x <= 11 and 4 <= y <= 11)
+                if ring: rat.set(x, y, [70, 40, 110] if (x + y) % 3 else [100, 50, 160])
+                elif 4 <= x <= 11 and 4 <= y <= 11:
+                    d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+                    rat.set(x, y, sc([170, 90, 255], 1.25 - d * 0.12 + 0.1 * (hsh(821 + n, x, y) % 3)) if n else [22, 16, 30])
+        put('RESPAWN_ANCHOR_%d' % n, ras, rat, obs)
+    ls = Img(); lt = Img()
+    for y in range(N):
+        for x in range(N):
+            band = 5 <= y <= 10
+            if band: ls.set(x, y, sc([200, 202, 210], 1.15 if y == 5 else 0.7 if y == 10 else 0.95 + 0.06 * (hsh(822, x, y) % 3)))
+            else: ls.set(x, y, sc([128, 128, 132], 0.75 if x in (0, 15) or y in (0, 15) else 0.92 + 0.08 * (hsh(823, x, y) % 3)))
+            d = max(abs(x - 7.5), abs(y - 7.5))
+            lt.set(x, y, sc([128, 128, 132], 0.75) if d > 6.5 else sc([200, 202, 210], 1.1 if d > 5 else 0.85) if d > 3.5 else sc([150, 150, 156], 1.0 + 0.1 * (hsh(824, x, y) % 2)))
+    for x in (2, 13):
+        for y in (6, 9): ls.set(x, y, [90, 90, 96])
+    put('LODESTONE', ls, lt, lt)
+    def head(k, skin, top, rows, cols, seed):
+        hs = Img(); ht = Img()
+        for y in range(N):
+            for x in range(N):
+                v = 0.9 + 0.12 * ((hsh(seed, x, y) % 3) / 2)
+                hs.set(x, y, sc(skin, v)); ht.set(x, y, sc(top, v))
+        for r, line in enumerate(rows):
+            for c, ch in enumerate(line):
+                if ch != '.': hs.set(4 + c, 8 + r, cols[ch])
+        put(k, hs, ht, sc_img(skin, 0.8))
+    head('PLAYER_HEAD', [200, 150, 110], [92, 60, 34], ['hhhhhhhh', 'hh....hh', '........', '.wb..bw.', '........', '...nn...', '..mmmm..', '........'],
+         {'h': [92, 60, 34], 'w': [240, 240, 240], 'b': [60, 90, 170], 'n': [170, 116, 84], 'm': [130, 70, 60]}, 830)
+    head('ZOMBIE_HEAD', [88, 130, 70], [64, 104, 52], ['........', '........', '........', '.kk..kk.', '.kk..kk.', '...dd...', '..dddd..', '........'],
+         {'k': [20, 30, 20], 'd': [46, 72, 38]}, 831)
+    head('MOSS_HEAD', [96, 146, 66], [70, 120, 50], ['.l...l..', '...l...l', 'l.......', '.kk..kk.', '.kk..kk.', '...kk...', '..kkkk..', '..k..k..'],
+         {'k': [24, 36, 20], 'l': [140, 190, 90]}, 832)
+    head('SKELETON_SKULL', [216, 214, 204], [226, 224, 214], ['........', '........', '........', '.kk..kk.', '.kk..kk.', '...kk...', '..t.t.t.', '..tttt..'],
+         {'k': [30, 30, 32], 't': [170, 168, 158]}, 833)
+    head('DRAGON_HEAD', [34, 32, 40], [26, 24, 30], ['s.s..s.s', '........', '.s....s.', '.pp..pp.', '........', '........', 'tttttttt', '.t.t.t.t'],
+         {'s': [60, 56, 70], 'p': [200, 110, 240], 't': [200, 196, 186]}, 834)
+    hc = Img()
+    for y in range(N):
+        for x in range(N):
+            seam = (x in (4, 11) or y in (8, 15)) and 4 <= x <= 11
+            hc.set(x, y, sc([74, 78, 88], 0.7 if seam else 1.1 if (x + y) % 5 == 0 else 0.92 + 0.08 * (hsh(835, x, y) % 3) / 2))
+    for (x, y) in [(5, 9), (10, 9), (5, 14), (10, 14)]: hc.set(x, y, [150, 156, 170])
+    put('HEAVY_CORE', hc, hc, hc)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

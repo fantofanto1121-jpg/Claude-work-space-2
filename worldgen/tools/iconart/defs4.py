@@ -360,3 +360,46 @@ D['BELL'] = (['................', '.......SS.......', '......SSSS......', '.....
               '...AAAAAAAAAA...', '...AAAAAAAAAA...', '..AAAAAAAAAAAA..', '..BBBBBBBBBBBB..', '.......BB.......'], {'A': ramp_from('#e0b840'), 'B': ramp_from('#a07a20'), 'S': ramp_from('#6a6a70')})
 D['CHAIN'] = (['................', '.......AA.......', '......A..A......', '......A..A......', '.......AA.......', '.......BB.......', '......B..B......', '......B..B......',
                '.......BB.......', '.......AA.......', '......A..A......', '......A..A......', '.......AA.......', '.......BB.......', '......B..B......', '.......BB.......'], {'A': ramp_from('#6a7080'), 'B': ramp_from('#4a505c')})
+
+# ---- ロードマップ 第 17 段階：機能とアイテム ----
+_mc = D['MINECART']
+def _cart(over, ramps, fixed=None):
+    rows = [list(r) for r in _mc[0]]
+    for y, line in enumerate(over):
+        for x, ch in enumerate(line):
+            if ch != '.': rows[y][x] = ch
+    return ([''.join(r) for r in rows], dict(_mc[1], **ramps), dict(_mc[2], **(fixed or {})))
+D['CHEST_MINECART'] = _cart(['................', '...CCCCCCCCCC...', '...DDDDDDDDDD...', '...CCCCkkCCCC...', '...CCCCCCCCCC...', '...CCCCCCCCCC...', '...CCCCCCCCCC...'],
+                            {'C': ramp_from('#a8783a'), 'D': ramp_from('#5a3a1a')}, {'k': '#d0d0d4'})
+D['HOPPER_MINECART'] = _cart(['................', '...CCCCCCCCCC...', '...CkkkkkkkkC...', '...CCCCCCCCCC...', '.....CCCCCC.....', '......CCCC......', '................'],
+                             {'C': ramp_from('#5a5a62')}, {'k': '#202024'})
+D['TNT_MINECART'] = _cart(['................', '...CCCCCCCCCC...', '...CCCCCCCCCC...', '...WWkWkkWkWW...', '...WWWWWWWWWW...', '...CCCCCCCCCC...', '...CCCCCCCCCC...'],
+                          {'C': ramp_from('#c83a2a'), 'W': ramp_from('#e8e4dc')}, {'k': '#2a2a2a'})
+D['FURNACE_MINECART'] = _cart(['................', '...CCCCCCCCCC...', '...CCCCCCCCCC...', '...CCCffffCCC...', '...CCCffffCCC...', '...CCCCCCCCCC...', '...CCCCCCCCCC...'],
+                              {'C': ramp_from('#7a7a7e')}, {'f': '#f0a030'})
+_bt = D['BOAT']
+D['CHEST_BOAT'] = (['................', '................', '.....CCCCCC.....', '.....DDDDDD.....', '.....CCkkCC.....', '.....CCCCCC.....'] + list(_bt[0][6:]),
+                   dict(_bt[1], C=ramp_from('#a8783a'), D=ramp_from('#5a3a1a')), {'k': '#d0d0d4'})
+D['BAMBOO_RAFT'] = (['................', '................', '................', '................', '................', '................', '.BBBBBBBBBBBBBB.', '.AaAaAaAaAaAaAa.',
+                     '.AaAaAaAaAaAaAa.', '.AaAaAaAaAaAaAa.', '.BBBBBBBBBBBBBB.', '..A.A.A.A.A.A...'], {'A': ramp_from('#d8c060'), 'a': ramp_from('#b8a040'), 'B': ramp_from('#8a7a30')})
+D['MACE'] = (['...........s....', '.........CCCC...', '........CCCCCC..', '.......sCCCCCCs.', '........CCCCCC..', '........CCCCCC..', '.........CCCC...', '..........s.....',
+              '........H.......', '.......H........', '......H.........', '.....H..........', '....H...........', '...H............', '..BB............', '..BB............'],
+             {'C': ramp_from('#5a5e6a'), 'H': ramp_from('#8a7a6a'), 's': ramp_from('#c8ccd8'), 'B': ramp_from('#3a3e48')})
+HA = ['................', '................', '.............AA.', '....AAAAAAAAAAAA', '...AAAAAAAAAAAA.', '..AAAAAAAAAAAA..', '..AABBBBBBBAA...', '..AA.......AA...',
+      '..AA.......AA...', '..BB.......BB...']
+for _k, _c in [('LEATHER_HORSE_ARMOR', '#8c5634'), ('IRON_HORSE_ARMOR', '#c8cace'), ('GOLDEN_HORSE_ARMOR', '#e8c440'), ('DIAMOND_HORSE_ARMOR', '#56d2c8')]:
+    D[_k] = (HA, {'A': ramp_from(_c), 'B': ramp_from('#4a3a2a')})
+TPL = ['................', '..AAAAAAAAAAAA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..',
+       '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..ABBBBBBBBBBA..', '..AAAAAAAAAAAA..']
+_tp = {'NETHERITE_UPGRADE': ('#3a3036', [(5, 5), (6, 5), (7, 4), (8, 4), (9, 5), (10, 5), (6, 7), (7, 8), (8, 8), (9, 7), (7, 10), (8, 10)], '#b07a60'),
+       'TRIM_RIPPLE': ('#2a5a6a', [(4, 6), (5, 5), (6, 5), (7, 6), (8, 7), (9, 7), (10, 6), (11, 5), (4, 9), (5, 8), (6, 8), (7, 9), (8, 10), (9, 10), (10, 9), (11, 8)], '#8ae0e8'),
+       'TRIM_FANG': ('#4a3a30', [(5, 4), (5, 5), (6, 6), (6, 7), (7, 8), (10, 4), (10, 5), (9, 6), (9, 7), (8, 8)], '#f0e0c0'),
+       'TRIM_STAR': ('#3a2a4a', [(7, 3), (8, 3), (7, 4), (8, 4), (4, 7), (5, 7), (6, 7), (9, 7), (10, 7), (11, 7), (7, 10), (8, 10), (7, 11), (8, 11), (7, 7), (8, 7)], '#f0d8ff'),
+       'TRIM_LEAF': ('#2a4a2a', [(7, 3), (6, 4), (8, 4), (5, 5), (9, 5), (5, 6), (9, 6), (6, 7), (8, 7), (7, 6), (7, 7), (7, 8), (7, 9), (7, 10)], '#a0e070')}
+for _k, (_b, _pts, _l) in _tp.items():
+    D[_k] = (TPL, {'A': ramp_from('#6a6a72'), 'B': ramp_from(_b)}, {'l': _l}, [(x, y, 'l') for x, y in _pts])
+D['DISC_FRAGMENT'] = (['................', '................', '..AAAAAA........', '..AAAAAAAA......', '..AAAAAAAAA.....', '..AAAALLLAA.....', '..AAALLLL.......', '..AAALL.........',
+                       '..AAAA..........', '..AAA...........', '..A.............'], {'A': ramp_from('#26262c'), 'L': ramp_from('#9aa0b0')}, {'g': '#4a4a56'}, [(4, 3, 'g'), (3, 4, 'g')])
+D['MUSIC_DISC_SHARD'] = (DISC, {'A': ramp_from('#26262c'), 'L': ramp_from('#9aa0b0')}, {'k': '#0a0a0c', 'g': '#4a4a56', 'c': '#c8ccd8'}, [(4, 3, 'g'), (3, 4, 'g'), (11, 12, 'g'), (12, 11, 'g'), (9, 2, 'c'), (10, 3, 'c'), (3, 10, 'c')])
+D['POPPED_CHORUS_FRUIT'] = (['................', '................', '.....AAAAA......', '....AAAAAAA.....', '...AABAAABAA....', '...AAAAAAAAA....', '...AAABAAAAA....', '...AAAAAAABA....',
+                             '....AAAAAAA.....', '.....AAAAA......', '.......S........', '.......S........'], {'A': ramp_from('#c8a8d8'), 'B': ramp_from('#8a5aa0'), 'S': ramp_from('#6a4a7a')})

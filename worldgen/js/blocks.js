@@ -456,6 +456,10 @@
   ALIAS.LAVA_CAULDRON = 'CAULDRON';
   for (var sp = 1; sp <= 4; sp++) { DEF.push(['SEA_PICKLE_' + sp, 'シーピクルス', '#6a8a3a', 'pickle']); if (sp > 1) ALIAS['SEA_PICKLE_' + sp] = 'SEA_PICKLE_1'; }
   DEF.push(['NETHER_SPROUTS', 'ネザースプラウト', '#2aa89a', 'plant'], ['WITHER_ROSE', 'ウィザーローズ', '#2a2a2a', 'plant']);
+  // ロードマップ 第 17 段階：リスポーンアンカー・ロードストーン・頭・重い核
+  for (var ra = 0; ra <= 4; ra++) DEF.push(['RESPAWN_ANCHOR_' + ra, 'リスポーンアンカー', '#2a1a3a', 'solid']);
+  DEF.push(['LODESTONE', 'ロードストーン', '#8a8a8e', 'solid'], ['PLAYER_HEAD', 'プレイヤーの頭', '#c8946a', 'skull'], ['ZOMBIE_HEAD', 'ゾンビの頭', '#4a7a3a', 'skull'],
+    ['MOSS_HEAD', 'ハゼゴケの頭', '#5a8a3a', 'skull'], ['SKELETON_SKULL', '骸骨の頭蓋骨', '#d8d6cc', 'skull'], ['DRAGON_HEAD', '竜の頭', '#1a1a20', 'skull'], ['HEAVY_CORE', '重い核', '#4a4e58', 'skull']);
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -601,6 +605,7 @@
   [1, 2, 3, 4].forEach(function (n) { LIGHT_EMIT[B['CANDLE_' + n + '_LIT']] = 3 * n; LIGHT_EMIT[B['SEA_PICKLE_' + n]] = 3 + 3 * n; });
   LIGHT_EMIT[B.CANDLE_CAKE_LIT] = 3; LIGHT_EMIT[B.SOUL_TORCH] = 10; ['N', 'E', 'S', 'W'].forEach(function (d) { LIGHT_EMIT[B['SOUL_WALL_TORCH_' + d]] = 10; });
   LIGHT_EMIT[B.SOUL_CAMPFIRE] = 10; LIGHT_EMIT[B.SOUL_FIRE] = 10; LIGHT_EMIT[B.OCHRE_FROGLIGHT] = LIGHT_EMIT[B.VERDANT_FROGLIGHT] = LIGHT_EMIT[B.PEARLESCENT_FROGLIGHT] = 15; LIGHT_EMIT[B.LAVA_CAULDRON] = 15;
+  [0, 3, 7, 11, 15].forEach(function (lv, i) { LIGHT_EMIT[B['RESPAWN_ANCHOR_' + i]] = lv; });
   LIGHT_EMIT[B.TRIAL_SPAWNER] = 4; LIGHT_EMIT[B.TRIAL_SPAWNER_ACTIVE] = 8; LIGHT_EMIT[B.VAULT] = 6; LIGHT_EMIT[B.CONDUIT] = 15;
   LIGHT_EMIT[B.SOUL_LANTERN] = 10; LIGHT_EMIT[B.CRYING_OBSIDIAN] = 10; LIGHT_EMIT[B.MAGMA_BLOCK] = 3; LIGHT_EMIT[B.SCULK_SHRIEKER] = 1;
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;

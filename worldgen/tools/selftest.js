@@ -1875,5 +1875,56 @@ console.log('\nブロック');
   check(light && zb.glowUntil > 10 && wither && rk === 'CANDLE,TINTED_GLASS,CHAIN', 'カエルが小さなマグマスライムを食べてカエルの光、鐘の音で敵が光る、ウィザーローズにふれると衰弱、ろうそく・遮光ガラス・鎖を作れる');
 })();
 
+// ---- ロードマップ 第 17 段階：機能とアイテム ----
+console.log('\n機能とアイテム');
+(function () {
+  var I = WG.ITEMS, mk = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  var at = function (g, x, y, z) { g.walker.target = { x: x, y: y, z: z, px: x, py: y + 1, pz: z, id: g.world.block(x, y, z) }; };
+  // リスポーンアンカー：ネザーで充電して復活、地上では爆発
+  var w = mk(); w.dimKey = 'nether'; var g = playGame(w); g.mode = 'survival';
+  w.setBlock(3, 11, 3, B.RESPAWN_ANCHOR_0); g.inv.slots[0] = { key: 'GLOWSTONE', n: 2 }; g.inv.sel = 0; at(g, 3, 11, 3); g.use(); at(g, 3, 11, 3); g.use();
+  var charged = w.block(3, 11, 3) === B.RESPAWN_ANCHOR_2; g.inv.slots[0] = null; at(g, 3, 11, 3); g.use();
+  g.walker.spawnPoint = [40.5, 11, 40.5]; g.walker.pos = [40.5, 11, 40.5]; g.respawn();
+  var back = Math.hypot(g.walker.pos[0] - 3.5, g.walker.pos[2] - 3.5) < 3 && w.block(3, 11, 3) === B.RESPAWN_ANCHOR_1;
+  var w2 = mk(), g2 = playGame(w2); w2.setBlock(3, 11, 3, B.RESPAWN_ANCHOR_1); at(g2, 3, 11, 3); g2.use();
+  check(charged && g.player.bed && g.player.bed.anchor && back && w2.block(3, 11, 3) !== B.RESPAWN_ANCHOR_1,
+    'リスポーンアンカー：グロウストーンで充電、ネザーでは充電を 1 つ使ってそこで復活、地上で使うと爆発する');
+  // ロードストーンとコンパス、鍛冶型、メイス
+  w2.setBlock(6, 11, 6, B.LODESTONE); g2.inv.slots[0] = { key: 'COMPASS', n: 1 }; g2.inv.sel = 0; at(g2, 6, 11, 6); g2.use();
+  var lode = g2.inv.slots[0].lode && g2.inv.slots[0].lode.x === 6;
+  var up = WG.smith3({ key: 'NETHERITE_UPGRADE', n: 1 }, { key: 'DIAMOND_PICKAXE', n: 1 }, { key: 'NETHERITE_INGOT', n: 1 });
+  var trim = WG.smith3({ key: 'TRIM_RIPPLE', n: 1 }, { key: 'IRON_CHESTPLATE', n: 1 }, { key: 'GOLD_INGOT', n: 1 });
+  var g3 = playGame(mk()); g3.mode = 'survival'; g3.inv.slots[0] = { key: 'MACE', n: 1 }; g3.inv.sel = 0;
+  var z1 = g3.mobs.spawn('ZOMBIE', 1.5, 11, 2.5), z2 = g3.mobs.spawn('ZOMBIE', 1.5, 11, 4.5); z1.hp = z2.hp = 100;
+  g3.walker.onGround = true; g3.walker.fallDist = 0; g3.attack(z1); var flat = 100 - z1.hp; z2.invul = 0; z2.hurtT = 0;
+  g3.walker.onGround = false; g3.walker.fallDist = 5; g3.attack(z2); var smash = 100 - z2.hp;
+  check(lode && up && up.key === 'NETHERITE_PICKAXE' && trim && trim.trim.p === 'RIPPLE' && WG.stackInfo(trim).indexOf('波紋') >= 0 && smash > flat * 3 && g3.walker.fallDist === 0,
+    'ロードストーンにコンパスを使うとそこを指す、鍛冶型でネザライト強化と防具の飾り、メイスは落ちながら叩くと強い（' + flat + ' → ' + smash + '）');
+  // トロッコの種類
+  var w4 = mk(); for (var x = 0; x < 12; x++) w4.setBlock(x, 11, 0, B.RAIL_EW);
+  var g4 = playGame(w4); g4.mode = 'survival'; g4.openInventory = function (sc) { this.screen = sc; };
+  var placeCart = function (k, x) { g4.inv.slots[0] = { key: k, n: 1 }; g4.inv.sel = 0; g4.walker.target = { x: x, y: 11, z: 0, px: x, py: 12, pz: 0, id: B.RAIL_EW }; g4.place(); return g4.mobs.list[g4.mobs.list.length - 1]; };
+  var ch = placeCart('CHEST_MINECART', 1), hp = placeCart('HOPPER_MINECART', 4), fu = placeCart('FURNACE_MINECART', 8);
+  g4.mobs.target = { mob: ch }; g4.use(); var opened = g4.screen === 'box' && g4.boxSlots() === ch.inv && ch.inv.length === 27; g4.closeInventory && g4.closeInventory(); g4.mobs.target = null;
+  g4.spawnItem('APPLE', 3, 4.5, 11.6, 0.5, 0, 0);
+  g4.inv.slots[0] = { key: 'COAL', n: 1 }; g4.mobs.target = { mob: fu }; g4.use(); g4.mobs.target = null;
+  var fx0 = fu.x; for (var i = 0; i < 40; i++) g4.mobs.tick();
+  var tn = placeCart('TNT_MINECART', 6); g4.mobs.hurt(tn, 1, [0, 0, 0]); var lit = tn.fuse > 0;
+  check(ch.variant === 'CHEST' && opened && hp.inv[0] && hp.inv[0].key === 'APPLE' && Math.abs(fu.x - fx0) > 1 && lit && !g4.riding,
+    'チェスト付き（開ける）・ホッパー付き（落ちた物を拾う）・かまど付き（石炭で走る）・TNT 付き（叩くと火が付く）のトロッコ');
+  // ボートの種類・クロスボウの花火・レシピ
+  var C = WG.Craft, raft = C.match(['BAMBOO_PLANKS', null, 'BAMBOO_PLANKS', 'BAMBOO_PLANKS', 'BAMBOO_PLANKS', 'BAMBOO_PLANKS', null, null, null], 3);
+  var disc = C.match(new Array(9).fill('DISC_FRAGMENT'), 3), rod = C.match(['BLAZE_ROD', null, 'POPPED_CHORUS_FRUIT', null], 2), pop = C.SMELT.CHORUS_FRUIT;
+  var g5 = playGame(mk()); g5.mode = 'survival'; g5.inv.slots[0] = { key: 'CROSSBOW', n: 1 }; g5.inv.sel = 0; g5.player.offhand = { key: 'FIREWORK_ROCKET', n: 2 };
+  g5.walker.eye = [0.5, 12.6, 0.5]; g5.walker.dir = [0, 0, 1]; g5.mouseR = true; for (i = 0; i < 26; i++) g5.tickCrossbow(g5.inv.slots[0]);
+  var loaded = g5.inv.slots[0].loaded && g5.inv.slots[0].fwLoad && g5.player.offhand.n === 1;
+  g5.mouseR = false; g5.tickCrossbow(g5.inv.slots[0]); g5.mouseR = true;
+  var tz = g5.mobs.spawn('ZOMBIE', 0.5, 11, 8.5), hp0 = tz.hp; g5.tickCrossbow(g5.inv.slots[0]);
+  for (i = 0; i < 20; i++) g5.tick();
+  var horse = g5.mobs.spawn('HORSE', 5.5, 11, 5.5); horse.tame = true; g5.inv.slots[1] = { key: 'DIAMOND_HORSE_ARMOR', n: 1 }; g5.inv.sel = 1; g5.mobs.target = { mob: horse }; g5.use(); g5.mobs.target = null;
+  check(raft && raft.key === 'BAMBOO_RAFT' && disc && disc.key === 'MUSIC_DISC_SHARD' && rod && rod.key === 'END_ROD' && pop === 'POPPED_CHORUS_FRUIT' && loaded && tz.hp < hp0 && horse.harmor === 'DIAMOND_HORSE_ARMOR' && WG.Sound.SONGS.SHARD,
+    '竹のいかだ・レコード「かけらの歌」・ポップしたコーラスフルーツの果ての棒、クロスボウで花火を撃つ（ゾンビ ' + hp0 + ' → ' + tz.hp + '）、馬鎧を着せる');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);
