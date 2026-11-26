@@ -434,6 +434,10 @@
   DIR4.forEach(function (d) { DEF.push(['GLOW_ITEM_FRAME_' + d, '輝く額縁', '#8a7a4e', 'frame']); ALIAS['GLOW_ITEM_FRAME_' + d] = 'GLOW_ITEM_FRAME'; });
   DEF.push(['TORCHFLOWER', 'トーチフラワー', '#f08a30', 'plant'], ['TORCHFLOWER_CROP_0', 'トーチフラワーの芽', '#6a9a3a', 'plant'], ['TORCHFLOWER_CROP_1', 'トーチフラワーのつぼみ', '#8a9a3a', 'plant'],
     ['PITCHER_CROP_0', 'ピッチャープラントの芽', '#5a8a5a', 'plant'], ['PITCHER_CROP_1', 'ピッチャープラントの芽', '#5a8a5a', 'plant'], ['PITCHER_PLANT_L', 'ピッチャープラント', '#4a8a8a', 'plant'], ['PITCHER_PLANT_U', 'ピッチャープラント', '#4a8aaa', 'plant']);
+  // ロードマップ 第 15 段階：虫食いブロック（中に石虫）、軋みの心臓（青白いオークの幹に）
+  DEF.push(['INFESTED_STONE', '虫食い石', '#7d7d7d', 'solid'], ['INFESTED_STONE_BRICKS', '虫食い石レンガ', '#7a7a7a', 'solid'], ['INFESTED_DEEPSLATE', '虫食い深層岩', '#505055', 'solid'],
+    ['CREAKING_HEART', '軋みの心臓', '#5a4a40', 'solid']);
+  ALIAS.INFESTED_STONE = 'STONE'; ALIAS.INFESTED_STONE_BRICKS = 'STONE_BRICKS'; ALIAS.INFESTED_DEEPSLATE = 'DEEPSLATE';
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;

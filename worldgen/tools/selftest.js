@@ -1791,5 +1791,39 @@ console.log('\n生き物 その 1（動物）');
   check(planted && grown && frame && frame.key === 'GLOW_ITEM_FRAME' && armor && armor.key === 'WOLF_ARMOR', 'ピッチャーのさやを耕地に植えて骨粉で 2 段のピッチャープラント、輝く額縁、オオカミの鎧を作れる');
 })();
 
+// ---- ロードマップ 第 15 段階：生き物 その 2（敵） ----
+console.log('\n生き物 その 2（敵）');
+(function () {
+  var types = ['FROST_SKELETON', 'BOG_SKELETON', 'STONE_MITE', 'SHADOW_MITE', 'PIGLIN_BRUTE', 'ROT_HOGLIN', 'CREAKING_TREE', 'ZOMBIE_VILLAGER', 'ELDER_EYE_FISH', 'SNOW_GOLEM'];
+  var ok = types.filter(function (k) { return WG.MOB_TYPES[k] && WG.MOB_MODELS[k] && WG.MOB_MODELS[k].length; });
+  check(ok.length === types.length, '新しい生き物 ' + ok.length + ' 種（' + ok.map(function (k) { return WG.MOB_TYPES[k].name; }).join('・') + '）');
+  var mk = function (fn) { return flatWorld(fn || function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  // 雪の地方の骸骨は凍え骸骨、虫食い石を壊すと石虫、地上の牙イノシシは腐り牙に
+  var w = mk(); w.biomeAt = function () { return WG.BI.SNOWY_PLAINS; }; var g = playGame(w);
+  var sk = 0; for (var i = 0; i < 20; i++) if (g.mobs.spawn('SKELETON', 3.5, 11, 3.5).type === 'FROST_SKELETON') sk++;
+  g.mobs.list.length = 0; w.setBlock(2, 10, 2, B.INFESTED_STONE); g.mode = 'survival'; g.breakBlock(2, 10, 2, true);
+  var mite = g.mobs.list.some(function (m) { return m.type === 'STONE_MITE'; });
+  var hg = g.mobs.spawn('HOGLIN', 6.5, 11, 6.5); for (i = 0; i < 320; i++) g.mobs.tick();
+  var rot = g.mobs.list.some(function (m) { return m.type === 'ROT_HOGLIN'; }) && hg.dead;
+  check(sk > 10 && mite && rot, '雪の地方の骸骨は凍え骸骨（20 体中 ' + sk + '）、虫食い石から石虫、地上の牙イノシシは腐り牙になる');
+  // 軋み木：見ていると止まる、心臓があると倒れない
+  var w2 = mk(), g2 = playGame(w2); w2.setBlock(8, 11, 8, B.CREAKING_HEART);
+  g2.walker.pos = [0.5, 11, 0.5]; g2.walker.eye = [0.5, 12.6, 0.5]; g2.walker.dir = [0, 0, 1];
+  var cr = g2.mobs.spawn('CREAKING_TREE', 0.5, 11, 6.5); cr.heart = [8, 11, 8];
+  var seen = WG.creakingWatched(g2, cr); g2.walker.dir = [0, 0, -1]; var unseen = !WG.creakingWatched(g2, cr);
+  var hurt1 = g2.mobs.hurt(cr, 10, [0, 0]); w2.setBlock(8, 11, 8, B.AIR); cr.invul = 0;
+  check(seen && unseen && hurt1 === false, '軋み木は見られていると止まり、軋みの心臓があるあいだは傷つかない');
+  // ゾンビ村人の治療・雪だるまを作る・騎乗
+  var w3 = mk(), g3 = playGame(w3); g3.mode = 'survival';
+  var zv = g3.mobs.spawn('ZOMBIE_VILLAGER', 3.5, 11, 3.5); zv.weakUntil = 99999; g3.tickCount = 1;
+  g3.inv.slots[0] = { key: 'GOLDEN_APPLE', n: 1 }; g3.inv.sel = 0; g3.mobs.target = { mob: zv }; g3.use(); g3.mobs.target = null;
+  zv.curing = 2; g3.mobs.tick(); g3.mobs.tick();
+  var cured = g3.mobs.list.some(function (m) { return m.type === 'VILLAGER'; });
+  w3.setBlock(6, 11, 6, B.SNOW); w3.setBlock(6, 12, 6, B.SNOW); w3.setBlock(6, 13, 6, B.CARVED_PUMPKIN); g3.tryGolem(6, 13, 6);
+  var golem = g3.mobs.list.some(function (m) { return m.type === 'SNOW_GOLEM'; }) && w3.block(6, 12, 6) === B.AIR;
+  var rider = WG.makeJockey(g3.mobs, 'SKELETON', 'SPIDER', 10.5, 11, 10.5); rider.mount.x += 2; g3.mobs.tick();
+  check(cured && golem && rider.mount && Math.abs(rider.x - rider.mount.x) < 0.01 && rider.y > rider.mount.y, '弱化と金のリンゴでゾンビ村人が村人に戻る、雪ブロック 2 つとカボチャで雪だるま、クモに乗った骸骨は一緒に動く');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

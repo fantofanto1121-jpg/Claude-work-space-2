@@ -2185,6 +2185,15 @@ def main():
                    {'p': [150, 90, 200], 'P': [190, 130, 230], 't': [60, 116, 130], 'T': [90, 158, 172]})
     put('PITCHER_PLANT_L', pl, cut=pl); put('PITCHER_PLANT_U', pu, cut=pu)
 
+    # ---- ロードマップ 第 15 段階：軋みの心臓 ----
+    chs = T['PALE_OAK_LOG']['side'].copy()
+    for y in range(4, 12):
+        for x in range(5, 11):
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            if d < 3.4: chs.set(x, y, [250, 150, 50] if d < 1.4 else [210, 100, 30] if d < 2.4 else [70, 50, 40])
+    for (x, y) in [(4, 6), (11, 9), (6, 3), (9, 12)]: chs.set(x, y, [180, 90, 40])
+    put('CREAKING_HEART', chs, T['PALE_OAK_LOG']['top'], T['PALE_OAK_LOG']['top'])
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

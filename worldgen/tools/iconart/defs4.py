@@ -333,3 +333,9 @@ D['WOLF_ARMOR'] = (['................', '................', '....AAAAAAAA....', 
                     '...AA......AA...', '...AA......AA...', '...BB......BB...'], {'A': ramp_from('#b08878'), 'B': ramp_from('#7a5a4a')})
 _f = D['ITEM_FRAME']
 D['GLOW_ITEM_FRAME'] = (_f[0], dict(_f[1], A=ramp_from('#c8a040'), B=ramp_from('#3a5a54')), *_f[2:])
+
+# ---- ロードマップ 第 15 段階：敵のスポーンエッグ ----
+for _k, (_a, _b) in {'FROST_SKELETON': ('#b8c4c8', '#5a6a72'), 'BOG_SKELETON': ('#a8ae8a', '#5a7a3a'), 'STONE_MITE': ('#7a7a80', '#4a4a50'), 'SHADOW_MITE': ('#2a1a3a', '#c85af0'),
+                     'PIGLIN_BRUTE': ('#2a2620', '#c8a030'), 'ROT_HOGLIN': ('#c8a098', '#6a8a4a'), 'CREAKING_TREE': ('#5a4a40', '#ff9a30'), 'ZOMBIE_VILLAGER': ('#5a7a4a', '#6a4a30'),
+                     'ELDER_EYE_FISH': ('#c8c4b0', '#8a6a9a'), 'SNOW_GOLEM': ('#f2f6f8', '#e08a1a')}.items():
+    D['SPAWN_EGG_' + _k] = (EGG, {'A': ramp_from(_a), 'B': ramp_from(_b)}, {}, [], [(x, y, 'B') for x, y in SPOTS])
