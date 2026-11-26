@@ -1978,6 +1978,52 @@ def main():
             chft.set(x, y, [230, 212, 236] if d < 2.4 else sc([186, 156, 196], 1.06 if (x + y) % 3 == 0 else 0.94))
     put('CHORUS_FLOWER', chf, chft, chf)
 
+    # ---- ロードマップ 第 9 段階：苗木・濃いオークの葉・皮をはいだ原木・樹皮付きの木 ----
+    def sapling(shape, leaf, stem, hi=None):
+        rows = {
+            'round': ['................', '................', '......LL........', '....LLLLL.......', '...LLLHLLLL.....', '..LLLLLLLHLL....', '...LLHLLLLL.LL..', '....LLSLLLLLLLL.',
+                      '.....LSLLHLLL...', '.......SLLL.....', '.......S........', '.......S........', '......SS........', '.......S........', '.......S........', '................'],
+            'cone':  ['................', '.......L........', '......LLL.......', '.......L........', '.....LLLLL......', '....LLLHLLL.....', '......LLL.......', '....LLLLLLL.....',
+                      '...LLHLLLLLL....', '.....LLSLL......', '.......S........', '.......S........', '.......S........', '.......S........', '......SS........', '................'],
+            'fan':   ['................', '................', '..LL......LL....', '.LLLL....LLLL...', '..LHLL..LLHL....', '....LL.LLL......', '..LL..LSL..LL...', '.LLLL.LS.LLLL...',
+                      '..LL...S...LL...', '.......S........', '.......S........', '......SS........', '.......S........', '.......S........', '.......S........', '................'],
+            'bush':  ['................', '................', '.....LLLL.......', '...LLLLLLLL.....', '..LLLHLLLLLL....', '..LLLLLLLHLL....', '.LLHLLLLLLLLL...', '..LLLLLSLLLL....',
+                      '...LLLLSLLL.....', '......SS........', '.......S........', '......SS........', '.......S........', '.......S........', '.......S........', '................'],
+            'prop':  ['................', '......LL........', '.....LLLL.......', '......LL........', '.......S........', '.......S........', '.......S........', '......SS........',
+                      '.......S........', '.......S........', '.......P........', '.......P........', '.......P........', '......PPP.......', '.......P........', '................'],
+        }[shape]
+        return plant_cut(rows, {'L': leaf, 'S': stem, 'H': hi or sc(hx(leaf) if isinstance(leaf, str) else leaf, 1.25), 'P': [150, 190, 90]})
+    for k, shp, lf, st in [('OAK_SAPLING', 'round', [74, 128, 44], [110, 84, 50]), ('SPRUCE_SAPLING', 'cone', [46, 82, 50], [74, 52, 30]), ('BIRCH_SAPLING', 'round', [112, 154, 72], [214, 210, 196]),
+                           ('JUNGLE_SAPLING', 'bush', [56, 120, 36], [96, 76, 40]), ('ACACIA_SAPLING', 'fan', [112, 134, 48], [104, 96, 88]), ('CHERRY_SAPLING', 'round', [232, 162, 196], [70, 40, 52]),
+                           ('DARK_OAK_SAPLING', 'bush', [44, 90, 30], [62, 48, 32]), ('MANGROVE_PROPAGULE', 'prop', [90, 140, 52], [96, 120, 60])]:
+        im = sapling(shp, lf, st)
+        put(k, im, cut=im)
+    put('DARK_OAK_LEAVES', leaves([46, 88, 28], 711))
+    BARK = {'OAK': ([107, 81, 50], [176, 138, 84]), 'SPRUCE': ([59, 42, 24], [122, 90, 52]), 'BIRCH': ([216, 212, 200], [200, 176, 122]), 'JUNGLE': ([90, 74, 34], [176, 128, 88]),
+            'ACACIA': ([106, 98, 90], [176, 98, 58]), 'CHERRY': ([62, 36, 48], [226, 180, 172]), 'MANGROVE': ([74, 54, 40], [122, 54, 50]), 'DARK_OAK': ([62, 48, 32], [90, 60, 32]),
+            'CRIMSON': ([106, 42, 58], [138, 58, 74]), 'WARPED': ([42, 90, 90], [58, 122, 112])}
+    for w, (bark, wood) in BARK.items():
+        nether = w in ('CRIMSON', 'WARPED')
+        lg, wd_ = ('_STEM', '_HYPHAE') if nether else ('_LOG', '_WOOD')
+        ss = Img(); st_ = Img()
+        for y in range(N):
+            for x in range(N):
+                g = 1.0 + (0.08 if x % 5 == 1 else -0.07 if x % 5 == 3 else 0) + 0.05 * ((hsh(720, x, y // 3) % 3) / 2 - 0.5)
+                ss.set(x, y, sc(wood, g))
+                d = max(abs(x - 7.5), abs(y - 7.5))
+                st_.set(x, y, sc(wood, 0.82) if d > 6.6 else sc(wood, 1.08 if int(d) % 2 else 0.95))
+        put('STRIPPED_' + w + lg, ss, st_, st_)
+        if (w + '_LOG') in T and not nether:
+            bs = T[w + '_LOG']['side']
+        else:
+            bs = Img()
+            for y in range(N):
+                for x in range(N):
+                    g = 0.9 + 0.12 * ((hsh(721, x, y) % 4) / 3) + (0.1 if (x + y * 2) % 7 == 0 else 0)
+                    bs.set(x, y, sc(bark, g) if not (nether and (x * 3 + y) % 11 == 0) else sc(wood, 1.25))
+        put(w + wd_, bs, bs, bs)
+        put('STRIPPED_' + w + wd_, ss, ss, ss)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

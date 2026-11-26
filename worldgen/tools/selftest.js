@@ -1622,5 +1622,48 @@ console.log('\n仕上げ');
   check(front && !back && side && near && !far && dragon, '描く生き物：前と横と近くは描き、後ろと遠すぎるものは省く（大きなボスは省かない）');
 })();
 
+// ---- ロードマップ 第 9 段階：苗木と木の育ち ----
+console.log('\n苗木と木の育ち');
+(function () {
+  var mk = function () { return flatWorld(function (x, y, z) { return y === 10 ? B.GRASS : y < 10 ? B.DIRT : 0; }); };
+  var kinds = ['OAK_SAPLING', 'SPRUCE_SAPLING', 'BIRCH_SAPLING', 'JUNGLE_SAPLING', 'ACACIA_SAPLING', 'CHERRY_SAPLING'], res = [];
+  kinds.forEach(function (k, i) {
+    var w = mk(); w.setBlock(0, 11, 0, B[k]);
+    var ok = WG.growTree(w, 0, 11, 0, function () { return 0.4; }), logs = 0, leaves = 0;
+    for (var y = 11; y < 24; y++) for (var dx = -5; dx <= 5; dx++) for (var dz = -5; dz <= 5; dz++) { var id = w.block(dx, y, dz); if (WG.isLogBlock(id)) logs++; else if (/_LEAVES$/.test(WG.BLOCKS[id].key)) leaves++; }
+    res.push(ok && logs >= 4 && leaves > 10);
+  });
+  var wd = mk(); [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (d) { wd.setBlock(d[0], 11, d[1], B.DARK_OAK_SAPLING); });
+  var one = mk(); one.setBlock(0, 11, 0, B.DARK_OAK_SAPLING);
+  var dk = WG.growTree(wd, 1, 11, 1, function () { return 0.5; }), single = WG.growTree(one, 0, 11, 0);
+  var trunk = [[0, 0], [1, 0], [0, 1], [1, 1]].every(function (d) { return wd.block(d[0], 13, d[1]) === B.DARK_OAK_LOG; });
+  var blocked = mk(); blocked.setBlock(0, 11, 0, B.OAK_SAPLING); blocked.setBlock(0, 13, 0, B.STONE);
+  check(res.every(Boolean) && dk && trunk && !single && !WG.growTree(blocked, 0, 11, 0), '苗木が木に育つ（6 種類）、濃いオークは 2×2 で太い幹、上がふさがっていると育たない');
+  // 植える・骨粉・葉から苗木・葉が枯れる・皮をはぐ
+  var g = playGame(mk()); g.mode = 'survival';
+  g.inv.slots[0] = { key: 'OAK_SAPLING', n: 2 }; g.inv.sel = 0;
+  g.walker.target = { x: 3, y: 10, z: 3, px: 3, py: 11, pz: 3, id: B.GRASS }; g.place();
+  var planted = g.world.block(3, 11, 3) === B.OAK_SAPLING;
+  g.walker.target = { x: 4, y: 10, z: 4, px: 4, py: 11, pz: 4, id: B.STONE }; g.world.setBlock(4, 10, 4, B.STONE); g.place();
+  var noStone = g.world.block(4, 11, 4) === B.AIR;
+  g.inv.slots[0] = { key: 'BONE_MEAL', n: 20 }; var grew = false;
+  for (var i = 0; i < 20 && !grew; i++) { g.walker.target = { x: 3, y: 11, z: 3, id: g.world.block(3, 11, 3) }; if (g.walker.target.id !== B.OAK_SAPLING) { grew = true; break; } g.use(); grew = g.world.block(3, 11, 3) === B.OAK_LOG; }
+  check(planted && noStone && grew, '苗木を草に植えられ（石には植えられない）、骨粉で育つ');
+  // 原木を切ると、離れた葉が枯れて苗木を落とすことがある
+  var w2 = mk(), g2 = playGame(w2); w2.setBlock(0, 11, 0, B.OAK_SAPLING); WG.growTree(w2, 0, 11, 0, function () { return 0.3; });
+  w2.setBlock(9, 11, 9, B.OAK_LEAVES); (w2.placedLeaves = new Set()).add('9,11,9');
+  var before = 0; for (var yy = 11; yy < 20; yy++) for (var dx = -3; dx <= 3; dx++) for (var dz = -3; dz <= 3; dz++) if (w2.block(dx, yy, dz) === B.OAK_LEAVES) before++;
+  g2.mode = 'creative';
+  for (yy = 11; yy < 20; yy++) if (w2.block(0, yy, 0) === B.OAK_LOG) g2.breakBlock(0, yy, 0, false);
+  g2.mode = 'survival'; g2.entities.length = 0;
+  for (i = 0; i < 400; i++) { g2.tickCount = i; g2.tick(); }
+  var after = 0; for (yy = 11; yy < 20; yy++) for (dx = -3; dx <= 3; dx++) for (dz = -3; dz <= 3; dz++) if (w2.block(dx, yy, dz) === B.OAK_LEAVES) after++;
+  check(before > 20 && after === 0 && w2.block(9, 11, 9) === B.OAK_LEAVES, '原木を切ると葉が枯れ（' + before + ' → ' + after + '）、自分で置いた葉は残る');
+  var g3 = playGame(mk()); g3.world.setBlock(2, 11, 2, B.BIRCH_LOG); g3.inv.slots[0] = { key: 'IRON_AXE', n: 1 }; g3.inv.sel = 0;
+  g3.walker.target = { x: 2, y: 11, z: 2, px: 2, py: 12, pz: 2, id: B.BIRCH_LOG }; g3.use();
+  var wood = WG.Craft.match(['OAK_LOG', 'OAK_LOG', 'OAK_LOG', 'OAK_LOG'], 2), pl = WG.Craft.match(['STRIPPED_DARK_OAK_LOG', null, null, null], 2);
+  check(g3.world.block(2, 11, 2) === B.STRIPPED_BIRCH_LOG && wood && wood.key === 'OAK_WOOD' && wood.n === 3 && pl && pl.key === 'DARK_OAK_PLANKS', '斧で皮をはぐ・原木 4 つで樹皮付きの木 3 つ・皮をはいだ原木から板材');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

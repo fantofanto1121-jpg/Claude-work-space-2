@@ -445,6 +445,10 @@
     }
   }
 
+  // 苗木から育つ木にも、同じ形を使う（js/trees.js）
+  WG.drawTree = drawTree;
+  WG.TREE_KIND = { OAK: T_OAK, BIRCH: T_BIRCH, SPRUCE: T_SPRUCE, JUNGLE: T_JUNGLE, ACACIA: T_ACACIA, CHERRY: T_CHERRY, MANGROVE: T_MANGROVE };
+
   // 草花とサボテン（自分の列だけ）
   Overworld.prototype.plants = function (blocks, hmap, biome, x0, z0) {
     var seed = this.seed;

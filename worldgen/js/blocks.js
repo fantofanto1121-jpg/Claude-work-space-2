@@ -403,6 +403,20 @@
   DEF.push(['CRIMSON_FUNGUS', '真紅のキノコ', '#a02a2a', 'plant'], ['WARPED_FUNGUS', '歪んだキノコ', '#2a8a7a', 'plant'], ['WEEPING_VINES', '垂れるつる', '#8a1e22', 'plant'],
     ['TWISTING_VINES', 'ねじれたつる', '#1e8a7a', 'plant'], ['BONE_BLOCK', '骨ブロック', '#e0dccb', 'solid']);
   COLORS16.forEach(function (c) { DEF.push([c[0] + '_SHELL_BOX', c[1] + 'の貝の箱', c[2], 'solid']); });
+  // ロードマップ 第 9 段階：苗木（葉から落ち、植えると育つ）、濃いオークの葉、皮をはいだ原木・樹皮付きの木
+  var SAPLINGS = [['OAK', 'オークの苗木', '#4e8a2e'], ['SPRUCE', 'トウヒの苗木', '#3a5a34'], ['BIRCH', 'シラカバの苗木', '#7aa04a'], ['JUNGLE', 'ジャングルの苗木', '#3e7a24'],
+    ['ACACIA', 'アカシアの苗木', '#7a8a2e'], ['CHERRY', '桜の苗木', '#e0a0c0'], ['DARK_OAK', '濃いオークの苗木', '#2e5a1e'], ['MANGROVE', 'マングローブの芽', '#5a8a34']];
+  SAPLINGS.forEach(function (q) { DEF.push([q[0] === 'MANGROVE' ? 'MANGROVE_PROPAGULE' : q[0] + '_SAPLING', q[1], q[2], 'plant']); });
+  DEF.push(['DARK_OAK_LEAVES', '濃いオークの葉', '#2f5a1c', 'solid']);
+  var BARKS = [['OAK', 'オーク', '#6b5132', '#b08a54'], ['SPRUCE', 'トウヒ', '#3b2a18', '#7a5a34'], ['BIRCH', 'シラカバ', '#d8d4c8', '#c8b07a'], ['JUNGLE', 'ジャングル', '#5a4a22', '#b08058'],
+    ['ACACIA', 'アカシア', '#6a625a', '#b0623a'], ['CHERRY', '桜', '#3e2430', '#e2b4ac'], ['MANGROVE', 'マングローブ', '#4a3628', '#7a3632'], ['DARK_OAK', '濃いオーク', '#3e3020', '#5a3c20'],
+    ['CRIMSON', '真紅', '#6a2a3a', '#8a3a4a'], ['WARPED', '歪んだ', '#2a5a5a', '#3a7a70']];
+  BARKS.forEach(function (q) {
+    var nether = q[0] === 'CRIMSON' || q[0] === 'WARPED', log = nether ? '_STEM' : '_LOG', wood = nether ? '_HYPHAE' : '_WOOD';
+    DEF.push(['STRIPPED_' + q[0] + log, '皮をはいだ' + q[1] + (nether ? 'の幹' : 'の原木'), q[3], 'solid'], [q[0] + wood, q[1] + (nether ? 'の菌糸' : 'の木'), q[2], 'solid'],
+      ['STRIPPED_' + q[0] + wood, '皮をはいだ' + q[1] + (nether ? 'の菌糸' : 'の木'), q[3], 'solid']);
+  });
+  WG.SAPLINGS = SAPLINGS; WG.BARKS = BARKS;
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
