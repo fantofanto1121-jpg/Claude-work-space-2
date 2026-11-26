@@ -228,7 +228,7 @@
       if (hb === 'swamp' && bl[idx(i, SEA)] === B.WATER && bl[idx(i, SEA + 1)] === B.AIR && h3 % 10 === 0) { bl[idx(i, SEA + 1)] = B.LILY_PAD; continue; }
       if (bl[idx(i, fl + 1)] !== B.WATER) continue;
       var depth = SEA - fl;
-      if (warm && depth >= 2 && depth < 14 && (hb === 'ocean' || hb === 'beach')) {
+      if (((warm && (hb === 'ocean' || hb === 'beach')) || hb === 'warm_ocean') && depth >= 2 && depth < 14) {
         var coral = WG.CORALS[(h3 >>> 4) % 5][0];
         if (h3 % 4 === 0) { bl[idx(i, fl)] = B[coral + '_CORAL_BLOCK']; if (bl[idx(i, fl + 1)] === B.WATER && (h3 >>> 8) % 2) bl[idx(i, fl + 1)] = B[coral + '_CORAL']; }
         else if (h3 % 4 === 1) bl[idx(i, fl + 1)] = B[coral + '_CORAL'];

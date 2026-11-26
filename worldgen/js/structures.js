@@ -221,8 +221,8 @@
       for (var tr = 0; tr < 6; tr++) {
         var x = rx * 576 + 64 + (hash(s, rx, 1 + tr, rz, SALT + 10) % 448), z = rz * 576 + 64 + (hash(s, rx, 9 + tr, rz, SALT + 10) % 448);
         var c = gen.column(x, z);
-        if (WG.BIOMES[c.b].key !== 'ocean' || c.h > SEA - 14) continue;
-        if ([[-22, -22], [22, -22], [-22, 22], [22, 22]].every(function (q) { var cc = gen.column(x + q[0], z + q[1]); return cc.h <= SEA - 8 && WG.BIOMES[cc.b].key === 'ocean'; })) return bbox({ x: x, z: z, y: SEA - 24 }, 44);
+        if (!/^(ocean|deep_ocean|warm_ocean|cold_ocean)$/.test(WG.BIOMES[c.b].key) || c.h > SEA - 14) continue;
+        if ([[-22, -22], [22, -22], [-22, 22], [22, 22]].every(function (q) { var cc = gen.column(x + q[0], z + q[1]); return cc.h <= SEA - 8 && /^(ocean|deep_ocean|warm_ocean|cold_ocean)$/.test(WG.BIOMES[cc.b].key); })) return bbox({ x: x, z: z, y: SEA - 24 }, 44);
       }
       return null;
     },
@@ -362,7 +362,7 @@
       if (rnd(s, rx, 0, rz, SALT + 30) >= 0.55) return null;
       for (var tr = 0; tr < 5; tr++) {
         var x = rx * 224 + 20 + (hash(s, rx, 1 + tr, rz, SALT + 30) % 184), z = rz * 224 + 20 + (hash(s, rx, 11 + tr, rz, SALT + 30) % 184), c = gen.column(x, z), bk = WG.BIOMES[c.b].key;
-        if ((bk === 'ocean' && c.h <= SEA - 5) || (bk === 'beach' && c.h >= SEA)) {
+        if ((/ocean$/.test(bk) && bk !== 'frozen_ocean' && c.h <= SEA - 5) || (bk === 'beach' && c.h >= SEA)) {
           var hv = hash(s, rx, 30, rz, SALT + 30);
           return bbox({ x: x, z: z, y: c.h, axis: hv & 1, flip: (hv >>> 1) & 1 ? 1 : -1, wood: SHIP_WOODS[(hv >>> 2) % 5], broken: (hv >>> 6) % 3 === 0 }, 14);
         }

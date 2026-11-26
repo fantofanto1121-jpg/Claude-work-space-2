@@ -299,7 +299,7 @@
       if (rnd(s, rx, 0, rz, SALT + 7) >= 0.7) return null;
       for (var tr = 0; tr < 8; tr++) {
         var x = rx * 192 + 16 + pick(s, rx, rz, 1 + tr, SALT + 7) % 160, z = rz * 192 + 16 + pick(s, rx, rz, 11 + tr, SALT + 7) % 160, bk = biomeKey(gen, x, z), c = gen.column(x, z);
-        if ((bk === 'ocean' || bk === 'frozen_ocean') && c.h < SEA - 6 && flat(gen, x, z, 4, 5, 3)) return bbox({ x: x, z: z, y: c.h, sandy: hash(s, x, 3, z, SALT + 8) % 2 }, 9);
+        if (/ocean$/.test(bk) && c.h < SEA - 6 && flat(gen, x, z, 4, 5, 3)) return bbox({ x: x, z: z, y: c.h, sandy: hash(s, x, 3, z, SALT + 8) % 2 }, 9);
       }
       return null;
     },
@@ -361,7 +361,7 @@
       var s = gen.seed;
       if (rnd(s, rx, 0, rz, SALT + 13) >= 0.6) return null;
       var x = rx * 768 + 80 + pick(s, rx, rz, 1, SALT + 13) % 608, z = rz * 768 + 80 + pick(s, rx, rz, 2, SALT + 13) % 608;
-      if (biomeKey(gen, x, z) === 'ocean' || biomeKey(gen, x, z) === 'frozen_ocean') return null;
+      if (/ocean$|river$/.test(biomeKey(gen, x, z))) return null;
       return bbox({ x: x, z: z, y: -50 }, 44);
     },
     build: function (gen, h) {

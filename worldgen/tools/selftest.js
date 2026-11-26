@@ -1462,7 +1462,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
 (function () {
   console.log('\n[新しいバイオーム]');
   var wd = new WG.World('7', 'overworld'), want = { cherry_grove: /CHERRY_LOG|PINK_PETALS/, mangrove_swamp: /MANGROVE_ROOTS/, badlands: /ORANGE_TERRACOTTA/, mushroom_fields: /MYCELIUM/ }, ok = [];
-  var at = { badlands: [42, 23], cherry_grove: [9, -96], mangrove_swamp: [-249, -466], mushroom_fields: [1002, 822] };
+  var at = { badlands: [42, 23], cherry_grove: [9, -96], mangrove_swamp: [-252, -478], mushroom_fields: [1002, 822] };
   Object.keys(at).forEach(function (k) {
     var p = at[k], b = WG.BIOMES[wd.gen.column(p[0], p[1]).b].key, ch = wd.chunk(p[0] >> 4, p[1] >> 4), hit = false;
     for (var i = 0; i < ch.blocks.length && !hit; i++) if (want[k].test(WG.BLOCKS[ch.blocks[i]].key)) hit = true;
@@ -1663,6 +1663,22 @@ console.log('\n苗木と木の育ち');
   g3.walker.target = { x: 2, y: 11, z: 2, px: 2, py: 12, pz: 2, id: B.BIRCH_LOG }; g3.use();
   var wood = WG.Craft.match(['OAK_LOG', 'OAK_LOG', 'OAK_LOG', 'OAK_LOG'], 2), pl = WG.Craft.match(['STRIPPED_DARK_OAK_LOG', null, null, null], 2);
   check(g3.world.block(2, 11, 2) === B.STRIPPED_BIRCH_LOG && wood && wood.key === 'OAK_WOOD' && wood.n === 3 && pl && pl.key === 'DARK_OAK_PLANKS', '斧で皮をはぐ・原木 4 つで樹皮付きの木 3 つ・皮をはいだ原木から板材');
+})();
+
+// ---- ロードマップ 第 10 段階：川と海 ----
+console.log('\n川と海');
+(function () {
+  var w = new WG.World('7', 'overworld'), g = w.gen, cnt = {};
+  for (var x = -1600; x < 1600; x += 16) for (var z = -1600; z < 1600; z += 16) { var k = WG.BIOMES[g.column(x, z).b].key; cnt[k] = (cnt[k] || 0) + 1; }
+  var rv = g.column(-15, 6), deep = 99;
+  for (x = -1600; x < 1600; x += 32) for (z = -1600; z < 1600; z += 32) { var c = g.column(x, z); if (WG.BIOMES[c.b].key === 'deep_ocean' && c.h < deep) deep = c.h; }
+  check(cnt.river > 50 && cnt.deep_ocean > 50 && cnt.warm_ocean > 50 && cnt.cold_ocean > 50 && WG.BIOMES[rv.b].key === 'river' && rv.h < 63 && deep < 35,
+    '川・深い海・暖かい海・冷たい海がある（川 ' + cnt.river + '・深い海 ' + cnt.deep_ocean + '、深い海の底は y ' + deep + ' まで）');
+  var count = function (cx, cz, id, surf) { var bl = g.generate(cx, cz, !!surf).blocks, n = 0; for (var i = 0; i < bl.length; i++) if (bl[i] === id) n++; return n; };
+  var ice = count(-296 >> 4, -120 >> 4, B.BLUE_ICE) + count(-296 >> 4, -120 >> 4, B.PACKED_ICE), lava = g.generate(-520 >> 4, 408 >> 4, true), ly = lava.hmap[136];
+  var bone = count(136 >> 4, 24 >> 4, B.BONE_BLOCK), coral = 0;
+  for (var cz = 4; cz < 7; cz++) for (var cx = -1; cx < 2; cx++) { var bl = g.generate(cx, cz, false).blocks; for (var i = 0; i < bl.length; i++) if (/CORAL/.test(WG.BLOCKS[bl[i]].key)) coral++; }
+  check(ice > 30 && lava.blocks[((ly + 64) << 8) | 136] === B.LAVA && bone > 5 && coral > 10, '氷山（氷 ' + ice + '）・地上の溶岩の湖・化石（骨 ' + bone + '）・暖かい海のサンゴ（' + coral + '）');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
