@@ -153,7 +153,7 @@
   var spawn = Mobs.prototype.spawn;
   Mobs.prototype.spawn = function (type, x, y, z, size) {
     var wd = this.world, bio = null;
-    if (wd.dimKey === 'overworld' && wd.biomeAt) bio = WG.BIOMES[wd.biomeAt(Math.floor(x), Math.floor(z))].key;
+    if (wd.dimKey === 'overworld' && wd.biomeAt) { bio = WG.BIOMES[wd.biomeAt(Math.floor(x), Math.floor(z))].key; if (WG.BIOME_PARENT && WG.BIOME_PARENT[bio]) bio = WG.BIOME_PARENT[bio]; }
     // 砂漠の地上のゾンビは砂漠のゾンビに
     if (type === 'ZOMBIE' && bio === 'desert' && y > 60) type = 'HUSK';
     var m = spawn.call(this, type, x, y, z, size), r = Math.random();
@@ -610,6 +610,7 @@
     var c = wd.chunk(cx, cz);
     if (!c.hmap) return;
     var q = Math.floor(Math.random() * 256), x = (cx << 4) + (q & 15), z = (cz << 4) + (q >> 4), h = c.hmap[q], bio = WG.BIOMES[wd.biomeAt(x, z)].key;
+    if (WG.BIOME_PARENT && WG.BIOME_PARENT[bio]) bio = WG.BIOME_PARENT[bio];
     var list = BY_BIOME[bio];
     if (list && Math.random() < 0.08) {
       var tot = list.reduce(function (s, e) { return s + e[1]; }, 0), r = Math.random() * tot, pick = list[0][0];

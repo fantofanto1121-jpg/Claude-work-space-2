@@ -1681,5 +1681,33 @@ console.log('\n川と海');
   check(ice > 30 && lava.blocks[((ly + 64) << 8) | 136] === B.LAVA && bone > 5 && coral > 10, '氷山（氷 ' + ice + '）・地上の溶岩の湖・化石（骨 ' + bone + '）・暖かい海のサンゴ（' + coral + '）');
 })();
 
+// ---- ロードマップ 第 11 段階：地上のバイオーム その 1 ----
+console.log('\n地上のバイオーム その 1');
+(function () {
+  var g = new WG.World('7', 'overworld').gen;
+  var at = { dark_forest: [-2904, 664, /DARK_OAK_LOG/], old_growth_taiga: [-3000, -1224, /PODZOL/], ice_spikes: [-3000, 824, /PACKED_ICE/], sunflower_plains: [-2952, -1192, /SUNFLOWER_U/],
+    birch_forest: [-2552, 1640, /BIRCH_LOG/], flower_forest: [-1912, -1096, /TULIP|ALLIUM|CORNFLOWER|DAISY|BLUET/], bamboo_jungle: [-280, -2872, /^BAMBOO$/], sparse_jungle: [-2744, 1752, /JUNGLE_LOG|SHORT_GRASS/] }, ok = [];
+  Object.keys(at).forEach(function (k) {
+    var p = at[k], b = WG.BIOMES[g.column(p[0], p[1]).b].key, hit = false;
+    for (var dx = -1; dx <= 1 && !hit; dx++) for (var dz = -1; dz <= 1 && !hit; dz++) { var bl = g.generate((p[0] >> 4) + dx, (p[1] >> 4) + dz, false).blocks; for (var i = 0; i < bl.length && !hit; i++) if (p[2].test(WG.BLOCKS[bl[i]].key)) hit = true; }
+    if (b === k && hit) ok.push(WG.BIOMES.filter(function (q) { return q.key === k; })[0].name);
+  });
+  check(ok.length === 8, '新しいバイオーム 8 つ（' + ok.join('・') + '）と、それぞれの木・草花・氷・竹');
+  // 遊ぶとき
+  var w = flatWorld(function (x, y, z) { return y === 10 ? B.GRASS : y < 10 ? B.DIRT : 0; }), gm = playGame(w);
+  gm.inv.slots[0] = { key: 'IRON_SHOVEL', n: 1 }; gm.inv.sel = 0;
+  gm.walker.target = { x: 1, y: 10, z: 1, px: 1, py: 11, pz: 1, id: B.GRASS }; gm.use();
+  var path = w.block(1, 10, 1) === B.DIRT_PATH;
+  gm.inv.slots[0] = { key: 'SUNFLOWER', n: 2 }; gm.walker.target = { x: 3, y: 10, z: 3, px: 3, py: 11, pz: 3, id: B.GRASS }; gm.place();
+  var placed = w.block(3, 11, 3) === B.SUNFLOWER_L && w.block(3, 12, 3) === B.SUNFLOWER_U;
+  gm.breakBlock(3, 12, 3, true);
+  var gone = w.block(3, 11, 3) === B.AIR && w.block(3, 12, 3) === B.AIR;
+  w.setBlock(5, 11, 5, B.SHORT_GRASS); gm.inv.slots[0] = { key: 'BONE_MEAL', n: 3 }; gm.walker.target = { x: 5, y: 11, z: 5, id: B.SHORT_GRASS }; gm.use();
+  var tallg = w.block(5, 11, 5) === B.TALL_GRASS_L && w.block(5, 12, 5) === B.TALL_GRASS_U;
+  var dye = WG.Craft.match(['PEONY'], 2), coarse = WG.Craft.match(['DIRT', 'GRAVEL', 'GRAVEL', 'DIRT'], 2), bam = WG.Craft.match(['BAMBOO_BLOCK'], 2);
+  check(path && placed && gone && tallg && dye && dye.key === 'PINK_DYE' && coarse && coarse.n === 4 && bam && bam.key === 'BAMBOO_PLANKS',
+    'シャベルで土の道、背の高い花は 2 段で置けて片方を壊すと両方なくなる、骨粉で背の高い草、花から染料、粗い土・竹の板材');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

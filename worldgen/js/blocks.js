@@ -417,6 +417,12 @@
       ['STRIPPED_' + q[0] + wood, '皮をはいだ' + q[1] + (nether ? 'の菌糸' : 'の木'), q[3], 'solid']);
   });
   WG.SAPLINGS = SAPLINGS; WG.BARKS = BARKS;
+  // ロードマップ 第 11 段階：土の種類、土の道、背の高い草花（2 段）、竹のブロックと板材
+  DEF.push(['PODZOL', 'ポドゾル', '#6a4a24', 'solid'], ['COARSE_DIRT', '粗い土', '#77553a', 'solid'], ['ROOTED_DIRT', '根の張った土', '#8a6446', 'solid'], ['DIRT_PATH', '土の道', '#94793e', 'path']);
+  var TALL_PLANTS = [['TALL_GRASS', '背の高い草', '#5e9a3a'], ['LARGE_FERN', '大きなシダ', '#4e8a3a'], ['SUNFLOWER', 'ヒマワリ', '#f0c830'], ['LILAC', 'ライラック', '#c89ad8'], ['ROSE_BUSH', 'バラの低木', '#c8303a'], ['PEONY', 'ボタン', '#e8a8d0']];
+  TALL_PLANTS.forEach(function (q) { DEF.push([q[0] + '_L', q[1], q[2], 'plant'], [q[0] + '_U', q[1], q[2], 'plant']); });
+  DEF.push(['BAMBOO_BLOCK', '竹ブロック', '#8a9a2e', 'solid'], ['BAMBOO_PLANKS', '竹の板材', '#c8b04a', 'solid'], ['BAMBOO_MOSAIC', '竹のモザイク', '#c0a844', 'solid']);
+  WG.TALL_PLANTS = TALL_PLANTS;
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -569,13 +575,13 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : k === 'chorus' ? 1 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : k === 'chorus' ? 1 : k === 'path' ? 15 / 16 : 0;
   });
   WG.COLLIDE = COLLIDE;
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, stand: 1,
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, path: 1, stand: 1,
     hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1, azalea: 1, bigdrip: 1, drip: 1 };
   // 形はあるが、ぶつからないもの
   var NOCOLLIDE = { lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
@@ -663,6 +669,7 @@
     if (k === 'daylight') return [[0, 0, 0, 16, 6, 16]];
     if (k === 'anvil') return [[2, 0, 2, 14, 4, 14], [4, 4, 4, 12, 10, 12], [0, 10, 3, 16, 16, 13]];
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
+    if (k === 'path') return [[0, 0, 0, 16, 15, 16, id]];
     // コーラスプラント：太い茎と、横の隣のコーラスへの枝。コーラスフラワーは少し小さな塊
     if (k === 'chorus') {
       if (key === 'CHORUS_FLOWER') return [[2, 0, 2, 14, 14, 14, id]];

@@ -2024,6 +2024,104 @@ def main():
         put(w + wd_, bs, bs, bs)
         put('STRIPPED_' + w + wd_, ss, ss, ss)
 
+    # ---- ロードマップ 第 11 段階：土・土の道・背の高い草花・竹 ----
+    dirt_ = T['DIRT']['side']
+    pz_top = Img()
+    for y in range(N):
+        for x in range(N):
+            h_ = hsh(730, x, y) % 7
+            pz_top.set(x, y, [122, 82, 38] if h_ == 0 else [84, 58, 28] if h_ in (1, 2) else sc([106, 74, 36], 0.92 + 0.1 * ((hsh(731, x, y) % 3) / 2)))
+    pz_side = dirt_.copy()
+    for x in range(N):
+        for y in range(3 + (hsh(732, x) % 2)): pz_side.set(x, y, pz_top.get(x, y))
+    put('PODZOL', pz_side, pz_top, dirt_)
+    cd_ = dirt_.copy()
+    for y in range(N):
+        for x in range(N):
+            if hsh(733, x, y) % 5 == 0: cd_.set(x, y, sc([120, 112, 104], 0.85 + 0.25 * ((hsh(734, x, y) % 3) / 2)))
+    put('COARSE_DIRT', cd_)
+    rd_ = dirt_.copy()
+    for x0 in (3, 9, 13):
+        for y in range(N):
+            xx = x0 + ((y // 4) % 2) - (1 if y % 7 == 5 else 0)
+            if hsh(735, x0, y) % 5: rd_.set(xx % N, y, [196, 156, 116])
+    put('ROOTED_DIRT', rd_)
+    pt_ = Img()
+    for y in range(N):
+        for x in range(N): pt_.set(x, y, sc([150, 122, 66], 0.9 + 0.14 * ((hsh(736, x, y) % 4) / 3)))
+    ps_ = dirt_.copy()
+    for x in range(N): ps_.set(x, 0, [70, 54, 34]); ps_.set(x, 1, pt_.get(x, 1)); ps_.set(x, 2, pt_.get(x, 2))
+    put('DIRT_PATH', ps_, pt_, dirt_)
+    def tall(lower_rows, upper_rows, pal):
+        return plant_cut(lower_rows, pal), plant_cut(upper_rows, pal)
+    GR = ['................', '................', '................', '................', '................', '................', '................', '................',
+          '................', '................', '................', '................', '................', '................', '................', '................']
+    def grass_half(seed, top):
+        img = Img(alpha=True)
+        for b in range(6):
+            x0 = 1 + (hsh(seed, b) % 14); hgt = 16 if not top else 6 + hsh(seed, b, 1) % 9; lean = (hsh(seed, b, 2) % 3) - 1
+            for i in range(hgt):
+                y = 15 - i
+                x = x0 + (lean * i) // 6
+                if 0 <= x < N: img.set(x, y, sc([96, 150, 60], 0.75 + 0.4 * i / 16))
+        return img
+    tgl, tgu = grass_half(740, False), grass_half(741, True)
+    put('TALL_GRASS_L', tgl, cut=tgl); put('TALL_GRASS_U', tgu, cut=tgu)
+    def fern_half(seed, top):
+        img = Img(alpha=True)
+        for side in (-1, 1):
+            for i in range(16 if not top else 11):
+                y = 15 - i; x = 7 + side * (1 + i // 3)
+                if 0 <= x < N:
+                    img.set(x, y, [70, 128, 52]); 
+                    if i % 2 == 0 and 0 <= x + side < N: img.set(x + side, y, [92, 150, 66])
+            for i in range(16 if not top else 13): img.set(7 + (side > 0), 15 - i, [60, 110, 44])
+        return img
+    lfl, lfu = fern_half(742, False), fern_half(743, True)
+    put('LARGE_FERN_L', lfl, cut=lfl); put('LARGE_FERN_U', lfu, cut=lfu)
+    def stem_lower(leaf):
+        img = Img(alpha=True)
+        for y in range(N):
+            img.set(7, y, [76, 130, 50]); img.set(8, y, [64, 116, 42])
+        for (x, y) in [(5, 4), (4, 5), (6, 5), (9, 9), (10, 8), (11, 9), (5, 12), (4, 13), (6, 13), (10, 14)]: img.set(x, y, leaf)
+        return img
+    sfl = stem_lower([88, 146, 56])
+    sfu = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            d = ((x - 7.5) ** 2 + (y - 6.5) ** 2) ** 0.5
+            if d < 2.4: sfu.set(x, y, [92, 60, 28] if (x + y) % 2 else [74, 46, 22])
+            elif d < 5.6: sfu.set(x, y, sc([246, 200, 46], 1.06 if (int(math.atan2(y - 6.5, x - 7.5) * 4) % 2) else 0.9))
+    for y in range(12, N): sfu.set(7, y, [76, 130, 50]); sfu.set(8, y, [64, 116, 42])
+    put('SUNFLOWER_L', sfl, cut=sfl); put('SUNFLOWER_U', sfu, cut=sfu)
+    for k, petal, dark in [('LILAC', [200, 150, 220], [150, 100, 180]), ('ROSE_BUSH', [206, 40, 50], [140, 24, 32]), ('PEONY', [236, 170, 210], [200, 120, 170])]:
+        lo = Img(alpha=True); up = Img(alpha=True)
+        for y in range(N):
+            for x in range(N):
+                n = hsh(750 + len(k), x, y) % 9
+                # 下：茂った葉に花が少し、上：花の房
+                if abs(x - 7.5) < 6.5 - (0 if y > 3 else 2) and n > 2: lo.set(x, y, [70, 120, 48] if n > 4 or y > 8 else petal)
+                r_ = ((x - 7.5) ** 2 * 1.4 + (y - 9) ** 2) ** 0.5
+                if r_ < 6.5 and n > 1: up.set(x, y, petal if n > 4 else dark if n > 2 else [70, 120, 48])
+        put(k + '_L', lo, cut=lo); put(k + '_U', up, cut=up)
+    bbs = Img(); bbt = Img()
+    for y in range(N):
+        for x in range(N):
+            stalk = x % 4
+            node = y % 8 == 3
+            bbs.set(x, y, sc([118, 142, 44], (1.12 if stalk == 1 else 0.84 if stalk == 3 else 1.0) * (0.82 if node else 1.0)))
+            bbt.set(x, y, [200, 190, 120] if (x % 4 in (1, 2) and y % 4 in (1, 2)) else sc([118, 142, 44], 0.9))
+    put('BAMBOO_BLOCK', bbs, bbt, bbt)
+    bp = Img(); bm = Img()
+    for y in range(N):
+        for x in range(N):
+            seam = x % 4 == 0
+            bp.set(x, y, sc([200, 176, 74], 0.78 if seam else (1.06 if (y + x // 4 * 5) % 9 == 0 else 1.0)))
+            cell = ((x // 8) + (y // 8)) % 2
+            edge = x % 8 in (0,) or y % 8 in (0,)
+            bm.set(x, y, sc([196, 170, 70], 0.7 if edge else (1.05 if ((x if cell else y) % 2) else 0.92)))
+    put('BAMBOO_PLANKS', bp); put('BAMBOO_MOSAIC', bm)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

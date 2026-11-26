@@ -46,7 +46,7 @@
   var SNOWY = { snowy_plains: 1, snowy_mountain: 1, frozen_ocean: 1, frozen_river: 1 }, DRY = { desert: 1, savanna: 1, badlands: 1 };
   function precip(wd, x, z) {
     if (wd.dimKey !== 'overworld' || !wd.biomeAt) return 'none';
-    var b = WG.BIOMES[wd.biomeAt(Math.floor(x), Math.floor(z))], k = b ? b.key : 'plains';
+    var b = WG.BIOMES[wd.biomeAt(Math.floor(x), Math.floor(z))], k = b ? (WG.BIOME_PARENT && WG.BIOME_PARENT[b.key]) || b.key : 'plains';
     return SNOWY[k] ? 'snow' : DRY[k] ? 'none' : 'rain';
   }
   WG.precipAt = precip;
