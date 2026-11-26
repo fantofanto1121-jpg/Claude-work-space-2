@@ -339,3 +339,24 @@ for _k, (_a, _b) in {'FROST_SKELETON': ('#b8c4c8', '#5a6a72'), 'BOG_SKELETON': (
                      'PIGLIN_BRUTE': ('#2a2620', '#c8a030'), 'ROT_HOGLIN': ('#c8a098', '#6a8a4a'), 'CREAKING_TREE': ('#5a4a40', '#ff9a30'), 'ZOMBIE_VILLAGER': ('#5a7a4a', '#6a4a30'),
                      'ELDER_EYE_FISH': ('#c8c4b0', '#8a6a9a'), 'SNOW_GOLEM': ('#f2f6f8', '#e08a1a')}.items():
     D['SPAWN_EGG_' + _k] = (EGG, {'A': ramp_from(_a), 'B': ramp_from(_b)}, {}, [], [(x, y, 'B') for x, y in SPOTS])
+
+# ---- ロードマップ 第 16 段階：ブロック ----
+import defs3 as _d3c
+_dr = _d3c.door(None, True)
+D['COPPER_DOOR'] = (_dr[0], {'A': ramp_from('#c06a48')}, {'w': ('#7a4430', None), 'h': '#3a2014'}, [(5, 7, 'g'), (6, 7, 'g'), (8, 11, 'g'), (9, 11, 'g'), (7, 13, 'g')])
+D['COPPER_DOOR'][2]['g'] = '#e09068'
+D['COPPER_TRAPDOOR'] = (TRAP, {'A': ramp_from('#c06a48')}, {'g': '#e09068'}, [(2, 1, 'g'), (8, 5, 'g'), (13, 9, 'g'), (5, 13, 'g')])
+D['HANGING_SIGN'] = (['................', '...C.......C....', '...C.......C....', '...C.......C....', '..BBBBBBBBBBBB..', '..AAAAAAAAAAAA..', '..AAkkAkkkAkAA..', '..AAAAAAAAAAAA..',
+                      '..AAkkkAkkAkAA..', '..AAAAAAAAAAAA..', '..AAAAAAAAAAAA..', '..BBBBBBBBBBBB..'], {'A': ramp_from('#c09a6a'), 'B': ramp_from('#7a5a38'), 'C': ramp_from('#5a5e66')}, {'k': '#3a2a1a'})
+D['WRITABLE_BOOK'] = (['................', '................', '...AAAAAAAAAA...', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP.F', '..AAAAAAAAAAAPFF',
+                       '..AAAAAAAAAAAFF.', '..AAAAAAAAAAFFP.', '..AAAAAAAAAkFAP.', '..AAAAAAAAkAAAP.', '..AAAAAAAAAAAAP.', '...PPPPPPPPPPP..'], {'A': ramp_from('#8a5a3a'), 'P': ramp_from('#e8e4d4'), 'F': ramp_from('#e8ecf0')}, {'k': '#1a1a20'})
+D['WRITTEN_BOOK'] = (['................', '................', '...AAAAAAAAAA...', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '..AAggggggAAAP..', '..AAAAAAAAAAAP..', '..AAAgggAAAAAP..',
+                      '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '..AAAAAAAAAAAP..', '...PPPPPPPPPPP..'], {'A': ramp_from('#5a3a22'), 'P': ramp_from('#e8e4d4')}, {'g': '#d8b04a'})
+D['CANDLE'] = (['................', '.......f........', '......fyf.......', '......fy........', '.......k........', '......AAA.......', '......AAA.......', '......AAA.......',
+                '......AAA.......', '......AAA.......', '......AAA.......', '......AAA.......', '......AAA.......', '......AAA.......'], {'A': ramp_from('#e8dcb8')}, {'f': '#f0a030', 'y': '#fff0a0', 'k': '#2a2420'})
+D['SEA_PICKLE'] = (['................', '................', '.....g....g.....', '....AAA..AAA....', '....AAA..AAA....', '....AAA..AAA....', '....AAA..AAA....', '....AAA..AAA....',
+                    '....AAA..AAA....', '....AAA..AAA....'], {'A': ramp_from('#6a8a3a')}, {'g': '#c8f0a0'})
+D['BELL'] = (['................', '.......SS.......', '......SSSS......', '.....AAAAAA.....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....', '....AAAAAAAA....',
+              '...AAAAAAAAAA...', '...AAAAAAAAAA...', '..AAAAAAAAAAAA..', '..BBBBBBBBBBBB..', '.......BB.......'], {'A': ramp_from('#e0b840'), 'B': ramp_from('#a07a20'), 'S': ramp_from('#6a6a70')})
+D['CHAIN'] = (['................', '.......AA.......', '......A..A......', '......A..A......', '.......AA.......', '.......BB.......', '......B..B......', '......B..B......',
+               '.......BB.......', '.......AA.......', '......A..A......', '......A..A......', '.......AA.......', '.......BB.......', '......B..B......', '.......BB.......'], {'A': ramp_from('#6a7080'), 'B': ramp_from('#4a505c')})

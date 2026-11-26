@@ -1825,5 +1825,55 @@ console.log('\n生き物 その 2（敵）');
   check(cured && golem && rider.mount && Math.abs(rider.x - rider.mount.x) < 0.01 && rider.y > rider.mount.y, '弱化と金のリンゴでゾンビ村人が村人に戻る、雪ブロック 2 つとカボチャで雪だるま、クモに乗った骸骨は一緒に動く');
 })();
 
+// ---- ロードマップ 第 16 段階：ブロック ----
+console.log('\nブロック');
+(function () {
+  var keys = ['CANDLE_1', 'CANDLE_CAKE', 'BELL', 'LECTERN', 'SCAFFOLDING', 'SPONGE', 'WET_SPONGE', 'CHAIN', 'SOUL_TORCH', 'SOUL_CAMPFIRE', 'SOUL_FIRE', 'HANGING_SIGN_N', 'CHISELED_BOOKSHELF_0', 'TINTED_GLASS', 'OCHRE_FROGLIGHT', 'POLISHED_BASALT', 'CUT_COPPER', 'COPPER_DOOR_NCL', 'COPPER_TRAPDOOR_B', 'LAVA_CAULDRON', 'BUDDING_AMETHYST', 'SEA_PICKLE_1', 'NETHER_SPROUTS', 'WITHER_ROSE'];
+  var ok = keys.filter(function (k) { return B[k] != null && WG.ITEMS[k]; });
+  check(ok.length === keys.length, '新しいブロック ' + ok.length + ' 種（' + ok.map(function (k) { return WG.blockName(B[k]); }).join('・') + '）');
+  var lit = WG.LIGHT_EMIT, mk = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  check(lit[B.CANDLE_4_LIT] === 12 && !lit[B.CANDLE_4] && lit[B.SEA_PICKLE_4] === 15 && lit[B.SOUL_TORCH] === 10 && lit[B.VERDANT_FROGLIGHT] === 15 && WG.LIGHT_BLOCK[B.TINTED_GLASS] === 15,
+    '明るさ：火の付いたろうそく 4 本 12・シーピクルス 4 つ 15・魂のたいまつ 10・カエルの光 15、遮光ガラスは光を通さない');
+  // ろうそくを 3 本立てて火を付ける、ケーキに立てる
+  var w = mk(), g = playGame(w); g.mode = 'survival';
+  var at = function (x, y, z, id) { g.walker.target = { x: x, y: y, z: z, px: x, py: y + 1, pz: z, id: id }; };
+  g.inv.slots[0] = { key: 'CANDLE', n: 5 }; g.inv.sel = 0;
+  at(1, 10, 1, B.STONE); g.place(); at(1, 11, 1, w.block(1, 11, 1)); g.place(); at(1, 11, 1, w.block(1, 11, 1)); g.place();
+  g.inv.slots[0] = { key: 'FLINT_AND_STEEL', n: 1 }; at(1, 11, 1, w.block(1, 11, 1)); g.use();
+  var c3 = w.block(1, 11, 1) === B.CANDLE_3_LIT;
+  w.setBlock(3, 11, 3, B.CAKE_0); g.inv.slots[0] = { key: 'CANDLE', n: 1 }; at(3, 11, 3, B.CAKE_0); g.place();
+  check(c3 && w.block(3, 11, 3) === B.CANDLE_CAKE, 'ろうそくを 3 本立てて火打ち石で火を付ける、ケーキの上にも立つ');
+  // スポンジ・足場・彫られた本棚・書見台・溶岩の大釜
+  var w2 = flatWorld(function (x, y, z) { return y <= 5 ? B.STONE : y <= 10 ? B.WATER : 0; }), g2 = playGame(w2); g2.mode = 'survival';
+  g2.inv.slots[0] = { key: 'SPONGE', n: 1 }; g2.inv.sel = 0; w2.setBlock(4, 9, 4, B.AIR);
+  g2.walker.target = { x: 4, y: 8, z: 4, px: 4, py: 9, pz: 4, id: B.WATER }; g2.place();
+  var wet = w2.block(4, 9, 4) === B.WET_SPONGE && w2.block(5, 9, 4) === B.AIR, dry = WG.Craft.SMELT.WET_SPONGE === 'SPONGE';
+  var g3 = playGame(w = mk()); g3.mode = 'survival';
+  for (var y = 11; y <= 14; y++) w.setBlock(2, y, 2, B.SCAFFOLDING);
+  g3.breakBlock(2, 11, 2, true); var sc = w.block(2, 14, 2) === B.AIR;
+  w.setBlock(4, 11, 4, B.CHISELED_BOOKSHELF_0); g3.inv.slots[0] = { key: 'BOOK', n: 2 }; g3.inv.sel = 0;
+  g3.walker.target = { x: 4, y: 11, z: 4, px: 4, py: 11, pz: 3, id: B.CHISELED_BOOKSHELF_0 }; g3.use(); g3.walker.target.id = w.block(4, 11, 4); g3.use();
+  var two = w.block(4, 11, 4) === B.CHISELED_BOOKSHELF_2; g3.inv.slots[0] = null; g3.walker.target.id = w.block(4, 11, 4); g3.use();
+  var shelf = two && w.block(4, 11, 4) === B.CHISELED_BOOKSHELF_1;
+  w.setBlock(6, 11, 6, B.LECTERN); g3.inv.slots[0] = { key: 'WRITTEN_BOOK', n: 1, title: 'たび', pages: ['いち', 'に'] };
+  g3.walker.target = { x: 6, y: 11, z: 6, px: 6, py: 12, pz: 6, id: B.LECTERN }; g3.use();
+  var lec = w.lecterns && w.lecterns.get('6,11,6') && w.lecterns.get('6,11,6').title === 'たび' && !g3.inv.slots[0];
+  w.setBlock(8, 11, 8, B.CAULDRON); g3.inv.slots[0] = { key: 'LAVA_BUCKET', n: 1 };
+  g3.walker.target = { x: 8, y: 11, z: 8, px: 8, py: 12, pz: 8, id: B.CAULDRON }; g3.use();
+  var lava = w.block(8, 11, 8) === B.LAVA_CAULDRON && g3.inv.slots[0].key === 'BUCKET';
+  check(wet && dry && sc && shelf && lec && lava, 'スポンジが水を吸ってぬれる（かまどで乾く）、足場は上ごと崩れる、本棚に本を出し入れ、書見台に本を置く、大釜に溶岩');
+  // カエルが小さなマグマスライムを食べてカエルの光、鐘で敵が光る、ウィザーローズで衰弱
+  var w4 = mk(), g4 = playGame(w4); g4.mode = 'survival';
+  var fr = g4.mobs.spawn('FROG', 3.5, 11, 3.5), ms = g4.mobs.spawn('MAGMA_SLIME', 3.8, 11, 3.5); ms.size = 1;
+  var n0 = g4.entities.length; g4.mobs.tick();
+  var light = g4.entities.slice(n0).some(function (e) { return /_FROGLIGHT$/.test(e.key); });
+  var zb = g4.mobs.spawn('ZOMBIE', 8.5, 11, 8.5); g4.tickCount = 10; WG.ringBell(g4, 5, 11, 5);
+  w4.setBlock(1, 11, 1, B.WITHER_ROSE); g4.walker.pos = [1.5, 11, 1.5]; g4.tickCount = 20; g4.tick();
+  var wither = g4.effects && g4.effects.WITHER;
+  var recipes = [WG.Craft.match(['STRING', null, 'HONEYCOMB', null], 2), WG.Craft.match([null, 'AMETHYST_SHARD', null, 'AMETHYST_SHARD', 'GLASS', 'AMETHYST_SHARD', null, 'AMETHYST_SHARD', null], 3), WG.Craft.match(['IRON_NUGGET', null, null, 'IRON_INGOT', null, null, 'IRON_NUGGET', null, null], 3)];
+  var rk = recipes.map(function (r) { return r && r.key; }).join(',');
+  check(light && zb.glowUntil > 10 && wither && rk === 'CANDLE,TINTED_GLASS,CHAIN', 'カエルが小さなマグマスライムを食べてカエルの光、鐘の音で敵が光る、ウィザーローズにふれると衰弱、ろうそく・遮光ガラス・鎖を作れる');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

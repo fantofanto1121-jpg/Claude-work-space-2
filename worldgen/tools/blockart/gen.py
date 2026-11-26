@@ -2194,6 +2194,119 @@ def main():
     for (x, y) in [(4, 6), (11, 9), (6, 3), (9, 12)]: chs.set(x, y, [180, 90, 40])
     put('CREAKING_HEART', chs, T['PALE_OAK_LOG']['top'], T['PALE_OAK_LOG']['top'])
 
+    # ---- ロードマップ 第 16 段階：ろうそく・鐘・書見台・足場・スポンジ・鎖・魂の火・本棚・遮光ガラス・カエルの光・銅・アメジスト・シーピクルス・草花 ----
+    cnd = Img()
+    for y in range(N):
+        for x in range(N): cnd.set(x, y, sc([232, 220, 184], (1.08 if x % 4 == 1 else 0.9 if x % 4 == 3 else 1.0) * (0.96 + 0.05 * ((hsh(800, x, y) % 3) / 2))))
+    put('CANDLE_1', cnd)
+    put('CANDLE_CAKE', T['CAKE_0']['side'] if 'CAKE_0' in T else cnd)
+    bel = Img()
+    for y in range(N):
+        for x in range(N): bel.set(x, y, sc([232, 192, 64], (1.15 if x in (3, 4) else 0.78 if x in (12, 13) else 1.0) * (0.95 + 0.07 * ((hsh(801, x, y) % 3) / 2)) * (0.85 if y in (2, 13) else 1)))
+    put('BELL', bel)
+    lt_ = planks([150, 112, 70], 802)
+    for y in range(3, 13):
+        for x in range(2, 14): lt_.set(x, y, [236, 228, 208] if x != 7 and x != 8 else [190, 170, 140])
+    for x in range(2, 14): lt_.set(x, 3, [120, 40, 40]); lt_.set(x, 12, [120, 40, 40])
+    put('LECTERN', planks([150, 112, 70], 803), lt_, planks([130, 96, 60], 804))
+    scf = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            frame = x in (0, 1, 14, 15) or y in (0, 1, 14, 15)
+            diag = abs(x - y) <= 1 or abs(x + y - 15) <= 1
+            if frame or diag: scf.set(x, y, sc([204, 176, 96], 1.12 if (x + y) % 5 == 0 else 0.9 if frame and (x in (0, 15) or y in (0, 15)) else 1.0))
+    put('SCAFFOLDING', scf, scf, scf, cut=scf, all_faces=True)
+    for k, base in [('SPONGE', [216, 200, 80]), ('WET_SPONGE', [168, 160, 64])]:
+        sp = Img()
+        for y in range(N):
+            for x in range(N):
+                hole = hsh(805, x, y) % 7 == 0 or hsh(806, x // 2, y // 2) % 9 == 0
+                sp.set(x, y, sc(base, 0.62 if hole else 0.95 + 0.1 * ((hsh(807, x, y) % 3) / 2)))
+        put(k, sp)
+    ch = Img(alpha=True)
+    for y in range(N):
+        link = (y // 4) % 2
+        for x in (6, 7, 8, 9):
+            if (link == 0 and x in (6, 9)) or (link == 1 and x in (7, 8)) or y % 4 in (0, 3):
+                if 6 <= x <= 9: ch.set(x, y, [74, 78, 90] if x in (6, 9) else [120, 126, 140])
+    put('CHAIN', ch, cut=ch, all_faces=True)
+    put('SOUL_TORCH', torch([100, 220, 236]), cut=torch([100, 220, 236]))
+    sf = fire()
+    for y in range(N):
+        for x in range(N):
+            c = sf.get(x, y)
+            if c: sf.set(x, y, [c[2] // 2 + 40, min(255, c[1] + 20), min(255, c[0] + 10)])
+    put('SOUL_FIRE', sf, cut=sf)
+    put('SOUL_CAMPFIRE', T['CAMPFIRE']['side'] if 'CAMPFIRE' in T else sf)
+    pk_ = planks([150, 112, 70], 808)
+    for n in range(7):
+        im = Img()
+        for y in range(N):
+            for x in range(N):
+                edge = x in (0, 15) or y in (0, 15) or y in (7, 8)
+                im.set(x, y, sc([118, 86, 50], 1.1 if edge else 0.55))
+        slots = [(1, 1), (6, 1), (11, 1), (1, 9), (6, 9), (11, 9)]
+        cols = [[150, 40, 40], [40, 80, 150], [60, 120, 50], [170, 120, 40], [100, 50, 120], [150, 60, 90]]
+        for i in range(n):
+            sx, sy = slots[i]
+            for y in range(sy, sy + 6):
+                for x in range(sx, sx + 4): im.set(x, y, sc(cols[i], 1.15 if x == sx else 0.9 if x == sx + 3 else 1.0) if y != sy else [220, 200, 150])
+        put('CHISELED_BOOKSHELF_' + str(n), im, pk_, pk_)
+    tg = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            edge = x in (0, 15) or y in (0, 15)
+            tg.set(x, y, [44, 34, 52] if edge else [70, 54, 82] if (x + y) % 6 == 0 else [58, 46, 68])
+    put('TINTED_GLASS', tg, cut=tg, all_faces=True)
+    for k, base, line in [('OCHRE_FROGLIGHT', [244, 220, 150], [200, 150, 70]), ('VERDANT_FROGLIGHT', [210, 236, 170], [130, 180, 100]), ('PEARLESCENT_FROGLIGHT', [244, 220, 236], [200, 150, 190])]:
+        fl = Img(); ft = Img()
+        for y in range(N):
+            for x in range(N):
+                fl.set(x, y, line if y in (0, 15) or (y % 5 == 2 and (x + y) % 3) else sc(base, 0.96 + 0.06 * ((hsh(809, x, y) % 3) / 2)))
+                d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+                ft.set(x, y, line if int(d) % 3 == 0 else sc(base, 1.02))
+        put(k, fl, ft, ft)
+    pbs = Img(); pbt = Img()
+    for y in range(N):
+        for x in range(N):
+            pbs.set(x, y, sc([96, 96, 104], (1.12 if x % 5 == 1 else 0.86 if x % 5 == 4 else 1.0) * (0.96 + 0.05 * ((hsh(810, x, y) % 3) / 2))))
+            pbt.set(x, y, sc([96, 96, 104], 0.8 if x in (0, 15) or y in (0, 15) else 1.04 if (x // 4 + y // 4) % 2 else 0.96))
+    put('POLISHED_BASALT', pbs, pbt, pbt)
+    cu = Img()
+    for y in range(N):
+        for x in range(N):
+            seam = x % 8 == 0 or y % 8 == 0
+            cu.set(x, y, sc([192, 106, 72], 0.72 if seam else 1.12 if (x % 8 == 1 or y % 8 == 1) else 0.96 + 0.06 * ((hsh(811, x, y) % 3) / 2)))
+    put('CUT_COPPER', cu)
+    for u, up in [('L', False), ('U', True)]:
+        d = door([196, 110, 72], up, True)
+        for y in range(3, 7) if up else range(9, 13):
+            for x in range(4, 12): d.set(x, y, [140, 76, 52] if (x + y) % 2 else [210, 130, 90])
+        put('COPPER_DOOR_' + u, d, sc_img([196, 110, 72], 0.75), sc_img([196, 110, 72], 0.75), cut=d)
+    ctd = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            hole = 3 <= x <= 6 and 3 <= y <= 6 or 9 <= x <= 12 and 3 <= y <= 6 or 3 <= x <= 6 and 9 <= y <= 12 or 9 <= x <= 12 and 9 <= y <= 12
+            if hole: continue
+            ctd.set(x, y, sc([196, 110, 72], 0.75 if x in (0, 15) or y in (0, 15) else 1.0))
+    put('COPPER_TRAPDOOR', ctd, cut=ctd, all_faces=True)
+    ba = T['AMETHYST_BLOCK']['side'].copy()
+    for (x, y) in [(3, 3), (11, 5), (6, 10), (12, 12), (2, 13)]:
+        ba.set(x, y, [240, 210, 255]); ba.set(x + 1, y, [190, 140, 230]); ba.set(x, y + 1, [190, 140, 230])
+    put('BUDDING_AMETHYST', ba)
+    pkl = Img()
+    for y in range(N):
+        for x in range(N): pkl.set(x, y, sc([106, 140, 58], 1.15 if (x + y * 2) % 7 == 0 else 0.9 if y < 3 else 1.0))
+    for x in range(5, 11): pkl.set(x, 0, [200, 230, 150])
+    put('SEA_PICKLE_1', pkl)
+    ns = plant_cut(['................', '................', '................', '................', '................', '................', '................', '................',
+                    '..s.......s.....', '...s..s..s...s..', '...s..s..s..s...', '....s.ss.s..s...', '....s..s.s.s....', '.....s.s.ss.....', '......sss.......', '.......s........'], {'s': [42, 168, 154]})
+    put('NETHER_SPROUTS', ns, cut=ns)
+    wr = plant_cut(['................', '................', '.....bb.bb......', '....bBBbBBb.....', '....bBkkBBb.....', '.....bkkkb......', '....bBBkBBb.....', '.....bb.bb......',
+                    '.......s........', '.....l.s.l......', '....ll.s.ll.....', '.......s........', '.......s........', '......ss........', '.......s........', '................'],
+                   {'b': [30, 28, 30], 'B': [56, 50, 56], 'k': [12, 10, 12], 's': [52, 70, 40], 'l': [64, 84, 46]})
+    put('WITHER_ROSE', wr, cut=wr)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):

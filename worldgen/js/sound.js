@@ -142,6 +142,7 @@
       case 'trade': voice(dst, t, 'VILLAGER', false); tone(dst, t + 0.2, 0.2, 'sine', 1800, null, 0.06); break;
       case 'bow': tone(dst, t, 0.12, 'triangle', 300, 180, 0.4); burst(dst, t, 0.1, 'highpass', 2000, 1, 0.002, 0.3); break;
       case 'firework': burst(dst, t, 0.12, 'lowpass', 1200, 1, 0.002, 0.8); for (var f = 0; f < 10; f++) burst(dst, t + 0.15 + f * 0.04 + Math.random() * 0.05, 0.03, 'highpass', 4000, 1, 0.001, 0.4); break;
+      case 'bell': [[880, 0.22], [1320, 0.1], [2210, 0.06], [440, 0.12]].forEach(function (h) { tone(dst, t, 2.2, 'sine', h[0], h[0] * 0.998, h[1]); }); burst(dst, t, 0.04, 'bandpass', 2600, 3, 0.001, 0.4); break;
       case 'levelup': [523, 659, 784].forEach(function (f, n) { tone(dst, t + n * 0.08, 0.25, 'triangle', f, null, 0.2); }); break;
       // 雷：近いと鋭く裂ける音、遠いと低くうなる音
       case 'thunder':

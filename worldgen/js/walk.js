@@ -286,7 +286,7 @@
     }
     // はしご：横の速さと落ちる速さを抑え、スニークで止まる（Minecraft と同じ）
     var feet = this.world.block(Math.floor(this.pos[0]), Math.floor(this.pos[1]), Math.floor(this.pos[2]));
-    var onLadder = !this.flying && (WG.blockKind(feet) === 'ladder' || WG.blockKind(feet) === 'vine');
+    var onLadder = !this.flying && (WG.blockKind(feet) === 'ladder' || WG.blockKind(feet) === 'vine' || WG.blockKind(feet) === 'scaffold');
     if (onLadder) {
       v[0] = Math.max(-0.15, Math.min(0.15, v[0])); v[2] = Math.max(-0.15, Math.min(0.15, v[2]));
       v[1] = Math.max(v[1], -0.15);

@@ -180,7 +180,7 @@
     var TT = atlas();
     var v = vol.v, sx = vol.sx, sz = vol.sz, sxz = sx * sz;
     var op = new Buf(), wa = new Buf();
-    var STAINED = WG.STAINED_GLASS || (WG.STAINED_GLASS = (function () { var t = new Uint8Array(WG.BLOCKS.length); WG.BLOCKS.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) t[b.id] = 1; }); return t; })());
+    var STAINED = WG.STAINED_GLASS || (WG.STAINED_GLASS = (function () { var t = new Uint8Array(WG.BLOCKS.length); WG.BLOCKS.forEach(function (b) { if (/_STAINED_GLASS$|^TINTED_GLASS$/.test(b.key)) t[b.id] = 1; }); return t; })());
     var dOff = DIRS.map(function (d) { return d.n[0] + d.n[2] * sx + d.n[1] * sxz; });
     var uOff = DIRS.map(function (d) { return d.u[0] + d.u[2] * sx + d.u[1] * sxz; });
     var vOff = DIRS.map(function (d) { return d.v[0] + d.v[2] * sx + d.v[1] * sxz; });

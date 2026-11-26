@@ -438,6 +438,24 @@
   DEF.push(['INFESTED_STONE', '虫食い石', '#7d7d7d', 'solid'], ['INFESTED_STONE_BRICKS', '虫食い石レンガ', '#7a7a7a', 'solid'], ['INFESTED_DEEPSLATE', '虫食い深層岩', '#505055', 'solid'],
     ['CREAKING_HEART', '軋みの心臓', '#5a4a40', 'solid']);
   ALIAS.INFESTED_STONE = 'STONE'; ALIAS.INFESTED_STONE_BRICKS = 'STONE_BRICKS'; ALIAS.INFESTED_DEEPSLATE = 'DEEPSLATE';
+  // ロードマップ 第 16 段階：ろうそく・鐘・書見台・足場・スポンジ・鎖・魂のたいまつ／焚き火／火・吊り看板・彫られた本棚・遮光ガラス・カエルの光・
+  // 磨かれた玄武岩・銅の建材・溶岩の大釜・芽生えたアメジスト・シーピクルス・ネザースプラウト・ウィザーローズ
+  for (var cn = 1; cn <= 4; cn++) { DEF.push(['CANDLE_' + cn, 'ろうそく', '#e8dcb8', 'candle'], ['CANDLE_' + cn + '_LIT', 'ろうそく', '#e8dcb8', 'candle']); ALIAS['CANDLE_' + cn + '_LIT'] = 'CANDLE_' + cn; if (cn > 1) { ALIAS['CANDLE_' + cn] = 'CANDLE_1'; ALIAS['CANDLE_' + cn + '_LIT'] = 'CANDLE_1'; } }
+  ALIAS.CANDLE_1_LIT = 'CANDLE_1';
+  DEF.push(['CANDLE_CAKE', 'ろうそく付きケーキ', '#f0e8e0', 'candlecake'], ['CANDLE_CAKE_LIT', 'ろうそく付きケーキ', '#f0e8e0', 'candlecake'], ['BELL', '鐘', '#e8c040', 'bell'],
+    ['LECTERN', '書見台', '#a07a4a', 'lectern'], ['SCAFFOLDING', '足場', '#c8b060', 'scaffold'], ['SPONGE', 'スポンジ', '#d8c850', 'solid'], ['WET_SPONGE', 'ぬれたスポンジ', '#a8a040', 'solid'],
+    ['CHAIN', '鎖', '#4a4e58', 'chain'], ['SOUL_TORCH', '魂のたいまつ', '#6ad0e0', 'deco'], ['SOUL_CAMPFIRE', '魂の焚き火', '#5a8a8a', 'campfire', 1], ['SOUL_FIRE', '魂の火', '#5ad0e8', 'fire', 1]);
+  ALIAS.CANDLE_CAKE_LIT = 'CANDLE_CAKE';
+  DIR4.forEach(function (d) { DEF.push(['SOUL_WALL_TORCH_' + d, '魂のたいまつ', '#6ad0e0', 'deco'], ['HANGING_SIGN_' + d, '吊り看板', '#a5824f', 'hsign']); ALIAS['SOUL_WALL_TORCH_' + d] = 'SOUL_TORCH'; ALIAS['HANGING_SIGN_' + d] = 'OAK_PLANKS'; });
+  for (var bs = 0; bs <= 6; bs++) DEF.push(['CHISELED_BOOKSHELF_' + bs, '彫られた本棚', '#8a6a3e', 'solid']);
+  DEF.push(['TINTED_GLASS', '遮光ガラス', '#3a3040', 'solid'], ['OCHRE_FROGLIGHT', '黄土色のカエルの光', '#f0d890', 'solid'], ['VERDANT_FROGLIGHT', '若葉色のカエルの光', '#c8e8a0', 'solid'],
+    ['PEARLESCENT_FROGLIGHT', '真珠色のカエルの光', '#f0d8e8', 'solid'], ['POLISHED_BASALT', '磨かれた玄武岩', '#5a5a60', 'solid'], ['CUT_COPPER', '切り込み入りの銅', '#c06a48', 'solid']);
+  DIR4.forEach(function (d) { ['C', 'O'].forEach(function (o) { ['L', 'U'].forEach(function (h) { DEF.push(['COPPER_DOOR_' + d + o + h, '銅のドア', '#c06a48', 'door']); }); }); });
+  ['B', 'T', 'ON', 'OE', 'OS', 'OW'].forEach(function (st) { DEF.push(['COPPER_TRAPDOOR_' + st, '銅のトラップドア', '#c06a48', 'trapdoor']); ALIAS['COPPER_TRAPDOOR_' + st] = 'COPPER_TRAPDOOR'; });
+  DEF.push(['LAVA_CAULDRON', '溶岩入りの大釜', '#3a3a40', 'cauldron'], ['BUDDING_AMETHYST', '芽生えたアメジスト', '#9a6ad0', 'solid']);
+  ALIAS.LAVA_CAULDRON = 'CAULDRON';
+  for (var sp = 1; sp <= 4; sp++) { DEF.push(['SEA_PICKLE_' + sp, 'シーピクルス', '#6a8a3a', 'pickle']); if (sp > 1) ALIAS['SEA_PICKLE_' + sp] = 'SEA_PICKLE_1'; }
+  DEF.push(['NETHER_SPROUTS', 'ネザースプラウト', '#2aa89a', 'plant'], ['WITHER_ROSE', 'ウィザーローズ', '#2a2a2a', 'plant']);
 
   WG.WOOL_COLORS = WOOL_COLORS;
   WG.SHAPE_MATS = SHAPE_MATS; WG.WOODS = WOODS;
@@ -578,7 +596,11 @@
   LIGHT_EMIT[B.SEA_LANTERN] = 15; LIGHT_EMIT[B.END_ROD] = 14; LIGHT_EMIT[B.END_GATEWAY] = 15; LIGHT_EMIT[B.END_PORTAL_FRAME_EYE] = 1; LIGHT_BLOCK[B.END_ROD] = 0; LIGHT_BLOCK[B.END_GATEWAY] = 0;
   [B.SNOW_LAYER, B.LILY_PAD, B.BAMBOO].forEach(function (id) { LIGHT_BLOCK[id] = 0; }); LIGHT_EMIT[B.LINKED_CHEST] = 7;
   LIST.forEach(function (b) { if (/_STAINED_GLASS$/.test(b.key)) { OPAQUE[b.id] = 0; LIGHT_BLOCK[b.id] = 0; } });
+  OPAQUE[B.TINTED_GLASS] = 0; LIGHT_BLOCK[B.TINTED_GLASS] = 15;   // 遮光ガラス：透けて見えるが、光は通さない
   LIGHT_EMIT[B.CAVE_VINES_LIT] = 14; LIGHT_EMIT[B.SPORE_BLOSSOM] = 2; LIGHT_EMIT[B.GLOW_LICHEN] = LIGHT_EMIT[B.GLOW_LICHEN_C] = 7;
+  [1, 2, 3, 4].forEach(function (n) { LIGHT_EMIT[B['CANDLE_' + n + '_LIT']] = 3 * n; LIGHT_EMIT[B['SEA_PICKLE_' + n]] = 3 + 3 * n; });
+  LIGHT_EMIT[B.CANDLE_CAKE_LIT] = 3; LIGHT_EMIT[B.SOUL_TORCH] = 10; ['N', 'E', 'S', 'W'].forEach(function (d) { LIGHT_EMIT[B['SOUL_WALL_TORCH_' + d]] = 10; });
+  LIGHT_EMIT[B.SOUL_CAMPFIRE] = 10; LIGHT_EMIT[B.SOUL_FIRE] = 10; LIGHT_EMIT[B.OCHRE_FROGLIGHT] = LIGHT_EMIT[B.VERDANT_FROGLIGHT] = LIGHT_EMIT[B.PEARLESCENT_FROGLIGHT] = 15; LIGHT_EMIT[B.LAVA_CAULDRON] = 15;
   LIGHT_EMIT[B.TRIAL_SPAWNER] = 4; LIGHT_EMIT[B.TRIAL_SPAWNER_ACTIVE] = 8; LIGHT_EMIT[B.VAULT] = 6; LIGHT_EMIT[B.CONDUIT] = 15;
   LIGHT_EMIT[B.SOUL_LANTERN] = 10; LIGHT_EMIT[B.CRYING_OBSIDIAN] = 10; LIGHT_EMIT[B.MAGMA_BLOCK] = 3; LIGHT_EMIT[B.SCULK_SHRIEKER] = 1;
   LIGHT_EMIT[B.LANTERN] = 15; LIGHT_EMIT[B.CAMPFIRE] = 15; LIGHT_EMIT[B.BLAST_FURNACE_LIT] = LIGHT_EMIT[B.SMOKER_LIT] = 13;
@@ -590,7 +612,7 @@
     COLLIDE[b.id] = k === 'solid' ? 1 : k === 'bed' ? 9 / 16 : k === 'farm' ? 15 / 16 : k === 'stairs' ? 1 : k === 'fence' ? 1.5 :
       k === 'slab' ? (/_TOP$/.test(key) ? 1 : 0.5) : k === 'door' ? (/C[LU]$/.test(key) ? 1 : 0) :
       k === 'repeater' ? 2 / 16 : k === 'piston' || k === 'phead' || k === 'anvil' ? 1 : k === 'etable' ? 0.75 : k === 'stand' ? 0.875 : k === 'lantern' ? 9 / 16 : k === 'cutter' ? 9 / 16 : k === 'campfire' ? 7 / 16 : k === 'composter' ? 1 : k === 'wall' ? 1.5 : k === 'pane' ? 1 : k === 'gate' ? (/O$/.test(key) ? 0 : 1.5) :
-      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : k === 'chorus' ? 1 : k === 'path' ? 15 / 16 : 0;
+      k === 'trapdoor' ? (/_B$/.test(key) ? 3 / 16 : 1) : k === 'pot' ? 6 / 16 : k === 'beacon' ? 1 : k === 'skull' ? 0.5 : k === 'snowlayer' ? 2 / 16 : k === 'lily' ? 1 / 16 : k === 'bamboo' ? 1 : k === 'cocoa' ? 0 : k === 'sculk' ? 0.5 : k === 'moving' ? 1 : k === 'cake' ? 0.5 : k === 'cauldron' ? 1 : k === 'lrod' ? 1 : k === 'dpot' ? 1 : k === 'conduit' ? 0.5 : k === 'carpet' ? 1 / 16 : k === 'azalea' ? 1 : k === 'bigdrip' ? 15 / 16 : k === 'grindstone' ? 1 : k === 'chorus' ? 1 : k === 'path' ? 15 / 16 : k === 'candle' ? 6 / 16 : k === 'candlecake' ? 0.5 : k === 'bell' ? 1 : k === 'lectern' ? 1 : k === 'pickle' ? 6 / 16 : 0;
   });
   COLLIDE[B.POWDER_SNOW] = 0;   // 粉雪には沈む（js/biomes3.js）
   LIST.forEach(function (b) { var k = b.kind;
@@ -600,10 +622,10 @@
 
   // ---- 形（1/16 ブロック単位の箱の並び）----
   // 描くときと、ぶつかるときの形。nb(dx, dz) は横の隣のブロック（柵のつながり）。forCollide なら柵は高さ 1.5。
-  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, path: 1, ceilcarpet: 1, stand: 1,
+  var SHAPED = { stairs: 1, slab: 1, fence: 1, door: 1, ladder: 1, farm: 1, lever: 1, button: 1, plate: 1, repeater: 1, piston: 1, phead: 1, etable: 1, anvil: 1, grindstone: 1, chorus: 1, path: 1, ceilcarpet: 1, candle: 1, candlecake: 1, bell: 1, lectern: 1, scaffold: 1, chain: 1, hsign: 1, pickle: 1, stand: 1,
     hopper: 1, comparator: 1, daylight: 1, lantern: 1, portal: 1, cutter: 1, campfire: 1, composter: 1, wall: 1, pane: 1, trapdoor: 1, gate: 1, sign: 1, frame: 1, pot: 1, beacon: 1, skull: 1, endportal: 1, bamboo: 1, lily: 1, snowlayer: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1, sculk: 1, moving: 1, cake: 1, cauldron: 1, lrod: 1, dpot: 1, conduit: 1, carpet: 1, azalea: 1, bigdrip: 1, drip: 1 };
   // 形はあるが、ぶつからないもの
-  var NOCOLLIDE = { ceilcarpet: 1, lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
+  var NOCOLLIDE = { ceilcarpet: 1, scaffold: 1, chain: 1, hsign: 1, lever: 1, button: 1, plate: 1, portal: 1, sign: 1, frame: 1, endportal: 1, cocoa: 1, vine: 1, rod: 1, gateway: 1, hook: 1, tripwire: 1 };
   // 箱の回し方：E 向き（西の壁に付く）を基準に、横の 4 方向へ
   function rotE(b, f) {
     if (f === 'W') return [16 - b[3], b[1], b[2], 16 - b[0], b[4], b[5]].concat(b.slice(6));
@@ -690,6 +712,18 @@
     if (k === 'stand') return [[1, 0, 1, 15, 2, 15], [7, 2, 7, 9, 14, 9, B.GOLD_BLOCK]];
     if (k === 'path') return [[0, 0, 0, 16, 15, 16, id]];
     if (k === 'ceilcarpet') return [[0, 15, 0, 16, 16, 16, id]];
+    if (k === 'candle') {
+      var nc = +key.split('_')[1], lit = /_LIT$/.test(key), POS = [[7, 7], [4, 5], [10, 6], [7, 10]], HH = [6, 5, 4, 5], cbx = [];
+      for (var ci = 0; ci < nc; ci++) { var p0 = POS[ci]; cbx.push([p0[0], 0, p0[1], p0[0] + 2, HH[ci], p0[1] + 2, B.CANDLE_1]); if (!forCollide) cbx.push(lit ? [p0[0] + 0.6, HH[ci], p0[1] + 0.6, p0[0] + 1.4, HH[ci] + 2, p0[1] + 1.4, B.FIRE, 1] : [p0[0] + 0.8, HH[ci], p0[1] + 0.8, p0[0] + 1.2, HH[ci] + 1, p0[1] + 1.2, B.COAL_BLOCK]); }
+      return cbx;
+    }
+    if (k === 'candlecake') { var cc = [[1, 0, 1, 15, 8, 15, B.CAKE_0], [7, 8, 7, 9, 14, 9, B.CANDLE_1]]; if (!forCollide && /_LIT$/.test(key)) cc.push([7.6, 14, 7.6, 8.4, 16, 8.4, B.FIRE, 1]); return cc; }
+    if (k === 'bell') return forCollide ? [[4, 4, 4, 12, 16, 12]] : [[0, 3, 7, 2, 16, 9, B.STONE], [14, 3, 7, 16, 16, 9, B.STONE], [2, 13, 7, 14, 15, 9, B.DARK_OAK_PLANKS], [5, 6, 5, 11, 13, 11, id], [4, 4, 4, 12, 6, 12, id], [7, 3, 7, 9, 4, 9, id]];
+    if (k === 'lectern') return forCollide ? [[0, 0, 0, 16, 15, 16]] : [[0, 0, 0, 16, 2, 16, B.OAK_PLANKS], [4, 2, 4, 12, 13, 12, B.OAK_PLANKS], [0, 13, 0, 16, 15, 16, id]];
+    if (k === 'scaffold') return [[0, 0, 0, 2, 16, 2, id], [14, 0, 0, 16, 16, 2, id], [0, 0, 14, 2, 16, 16, id], [14, 0, 14, 16, 16, 16, id], [0, 14, 0, 16, 16, 16, id], [0, 1, 0, 16, 2, 2, id], [0, 1, 14, 16, 2, 16, id]];
+    if (k === 'chain') return [[6.5, 0, 6.5, 9.5, 16, 9.5, id]];
+    if (k === 'hsign') { var hd = key.slice(-1), hb = [[3, 10, 7.5, 4, 16, 8.5, B.CHAIN], [12, 10, 7.5, 13, 16, 8.5, B.CHAIN], [1, 0, 7, 15, 10, 9, id]]; return hb.map(function (b) { return rotN(b, hd); }); }
+    if (k === 'pickle') { var np = +key.split('_')[2], PP = [[6, 6], [3, 3], [10, 4], [5, 10]], pb = []; for (var pi = 0; pi < np; pi++) pb.push([PP[pi][0], 0, PP[pi][1], PP[pi][0] + 4, 6, PP[pi][1] + 4, B.SEA_PICKLE_1]); return pb; }
     // コーラスプラント：太い茎と、横の隣のコーラスへの枝。コーラスフラワーは少し小さな塊
     if (k === 'chorus') {
       if (key === 'CHORUS_FLOWER') return [[2, 0, 2, 14, 14, 14, id]];
@@ -750,6 +784,7 @@
         [2, 3, 2, 14, 4, 14, B.CAULDRON], [0, 0, 0, 4, 3, 2, B.CAULDRON], [0, 0, 2, 2, 3, 4, B.CAULDRON], [12, 0, 0, 16, 3, 2, B.CAULDRON], [14, 0, 2, 16, 3, 4, B.CAULDRON],
         [0, 0, 14, 4, 3, 16, B.CAULDRON], [0, 0, 12, 2, 3, 14, B.CAULDRON], [12, 0, 14, 16, 3, 16, B.CAULDRON], [14, 0, 12, 16, 3, 14, B.CAULDRON]];
       if (lv && !forCollide) cb.push([2, 4, 2, 14, 6 + lv * 3, 14, B.WATER]);   // 中の水
+      if (key === 'LAVA_CAULDRON' && !forCollide) cb.push([2, 4, 2, 14, 15, 14, B.LAVA, 1]);   // 中の溶岩
       return cb;
     }
     if (k === 'carpet') return [[0, 0, 0, 16, 1, 16, id]];
@@ -787,7 +822,7 @@
     if (k === 'cutter') return [[0, 0, 0, 16, 9, 16], [1, 9, 7.5, 15, 13, 8.5, B.IRON_BLOCK]];
     // 焚き火：交差した 4 本の丸太と、灰の台、上の炎
     if (k === 'campfire') return forCollide ? [[0, 0, 0, 16, 7, 16]] : [[1, 0, 0, 5, 4, 16, B.OAK_LOG], [11, 0, 0, 15, 4, 16, B.OAK_LOG], [0, 3, 1, 16, 7, 5, B.OAK_LOG], [0, 3, 11, 16, 7, 15, B.OAK_LOG],
-      [5, 0, 5, 11, 1, 11, B.COAL_BLOCK], [4, 4, 4, 12, 15, 12, B.FIRE, 1]];
+      [5, 0, 5, 11, 1, 11, B.COAL_BLOCK], [4, 4, 4, 12, 15, 12, key === 'SOUL_CAMPFIRE' ? B.SOUL_FIRE : B.FIRE, 1]];
     // 堆肥箱：板の箱と、中の堆肥（段階ごとに高くなる）
     if (k === 'composter') {
       var lvl = +key.slice(10), cb2 = [[0, 0, 0, 16, 2, 16], [0, 2, 0, 2, 16, 16], [14, 2, 0, 16, 16, 16], [2, 2, 0, 14, 16, 2], [2, 2, 14, 14, 16, 16]];

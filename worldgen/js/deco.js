@@ -409,7 +409,7 @@
     wd.signs.forEach(function (text, k) {
       var q = k.split(',').map(Number), bk = WG.BLOCKS[wd.block(q[0], q[1], q[2])].key, f = bk.slice(-1), nv = NV[f];
       if (!nv || !text) return;
-      var wall = /^WALL_/.test(bk), x = q[0] + 0.5 + nv[0] * (wall ? -0.4 : 0.06), y = q[1] + (wall ? 0.5 : 0.75), z = q[2] + 0.5 + nv[1] * (wall ? -0.4 : 0.06);
+      var wall = /^WALL_/.test(bk), x = q[0] + 0.5 + nv[0] * (wall ? -0.4 : 0.06), y = q[1] + (wall ? 0.5 : /^HANGING_/.test(bk) ? 0.32 : 0.75), z = q[2] + 0.5 + nv[1] * (wall ? -0.4 : 0.06);
       var dx = x - e[0], dy = y - e[1], dz = z - e[2], d = Math.hypot(dx, dy, dz);
       if (d > 12 || dx * nv[0] + dz * nv[1] >= 0) return;
       var cw = vp[3] * x + vp[7] * y + vp[11] * z + vp[15];
