@@ -1737,5 +1737,31 @@ console.log('\n地上のバイオーム その 2');
   check(sank && cold && g2.walker.pos[1] > 10.6, '粉雪：沈んで（y ' + gm.walker.pos[1].toFixed(1) + '）凍えて傷つく、革の靴なら上に立てる（y ' + g2.walker.pos[1].toFixed(1) + '）');
 })();
 
+// ---- ロードマップ 第 13 段階：自分の姿と左手 ----
+console.log('\n自分の姿と左手');
+(function () {
+  var mk = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  var g = playGame(mk()); g.mode = 'survival';
+  // F5 で視点が変わる・外から見ると体を描く（泳ぐ・滑空は横になる）
+  var ev = function (code) { return { code: code, repeat: false, preventDefault: function () {} }; };
+  g.key(ev('F5'), true); var v1 = g.viewMode; g.key(ev('F5'), true); var v2 = g.viewMode; g.key(ev('F5'), true); var v3 = g.viewMode;
+  g.viewMode = 1; g.walker.pos = [0.5, 11, 0.5]; g.walker.prev = g.walker.pos.slice();
+  var ys = [], bt = { v: function (x, y) { ys.push(y); } };
+  g.drawExtra(bt, 0, function () {}); var standH = Math.max.apply(null, ys) - Math.min.apply(null, ys);
+  ys = []; g.walker.swimming = true; g.drawExtra(bt, 0, function () {}); var swimH = Math.max.apply(null, ys) - Math.min.apply(null, ys); g.walker.swimming = false;
+  check(v1 === 1 && v2 === 2 && v3 === 0 && standH > 1.7 && swimH < 0.8, 'F5 で 一人称 → 後ろから → 前から、外から見ると体を描く（立つと高さ ' + standH.toFixed(2) + '、泳ぐと ' + swimH.toFixed(2) + '）');
+  // F で持ち替え・左手の盾・左手のトーテム・左手のたいまつ
+  g.inv.slots[0] = { key: 'IRON_SWORD', n: 1 }; g.inv.sel = 0; g.player.offhand = { key: 'SHIELD', n: 1 };
+  g.key(ev('KeyF'), true); var swapped = g.inv.slots[0].key === 'SHIELD' && g.player.offhand.key === 'IRON_SWORD'; g.key(ev('KeyF'), true);
+  g.mouseR = true; for (var i = 0; i < 8; i++) g.tick();
+  g.health = 20; g.invuln = 0; g.lastFrom = [g.walker.pos[0] - Math.sin(g.walker.yaw) * 2, g.walker.pos[2] - Math.cos(g.walker.yaw) * 2];
+  var dmg = g.modifyDamage(6, true); g.mouseR = false; g.tick();
+  var g2 = playGame(mk()); g2.mode = 'survival'; g2.player.offhand = { key: 'TOTEM_OF_UNDYING', n: 1 }; g2.health = 0; g2.die();
+  var g3 = playGame(mk()); g3.mode = 'survival'; g3.inv.slots[0] = null; g3.inv.sel = 0; g3.player.offhand = { key: 'TORCH', n: 4 };
+  g3.walker.target = { x: 2, y: 10, z: 2, px: 2, py: 11, pz: 2, id: B.STONE }; g3.place();
+  check(swapped && dmg === 0 && g.player.offhand.key === 'SHIELD' && !g2.dead && g2.health >= 1 && !g2.player.offhand && g3.world.block(2, 11, 2) === B.TORCH && g3.player.offhand.n === 3 && !g3.inv.slots[0],
+    'F で持ち替え、左手の盾で守る、左手のトーテムで倒れない、右手が空なら左手のたいまつを置く');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

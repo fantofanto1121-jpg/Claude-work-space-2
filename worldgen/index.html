@@ -290,6 +290,10 @@
   .an-name { width: 236px; padding: 6px 8px; font: inherit; font-size: 13px; color: #f1efe9; background: rgba(16, 17, 19, 0.85); border: 1px solid #55585e; border-radius: 2px; }
   .an-name:focus { outline: none; border-color: #b9b4a8; }
   .an-name:disabled { opacity: 0.5; }
+  /* 左手の枠（ホットバーの左と、インベントリの防具の下） */
+  #offhandHud { position: fixed; z-index: 6; pointer-events: none; }
+  .slot.offslot::after { content: '左手'; position: absolute; left: 3px; top: 1px; font-size: 9px; color: #6c6e72; pointer-events: none; }
+  .slot.offslot:not(:empty)::after { content: none; }
   /* 進捗と統計の札、統計の画面 */
   .advtabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .slot.advtab { width: auto; height: auto; padding: 5px 16px; font-size: 12.5px; color: #a8aaae; cursor: pointer; }
@@ -556,6 +560,7 @@
 <script src="js/biomes3.js"></script>
 <script src="js/mobskins.js"></script>
 <script src="js/polish.js"></script>
+<script src="js/selfview.js"></script>
 <script src="js/recipebook.js"></script>
 <script src="js/main.js"></script>
 </body>

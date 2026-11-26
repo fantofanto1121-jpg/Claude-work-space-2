@@ -180,6 +180,7 @@
     [[[0, 1, 0], [0, 1, 1], [0, 0, 1], [0, 0, 0]], 0.66, 2],
     [[[1, 1, 1], [1, 1, 0], [1, 0, 0], [1, 0, 1]], 0.86, 2]
   ], TRI = [0, 1, 2, 0, 2, 3], WHITE = [255, 255, 255];
+  WG.mobTexturedBox = function () { return texturedBox.apply(null, arguments); };   // 自分の体も同じ模様で描く（js/selfview.js）
   function texturedBox(bt, o, s, tf, c, info) {
     var tileId = WG.extraTile('MOB_' + info.mat);
     if (tileId == null) return false;

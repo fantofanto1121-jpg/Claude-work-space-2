@@ -82,7 +82,7 @@
   WG.saveGame = function (seed, worlds, player, place) {
     var data = { v: VERSION, seed: String(seed), savedAt: Date.now(), place: place, worlds: {},
       player: { inv: player.inv.slots, sel: player.inv.sel, health: player.health, air: player.air, dead: player.dead, food: player.food, sat: player.sat,
-        exhaust: player.exhaust, armor: player.armor, xp: player.xp, effects: player.effects, bed: player.bed, adv: player.adv || {}, ender: player.ender || null, lastSleep: player.lastSleep || 0, lastDeath: player.lastDeath || null, stats: player.stats || null, difficulty: player.difficulty || null } };
+        exhaust: player.exhaust, armor: player.armor, xp: player.xp, effects: player.effects, bed: player.bed, adv: player.adv || {}, ender: player.ender || null, lastSleep: player.lastSleep || 0, lastDeath: player.lastDeath || null, stats: player.stats || null, difficulty: player.difficulty || null, offhand: player.offhand || null } };
     Object.keys(worlds).forEach(function (dim) { data.worlds[dim] = saveWorld(worlds[dim]); });
     return JSON.stringify(data);
   };
@@ -101,7 +101,7 @@
     p.inv.slots = (q.inv || []).map(function (s) { return s && WG.ITEMS[s.key] ? s : null; });
     while (p.inv.slots.length < 36) p.inv.slots.push(null);
     p.inv.sel = q.sel || 0;
-    ['health', 'air', 'dead', 'food', 'sat', 'exhaust', 'xp', 'effects', 'bed', 'adv', 'ender', 'lastSleep', 'lastDeath', 'stats', 'difficulty'].forEach(function (k) { if (q[k] != null) p[k] = q[k]; });
+    ['health', 'air', 'dead', 'food', 'sat', 'exhaust', 'xp', 'effects', 'bed', 'adv', 'ender', 'lastSleep', 'lastDeath', 'stats', 'difficulty', 'offhand'].forEach(function (k) { if (q[k] != null) p[k] = q[k]; });
     if (q.armor) p.armor = q.armor.map(function (s) { return s && WG.ITEMS[s.key] ? s : null; });
     p.inv.changed();
     return { seed: data.seed, worlds: worlds, player: p, place: data.place || {}, savedAt: data.savedAt };
