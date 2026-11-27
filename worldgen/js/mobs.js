@@ -673,8 +673,10 @@
         continue;
       }
       var hit = false;
-      for (var s = 0; s < 4 && !hit; s++) {
-        a.x += a.vx / 4; a.y += a.vy / 4; a.z += a.vz / 4;
+      // 速い矢は細かく刻んで進め、生き物をすり抜けないようにする（1 歩 0.3 ブロックまで）
+      var steps = Math.max(4, Math.ceil(Math.hypot(a.vx, a.vy, a.vz) / 0.3));
+      for (var s = 0; s < steps && !hit; s++) {
+        a.x += a.vx / steps; a.y += a.vy / steps; a.z += a.vz / steps;
         if (WG.COLLIDE[this.world.block(Math.floor(a.x), Math.floor(a.y), Math.floor(a.z))]) { a.stuck = true; a.life = 0; hit = true; break; }
         if (a.player) {
           // プレイヤーの矢は生き物に当たる

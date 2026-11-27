@@ -2039,5 +2039,21 @@ console.log('\n遊び方の仕組み');
   check(ran && bar && WG.LIGHT_EMIT[B.LIGHT_15] === 15 && WG.LIGHT_EMIT[B.LIGHT_7] === 7 && (!pk || pk.id !== B.LIGHT_15), 'コマンドブロックはレッドストーンで実行、バリアは見えずにぶつかる、光ブロックは光るが手に持たないと狙えない');
 })();
 
+// ---- ロードマップ 第 20 段階：仕上げ 2 ----
+console.log('\n仕上げ 2');
+(function () {
+  var mk = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); };
+  // 速い矢が生き物をすり抜けない（前はすり抜けた位置）
+  var g = playGame(mk()); g.mode = 'creative';
+  var z1 = g.mobs.spawn('ZOMBIE', 0.5, 11, 7.5), h = z1.hp;
+  g.mobs.shootFromPlayer([0.5, 12.4, 0.5], [0, -0.02, 1], 3.15, 9, false);
+  for (var i = 0; i < 20; i++) g.mobs.tickArrows();
+  // 幸運：釣りの宝が増える
+  var seq = function (seed) { return function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; };
+  var count = function () { var n = 0, r = seq(11); for (var k = 0; k < 2000; k++) { var l = WG.fishLoot(0, r); if (l.ench) n++; } return n; };
+  var g2 = playGame(mk()); WG.curGame = g2; var base = count(); g2.addEffect('LUCK', 6000, 1); var lucky = count(); WG.curGame = null;
+  check(z1.hp < h && lucky > base * 1.4, '速い矢も生き物をすり抜けない、幸運の効果で釣りの宝が増える（2000 回で ' + base + ' → ' + lucky + '）');
+})();
+
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));
 process.exit(failed ? 1 : 0);

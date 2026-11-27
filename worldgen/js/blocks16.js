@@ -299,7 +299,9 @@
   var Overworld = WG.Overworld, ogen = Overworld.prototype.generate, MINY = -64;
   Overworld.prototype.generate = function (cx, cz, surfaceOnly) {
     var r = ogen.apply(this, arguments), bl = r.blocks, bio = r.biome, hm = r.hmap, seed = this.seed, x0 = cx << 4, z0 = cz << 4;
-    if (!surfaceOnly && B.AMETHYST_BLOCK != null) for (var i = 0; i < bl.length; i++) if (bl[i] === B.AMETHYST_BLOCK && hash(seed, x0 + (i & 15), (i >> 8) + MINY, z0 + ((i >> 4) & 15), 1601) % 12 === 0) bl[i] = B.BUDDING_AMETHYST;
+    var topH = 0; for (var q = 0; q < 256; q++) if (hm[q] > topH) topH = hm[q];
+    var lim = Math.min(bl.length, (topH - MINY + 1) << 8);   // 地面より上は空なので見ない
+    if (!surfaceOnly && B.AMETHYST_BLOCK != null) for (var i = 0; i < lim; i++) if (bl[i] === B.AMETHYST_BLOCK && hash(seed, x0 + (i & 15), (i >> 8) + MINY, z0 + ((i >> 4) & 15), 1601) % 12 === 0) bl[i] = B.BUDDING_AMETHYST;
     for (var c = 0; c < 256; c++) {
       if (WG.BIOMES[bio[c]].key !== 'warm_ocean') continue;
       var h = hm[c], above = ((h + 1 - MINY) << 8) | c, hv = hash(seed, x0 + (c & 15), h, z0 + (c >> 4), 1602);

@@ -517,9 +517,12 @@
       bl[ii] = yy < 0 ? B.LAVA : B.WATER; list.push([x0 + xx, yy, z0 + zz]);
     }
     // 生成された水と溶岩のうち、横か下が空いているもの（滝・地下の水）も流し始める
-    for (var k = 256; k < bl.length - 256; k++) {
+    var topH = 0; for (var q = 0; q < 256; q++) if (hm[q] > topH) topH = hm[q];
+    var lim = Math.min(bl.length - 256, (topH - MINY) << 8);   // 地面より下だけ（海や川の水面は見ない）
+    for (var k = 256; k < lim; k++) {
       var id = bl[k];
       if (id !== B.WATER && id !== B.LAVA) continue;
+      if ((k >> 8) + MINY >= hm[k & 255]) continue;
       if (id === B.WATER && (k >> 8) + MINY < 0) continue;   // 深い所の水は、洞窟が水びたしにならないよう流さない
       if (list.length >= 96) break;
       var lx = k & 15, lz = (k >> 4) & 15;
