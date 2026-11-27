@@ -934,7 +934,7 @@ function playGame(w) { var g = new WG.Game(nullView, w, nullUI); g.walker.remesh
   for (i = 0; i < 50; i++) ge.tick();
   var dragon = ge.mobs.list.filter(function (m) { return m.type === 'END_DRAGON'; })[0];
   if (dragon) { ge.mobs.hurt(dragon, 1000, null); for (i = 0; i < 25; i++) ge.tick(); }
-  check(dragon && dragon.maxHp === 200 && we.dragonDead && we.block(0, 61, 0) === B.END_PORTAL, '果ての竜：エンドに入ると現れ（体力 200）、倒すと島の中心に帰りの門（エンドポータル）ができる');
+  check(dragon && dragon.maxHp === 200 && we.dragonDead && we.block(1, 61, 0) === B.END_PORTAL, '果ての竜：エンドに入ると現れ（体力 200）、倒すと島の中心に帰りの門（エンドポータル）ができる');
   // ハチの巣：はちみつがたまると瓶ではちみつ、ハチは怒る。猫は魚でなつく。魚は群れで泳ぐ
   g.mobs.list.length = 0;
   w.setBlock(30, 11, 0, B.BEEHIVE); w.hives = new Map([['30,11,0', { honey: 5 }]]); var bee = g.mobs.spawn('BEE', 30.5, 13, 2.5);
@@ -1984,6 +1984,59 @@ console.log('\nエンチャントと効果');
   var stew = WG.Craft.match(['BOWL', 'BROWN_MUSHROOM', 'RED_MUSHROOM', 'AZURE_BLUET'], 2);
   check(resist && boost && slow && sat && turtle && brew && stew && stew.stew === 'AZURE_BLUET',
     '耐性でダメージが減る、体力増強で最大体力 24、低速落下で落下のダメージなし、満腹度回復、タートルマスター、低速落下のポーションを醸造、怪しげなシチュー');
+})();
+
+// ---- ロードマップ 第 19 段階：遊び方の仕組み ----
+console.log('\n遊び方の仕組み');
+(function () {
+  var mk = function () { return flatWorld(function (x, y, z) { return y <= 10 ? B.STONE : 0; }); }, i;
+  // ゲームルール・世界の端・ハードコア
+  var w = mk(), g = playGame(w); g.mode = 'survival'; g.closeInventory = function () {}; g.ui.setGameMode = function (m) { g.setMode(m); };
+  WG.runCommand(g, '/gamerule keepInventory true'); WG.runCommand(g, '/gamerule doDaylightCycle false');
+  g.inv.slots[0] = { key: 'DIAMOND', n: 5 }; var n0 = g.entities.length; g.die();
+  var kept = g.inv.slots[0] && g.inv.slots[0].key === 'DIAMOND' && !g.entities.slice(n0).some(function (e) { return e.key === 'DIAMOND'; });
+  g.walker.spawnPoint = [0.5, 11, 0.5]; g.respawn(); w.time = 5000; for (i = 0; i < 20; i++) g.tick(); var still = w.time === 5000;
+  WG.runCommand(g, '/worldborder set 20'); g.walker.pos = [30.5, 11, 0.5]; g.tick(); var pushed = g.walker.pos[0] <= 10.5;
+  check(kept && still && pushed, 'ゲームルール：倒れても持ち物を落とさない・時間が止まる、世界の端（幅 20）の外へは出られない');
+  var g2 = playGame(mk()); g2.mode = 'survival'; g2.closeInventory = function () {}; g2.ui.setGameMode = function (m) { g2.setMode(m); };
+  g2.setHardcore(); var locked = !g2.setDifficulty('easy') && WG.difficultyOf(g2) === 'hard';
+  g2.die(); g2.walker.spawnPoint = [0.5, 11, 0.5]; g2.respawn(); g2.setMode('survival');
+  check(locked && g2.gameMode === 'spectator', 'ハードコア：難易度はハードのまま、倒れると観戦だけになる');
+  // 村人の繁殖・旅の商人
+  var w3 = mk(), g3 = playGame(w3); g3.tickCount = 0;
+  [0, 2, 4].forEach(function (x) { w3.setBlock(x, 11, 6, B.RED_BED_HEAD || B[Object.keys(B).filter(function (k) { return /BED/.test(k) && /HEAD/.test(k); })[0]]); });
+  var v1 = g3.mobs.spawn('VILLAGER', 1.5, 11, 1.5), v2 = g3.mobs.spawn('VILLAGER', 2.5, 11, 1.5); v1.food = v2.food = 12;
+  for (i = 0; i < 101; i++) { g3.tickCount++; g3.mobs.tick(); }
+  var babies = g3.mobs.list.filter(function (m) { return m.type === 'VILLAGER' && m.baby; }).length;
+  var tr = WG.spawnTrader(g3, 8.5, 11, 8.5), llamas = g3.mobs.list.filter(function (m) { return m.type === 'TRADER_LLAMA' && m.follow === tr; }).length;
+  check(babies === 1 && tr && tr.trades.length >= 4 && llamas === 2 && WG.profName(tr) === '旅の商人', '食べ物を拾った村人どうしが、空いたベッドがあると子どもを作る、旅の商人が行商人のラマ 2 頭と来る');
+  // 湧き水・滝
+  var W = new WG.World(7, 'overworld'), cnt = 0;
+  for (var cx = 0; cx < 6; cx++) for (var cz = 0; cz < 6; cz++) { W.chunk(cx, cz); var l = WG._springs.get(cx + ',' + cz + ',' + W.gen.seed); if (l) cnt += l.length; }
+  check(cnt > 0, '崖や洞窟の湧き水・地下の水が、はじめから流れ出す（36 チャンクで ' + cnt + ' か所）');
+  // 不吉な試練
+  var w5 = mk(), g5 = playGame(w5); g5.mode = 'survival'; w5.setBlock(3, 11, 3, B.TRIAL_SPAWNER);
+  w5.trials = new Map([['3,11,3', { state: 'idle', type: 'ZOMBIE', total: 4 }]]); g5.addEffect('BAD_OMEN', 2000, 0); g5.walker.pos = [5.5, 11, 3.5];
+  for (i = 0; i < 80; i++) { g5.tickCount++; g5.tickTrials(); }
+  var tt = w5.trials.get('3,11,3'), strong = g5.mobs.list.some(function (m) { return m.trialKey && m.strong; });
+  check(tt.ominous && tt.total === 7 && strong && !g5.effects.BAD_OMEN, '凶兆を持って試練の間に入ると不吉な試練（敵が 3 体多く、強い）');
+  // エンドクリスタルで竜を呼び直す・竜の卵
+  var we = flatWorld(function (x, y, z) { return y <= 60 ? B.END_STONE : 0; }); we.dimKey = 'end'; var ge = playGame(we);
+  for (var dx = -2; dx <= 2; dx++) for (var dz = -2; dz <= 2; dz++) { if (Math.abs(dx) === 2 && Math.abs(dz) === 2) continue; we.setBlock(dx, 60, dz, B.BEDROCK); we.setBlock(dx, 61, dz, Math.abs(dx) === 2 || Math.abs(dz) === 2 ? B.BEDROCK : B.END_PORTAL); }
+  we.dragonDead = true; var d0 = ge.mobs.spawn('END_DRAGON', 0.5, 80, 0.5); ge.mobs.die(d0); d0.dead = 1; ge.mobs.list = ge.mobs.list.filter(function (m) { return !m.dead; });
+  var egg = we.block(0, 65, 0) === B.DRAGON_EGG;
+  we.dragonDead = true;
+  [[2, 0], [-2, 0], [0, 2], [0, -2]].forEach(function (q) { ge.inv.slots[0] = { key: 'END_CRYSTAL', n: 1 }; ge.inv.sel = 0; ge.walker.target = { x: q[0], y: 61, z: q[1], px: q[0], py: 62, pz: q[1], id: B.BEDROCK }; ge.use(); });
+  var ritual = !!we.ritual; for (i = 0; i < 205; i++) WG.tickRitual(ge);
+  var back = !we.dragonDead && ge.mobs.list.some(function (m) { return m.type === 'END_DRAGON' && !m.dead; });
+  check(egg && ritual && back, '竜を倒すと帰りの門の柱に竜の卵、門のまわりにエンドクリスタルを 4 つ置くと儀式が始まり、竜が戻ってくる');
+  // コマンドブロック・バリア・光ブロック
+  var w7 = mk(), g7 = playGame(w7); w7.setBlock(2, 11, 2, B.COMMAND_BLOCK); w7.cmds = new Map([['2,11,2', 'time set 1000']]); w7.time = 5000;
+  w7.setBlock(3, 11, 2, B.REDSTONE_BLOCK); g7.rs.updateComp(2, 11, 2);
+  var ran = w7.time === 1000;
+  var bar = WG.COLLIDE[B.BARRIER] === 1 && WG.blockBoxes(B.BARRIER, function () { return 0; }, false).length === 0;
+  w7.setBlock(0, 12, -3, B.LIGHT_15); g7.walker.showHidden = false; var pk = g7.walker.pick([0.5, 12.5, 0.5], [0, 0, -1]);
+  check(ran && bar && WG.LIGHT_EMIT[B.LIGHT_15] === 15 && WG.LIGHT_EMIT[B.LIGHT_7] === 7 && (!pk || pk.id !== B.LIGHT_15), 'コマンドブロックはレッドストーンで実行、バリアは見えずにぶつかる、光ブロックは光るが手に持たないと狙えない');
 })();
 
 console.log('\n' + (failed ? failed + ' 件の確認に失敗しました' : 'すべての確認に通りました'));

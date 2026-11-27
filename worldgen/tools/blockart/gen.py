@@ -2367,6 +2367,40 @@ def main():
     for (x, y) in [(5, 9), (10, 9), (5, 14), (10, 14)]: hc.set(x, y, [150, 156, 170])
     put('HEAVY_CORE', hc, hc, hc)
 
+    # ---- ロードマップ 第 19 段階：コマンドブロック・バリア・光ブロック・竜の卵 ----
+    cbs = Img(); cbt = Img()
+    for y in range(N):
+        for x in range(N):
+            edge = x in (0, 15) or y in (0, 15)
+            v = 0.92 + 0.08 * (hsh(840, x, y) % 3) / 2
+            cbs.set(x, y, sc([150, 96, 62], 0.7) if edge else sc([196, 132, 88], v) if (x // 4 + y // 4) % 2 else sc([176, 116, 76], v))
+            cbt.set(x, y, sc([150, 96, 62], 0.7) if edge else sc([186, 124, 82], v))
+    for y in range(4, 12):
+        for x in range(4, 12): cbs.set(x, y, [34, 30, 34])
+    for (x, y) in [(5, 6), (6, 7), (5, 8), (8, 9), (9, 9), (10, 9)]: cbs.set(x, y, [236, 236, 228])
+    for (x, y) in [(6, 5), (7, 6), (8, 7), (7, 8), (6, 9)]: cbt.set(x, y, [236, 236, 228])
+    put('COMMAND_BLOCK', cbs, cbt, cbt)
+    ba = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            if 5.2 <= d <= 7.2 or (abs((x - 7.5) - (y - 7.5)) <= 1.0 and d < 6): ba.set(x, y, [214, 40, 40] if d < 6.6 else [150, 20, 20])
+    put('BARRIER', ba, cut=ba, all_faces=True)
+    lb = Img(alpha=True)
+    for y in range(N):
+        for x in range(N):
+            d = ((x - 7.5) ** 2 + (y - 6) ** 2) ** 0.5
+            if d < 5: lb.set(x, y, sc([250, 236, 150], 1.08 - d * 0.04))
+            elif d < 5.8 and y < 10: lb.set(x, y, [200, 170, 70])
+            if 6 <= x <= 9 and 10 <= y <= 13: lb.set(x, y, [150, 150, 156] if y % 2 else [110, 110, 116])
+    put('LIGHT_15', lb, cut=lb, all_faces=True)
+    eg = Img()
+    for y in range(N):
+        for x in range(N):
+            h = hsh(841, x, y) % 9
+            eg.set(x, y, [110, 40, 140] if h == 0 else [62, 22, 80] if h < 3 else [20, 8, 28])
+    put('DRAGON_EGG', eg)
+
     # 切り抜きの見た目で上下の面が横と同じものは、上下を不透明な所の平均色で塗る（地形図で真上から見たとき、透明な所が黒くならないように）
     for k, e in T.items():
         if 'cut' in e and not e.get('all'):
