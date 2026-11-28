@@ -66,6 +66,22 @@
         tileTable[b.id * 3 + FACE_IX[f]] = px ? tile(px) : 0;
       });
     });
+    // 葉（きれいな葉）：暗い所を抜いて、木の中や向こうの空が少し透けて見えるようにする
+    WG.BLOCKS.forEach(function (b) {
+      if (!/_LEAVES$/.test(b.key)) return;
+      ['top', 'side', 'bottom'].forEach(function (f) {
+        var px = WG.skinTexture(b.id, f);
+        if (!px) return;
+        var n = px.length / 3, lum = [], out = new Uint8Array(n * 4);
+        for (var q = 0; q < n; q++) lum.push(px[q * 3] * 0.3 + px[q * 3 + 1] * 0.59 + px[q * 3 + 2] * 0.11);
+        var cut = lum.slice().sort(function (x, y) { return x - y; })[Math.floor(n * 0.1)], mr = 0, mg = 0, mb = 0;
+        for (q = 0; q < n; q++) { mr += px[q * 3]; mg += px[q * 3 + 1]; mb += px[q * 3 + 2]; }
+        mr /= n; mg /= n; mb /= n;
+        // 明暗の差を少し弱めて、遠くから見たときのざらつきを抑える
+        for (q = 0; q < n; q++) { out[q * 4] = mr + (px[q * 3] - mr) * 0.62; out[q * 4 + 1] = mg + (px[q * 3 + 1] - mg) * 0.62; out[q * 4 + 2] = mb + (px[q * 3 + 2] - mb) * 0.62; out[q * 4 + 3] = lum[q] <= cut ? 0 : 255; }
+        tileTable[b.id * 3 + FACE_IX[f]] = rgbaTile(out);
+      });
+    });
     // 草花は見た目がないので、形だけの切り抜きを作る（色は blocks.js の色）。透明な所は描かない。
     Object.keys(PLANT_SHAPE).forEach(function (key) {
       tileTable[WG.B[key] * 3 + FACE_IX.side] = rgbaTile(plantPixels(WG.B[key], false));
@@ -145,7 +161,7 @@
     var pos = new Int16Array(cap * 4), col = new Uint8Array(cap * 4), uv = new Uint8Array(cap * 4), lt = new Uint8Array(cap * 4), idx = new Uint32Array(cap * 3 / 2);
     if (this.pos) { pos.set(this.pos); col.set(this.col); uv.set(this.uv); lt.set(this.lt); idx.set(this.idx); }
     this.pos = pos; this.col = col; this.uv = uv; this.lt = lt; this.idx = idx; this.cap = cap;
-    if (this.curS == null) { this.curS = 255; this.curB = 0; }
+    if (this.curS == null) { this.curS = 255; this.curB = 0; this.curN = 0; this.curW = 0; }
   };
   // 色は 2 倍して使う（明るさ 1 = 127.5）。tu, tv は面の中の位置（0〜16）、tile はアトラスの番号。
   Buf.prototype.vert = function (x, y, z, r, g, b, a, tu, tv, tile) {
@@ -156,6 +172,8 @@
     this.uv[o] = tu; this.uv[o + 1] = tv; this.uv[o + 2] = tile & 255; this.uv[o + 3] = tile >> 8;
     // 光の段階（空の光 × 17、ブロックの光 × 17）。明るさは描くときに時刻に合わせて決める。
     this.lt[o] = this.curS; this.lt[o + 1] = this.curB;
+    // 面の向き（1〜6：DIRS の番号 + 1、7：交差した草、9：水面、0：明るさを焼き込んだ面）と、風で揺れる量
+    this.lt[o + 2] = this.curN; this.lt[o + 3] = this.curW;
     return this.nv++;
   };
   Buf.prototype.quad = function (v0, flip) {
@@ -185,6 +203,8 @@
     var uOff = DIRS.map(function (d) { return d.u[0] + d.u[2] * sx + d.u[1] * sxz; });
     var vOff = DIRS.map(function (d) { return d.v[0] + d.v[2] * sx + d.v[1] * sxz; });
     var ao = [0, 0, 0, 0], FL = WG.FLUID, FLV = WG.FLUID_LEVEL;
+    var OCC = WG.OCCLUDE_TABLE || (WG.OCCLUDE_TABLE = (function () { var t = new Uint8Array(WG.BLOCKS.length); WG.BLOCKS.forEach(function (b) { t[b.id] = OPQ[b.id] && !/_LEAVES$/.test(b.key) ? 1 : 0; }); return t; })());
+    var LEAF = WG.LEAF_TABLE || (WG.LEAF_TABLE = (function () { var t = new Uint8Array(WG.BLOCKS.length); WG.BLOCKS.forEach(function (b) { if (/_LEAVES$|^AZALEA_LEAVES|^FLOWERING_AZALEA_LEAVES/.test(b.key)) t[b.id] = 1; }); return t; })());
     // 明るさ（歩く表示のときだけ。立体の模型では切り口が暗くならないよう、明るさを付けない）
     var LT = vol.light || null, amb = vol.ambient || 0, CUR = WG.lightCurve, LB = [1, 0.9, 0.76];
     var lit = [1, 1, 1];
@@ -225,6 +245,7 @@
         for (var vx = vx0; vx < vx1; vx++) {
           var i = base + vx, id = v[i];
           if (id === 0) continue;
+          op.curN = wa.curN = 0; op.curW = wa.curW = 0;
           var wx = vol.x0 + vx - 1, wz = vol.z0 + vz - 1;
           var bio = vol.bio[(vz - 1) * vol.size + vx - 1];
           var lx = (vx - 1) * P, ly = (vy - 1) * P, lz = (vz - 1) * P;
@@ -234,13 +255,14 @@
             var em = EMIT[id];
             for (d = 0; d < 6; d++) {
               var ni = i + dOff[d];
-              if (OPQ[v[ni]]) continue;
+              if (OCC[v[ni]]) continue;
               D = DIRS[d];
               var fo = D.face, oo = WG.ORIENT[id];
               // 向きのあるブロック（ディスペンサーなど）は、前の面に「上」、後ろに「下」の見た目
               if (oo) { var oq = ORV[oo]; fo = D.n[0] === oq[0] && D.n[1] === oq[1] && D.n[2] === oq[2] ? 'top' : D.n[0] === -oq[0] && D.n[1] === -oq[1] && D.n[2] === -oq[2] ? 'bottom' : 'side'; }
               var c = faceBase(id, fo, bio), tile = TT[id * 3 + FACE_IX[fo]], side = D.n[1] === 0;
               var uo = uOff[d], vo = vOff[d];
+              op.curN = em > 0 ? 0 : d + 1; op.curW = LEAF[id] ? 70 : 0;
               for (k = 0; k < 4; k++) {
                 var su = CORNERS[k][0] ? uo : -uo, sv = CORNERS[k][1] ? vo : -vo;
                 var s1 = OPQ[v[ni + su]], s2 = OPQ[v[ni + sv]], s3 = OPQ[v[ni + su + sv]];
@@ -252,10 +274,14 @@
                 px = lx + ((D.n[0] > 0 ? 1 : 0) + cu * D.u[0] + cv * D.v[0]) * P;
                 py = ly + ((D.n[1] > 0 ? 1 : 0) + cu * D.u[1] + cv * D.v[1]) * P;
                 pz = lz + ((D.n[2] > 0 ? 1 : 0) + cu * D.u[2] + cv * D.v[2]) * P;
-                var f = em > 0 ? (0.82 + 0.18 * D.shade) * (0.85 + 0.15 * AO[ao[k]]) * jit : D.shade * AO[ao[k]] * jit;
+                var f = em > 0 ? (0.82 + 0.18 * D.shade) * (0.85 + 0.15 * AO[ao[k]]) * jit : AO[ao[k]] * jit;
                 f *= 0.5;
                 L = lit;
-                if (LT && !(em > 0)) {
+                if (LT && LEAF[id] && LEAF[v[ni]]) {
+                  // 葉どうしの間の面：中は光が届かないので、上の空いた所の光を少し暗くして使う（穴から見える中が黒くならないように）
+                  var up2 = i; for (var uq = 0; uq < 6 && OPQ[v[up2]]; uq++) up2 += sxz;
+                  var lvu = LT[up2]; L = light((lvu >> 4) * 0.82, (lvu & 15) * 0.82); f *= 0.72; op.curN = 0;
+                } else if (LT && !(em > 0)) {
                   var su2 = CORNERS[k][0] ? uOff[d] : -uOff[d], sv2 = CORNERS[k][1] ? vOff[d] : -vOff[d], nc = 1;
                   cells[0] = ni;
                   if (!OPQ[v[ni + su2]]) cells[nc++] = ni + su2;
@@ -274,7 +300,8 @@
               var gi = i + dOff[d], gn = v[gi];
               if (gn === id || OPQ[gn]) continue;
               D = DIRS[d];
-              var gt = TT[id * 3 + FACE_IX[D.face]], gs = D.n[1] === 0, gf = D.shade * 0.5 * jit;
+              var gt = TT[id * 3 + FACE_IX[D.face]], gs = D.n[1] === 0, gf = 0.5 * jit;
+              gbuf.curN = d + 1;
               if (LT) { var lv4 = LT[gi]; light(lv4 >> 4, lv4 & 15); } else noLight();
               v0 = gbuf.nv;
               for (k = 0; k < 4; k++) {
@@ -293,7 +320,8 @@
               if (OPQ[bn] && d !== 2) continue;
               if (WG.blockKind(bn) === 'bed' && d !== 2 && d !== 3) continue;
               D = DIRS[d];
-              var bt2 = TT[id * 3 + FACE_IX[D.face]], bs = D.n[1] === 0, bf = D.shade * 0.5 * jit;
+              var bt2 = TT[id * 3 + FACE_IX[D.face]], bs = D.n[1] === 0, bf = 0.5 * jit;
+              op.curN = d + 1;
               if (LT) { var lv5 = LT[d === 2 || d === 3 ? i : bi2]; light(lv5 >> 4, lv5 & 15); } else noLight();
               v0 = op.nv;
               for (k = 0; k < 4; k++) {
@@ -319,7 +347,8 @@
                 var fc3 = D.face, or3 = WG.ORIENT[id];
                 if (or3) { var ov = ORV[or3]; fc3 = D.n[0] === ov[0] && D.n[1] === ov[1] && D.n[2] === ov[2] ? 'top' : D.n[0] === -ov[0] && D.n[1] === -ov[1] && D.n[2] === -ov[2] ? 'bottom' : 'side'; }
                 var mid3 = boxes[bq][6] || id, em3 = boxes[bq][7] ? 255 : 0;
-                var st3 = TT[mid3 * 3 + FACE_IX[fc3]], sd3 = D.n[1] === 0, sf3 = (em3 ? 0.5 : D.shade * 0.5) * jit, sc3 = faceBase(mid3, fc3, bio);
+                var st3 = TT[mid3 * 3 + FACE_IX[fc3]], sd3 = D.n[1] === 0, sf3 = 0.5 * jit, sc3 = faceBase(mid3, fc3, bio);
+                op.curN = em3 ? 0 : d + 1;
                 if (em3) L = noLight();
                 var uAx = D.u.indexOf(1), vAx = D.v.indexOf(1), q3 = [0, 0, 0];
                 v0 = op.nv;
@@ -341,6 +370,7 @@
             // 強さが分かりやすいように：強いほど明るく、光り方も強く（0 は暗い赤）
             var wf = 0.62 + 0.38 * pf, wcol = [c8(wr * wf * L[0]), c8(wg2 * wf * L[1]), c8(wb * wf * L[2])], wem = pw > 0 ? Math.round(50 + 150 * pf) : 0;
             var dotT = extraTiles.WIRE_DOT, lineT = extraTiles.WIRE_LINE, yy = ly + 1;
+            op.curN = wem ? 0 : 3;
             var quad = function (ax, az, bx, bz, tile, rot) {
               v0 = op.nv;
               var P4 = [[ax, az], [bx, az], [bx, bz], [ax, bz]], UV4 = rot ? [[0, 0], [0, 16], [16, 16], [16, 0]] : [[0, 0], [16, 0], [16, 16], [0, 16]];
@@ -374,6 +404,7 @@
             var ri = WG.railInfo(id), rtile = TT[id * 3 + FACE_IX.side], up = ri && ri.up;
             if (LT) { var lv9 = LT[i]; L = light(lv9 >> 4, lv9 & 15); } else L = noLight();
             var rf = 0.5 * jit, rcol = [c8(255 * rf * L[0]), c8(255 * rf * L[1]), c8(255 * rf * L[2])];
+            op.curN = 3;
             var RP = [[0, 0], [16, 0], [16, 16], [0, 16]];
             var rh = function (x, z) { return 1 + (up === 'N' ? 16 - z : up === 'S' ? z : up === 'E' ? x : up === 'W' ? 16 - x : 0); };
             v0 = op.nv;
@@ -384,12 +415,15 @@
             var ct = TT[id * 3 + FACE_IX.side];
             if (LT) { var lv7 = LT[i]; L = light(lv7 >> 4, lv7 & 15); } else L = noLight();
             var cf1 = 0.4 * jit, cf2 = 0.5 * jit, cy0 = ly - 1, cy1 = ly + 15;
+            op.curN = 7;
             for (var cq = 0; cq < 4; cq++) {
               var at = cq & 1 ? 12 : 4, alongX = cq < 2;
               v0 = op.nv;
               var A = alongX ? [lx, lz + at] : [lx + at, lz], Bc = alongX ? [lx + 16, lz + at] : [lx + at, lz + 16];
+              op.curW = 0;
               op.vert(A[0], cy0, A[1], c8(255 * cf1 * L[0]), c8(255 * cf1 * L[1]), c8(255 * cf1 * L[2]), 0, 0, 16, ct);
               op.vert(Bc[0], cy0, Bc[1], c8(255 * cf1 * L[0]), c8(255 * cf1 * L[1]), c8(255 * cf1 * L[2]), 0, 16, 16, ct);
+              op.curW = 150;
               op.vert(Bc[0], cy1, Bc[1], c8(255 * cf2 * L[0]), c8(255 * cf2 * L[1]), c8(255 * cf2 * L[2]), 0, 16, 0, ct);
               op.vert(A[0], cy1, A[1], c8(255 * cf2 * L[0]), c8(255 * cf2 * L[1]), c8(255 * cf2 * L[2]), 0, 0, 0, ct);
               op.quad(v0, false);
@@ -408,6 +442,7 @@
               var wf = (ftype === 2 ? 1 : (d === 2 ? 0.92 : D.shade * 0.85) * (0.98 + (jit - 0.95) * 0.4)) * 0.5;
               if (LT && ftype === 1) { var lv2 = LT[i + dOff[d]]; L = light(lv2 >> 4, lv2 & 15); } else L = noLight();
               var wt = TT[id * 3 + FACE_IX[D.face]], ws = D.n[1] === 0;
+              buf.curN = ftype === 1 && d === 2 ? 9 : 0;
               v0 = buf.nv;
               for (k = 0; k < 4; k++) {
                 cu = CORNERS[k][0]; cv = CORNERS[k][1];
@@ -422,11 +457,13 @@
             if (plantId) {
               var wpt = TT[plantId * 3 + FACE_IX.side];
               if (LT) { var lv8 = LT[i]; L = light(lv8 >> 4, lv8 & 15); } else L = noLight();
+              op.curN = 7;
               for (var wq = 0; wq < 2; wq++) {
                 var wza = wq ? 16 : 0, wzb = wq ? 0 : 16, wf1 = 0.36 * jit, wf2 = 0.48 * jit;
-                v0 = op.nv;
+                v0 = op.nv; op.curW = 0;
                 op.vert(lx, ly, lz + wza, c8(255 * wf1 * L[0]), c8(255 * wf1 * L[1]), c8(255 * wf1 * L[2]), 0, 0, 16, wpt);
                 op.vert(lx + 16, ly, lz + wzb, c8(255 * wf1 * L[0]), c8(255 * wf1 * L[1]), c8(255 * wf1 * L[2]), 0, 16, 16, wpt);
+                op.curW = 120;
                 op.vert(lx + 16, ly + 16, lz + wzb, c8(255 * wf2 * L[0]), c8(255 * wf2 * L[1]), c8(255 * wf2 * L[2]), 0, 16, 0, wpt);
                 op.vert(lx, ly + 16, lz + wza, c8(255 * wf2 * L[0]), c8(255 * wf2 * L[1]), c8(255 * wf2 * L[2]), 0, 0, 0, wpt);
                 op.quad(v0, false);
@@ -439,7 +476,8 @@
             var torch = kind === 'deco' || kind === 'rtorch', emit = kind === 'deco' || kind === 'fire' || (kind === 'rtorch' && LIGHT_EM[id]) ? 255 : 0;
             if (LT && !emit) { var lv3 = LT[i]; L = light(lv3 >> 4, lv3 & 15); } else L = noLight();
             // トーチは少し小さく、壁掛けは壁に寄せて傾ける
-            var s0 = torch ? 3 : 0, s1b = torch ? 13 : 16, hgt = torch ? 12 : 16, wdx = 0, wdz = 0, lift = 0;
+            var s0 = torch ? 3 : 0, s1b = torch ? 13 : 16, hgt = torch ? 12 : 16, wdx = 0, wdz = 0, lift = 0, swayTop = kind === 'plant' ? 255 : kind === 'web' ? 40 : 0;
+            op.curN = emit ? 0 : 7;
             var tw = WG.TORCH_WALL[id];
             if (tw) { wdx = tw[0]; wdz = tw[1]; }
             if (wdx || wdz) lift = 3;
@@ -448,8 +486,10 @@
               var f1 = (torch ? 0.5 : 0.36) * jit, f2 = (torch ? 0.5 : 0.48) * jit;
               var bx = wdx * 5, bz = wdz * 5, tx = wdx * 2, tz = wdz * 2;
               v0 = op.nv;
+              op.curW = 0;
               op.vert(lx + s0 + bx, ly + lift, lz + za + bz, c8(pc[0] * f1 * L[0]), c8(pc[1] * f1 * L[1]), c8(pc[2] * f1 * L[2]), emit, 0, 16, pt);
               op.vert(lx + s1b + bx, ly + lift, lz + zb + bz, c8(pc[0] * f1 * L[0]), c8(pc[1] * f1 * L[1]), c8(pc[2] * f1 * L[2]), emit, 16, 16, pt);
+              op.curW = swayTop;
               op.vert(lx + s1b + tx, ly + lift + hgt, lz + zb + tz, c8(pc[0] * f2 * L[0]), c8(pc[1] * f2 * L[1]), c8(pc[2] * f2 * L[2]), emit, 16, 0, pt);
               op.vert(lx + s0 + tx, ly + lift + hgt, lz + za + tz, c8(pc[0] * f2 * L[0]), c8(pc[1] * f2 * L[1]), c8(pc[2] * f2 * L[2]), emit, 0, 0, pt);
               op.quad(v0, false);
@@ -503,41 +543,165 @@
   }
 
   // ---- WebGL ----
+  // 頂点：位置・色・見た目・光（空の光、ブロックの光、面の向き、風で揺れる量）
+  // 光は「空からの柔らかい光（向きで少し陰る）」「太陽・月の直接の光（向きと影で決まる）」「ブロックの光（暖かい色）」に分けて求める。
   var VS = [
     'attribute vec4 aPos; attribute vec4 aCol; attribute vec4 aUV; attribute vec4 aLt;',
     'uniform mat4 uVP; uniform vec3 uOrigin; uniform vec3 uEye; uniform float uScale;',
-    'uniform float uSkyDark; uniform float uAmb; uniform vec3 uSkyTint;',
-    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL;',
+    'uniform float uSkyDark; uniform vec3 uSkyTint; uniform float uAmbK;',
+    'uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uTime; uniform float uWind; uniform mat4 uLightVP;',
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vBig;',
+    'varying vec3 vRel; varying vec2 vWxz; varying vec3 vLs; varying vec3 vLsun; varying vec3 vLb; varying float vEm; varying vec4 vSP; varying float vCode; varying float vSky;',
     // 明るさの曲線（Minecraft の曲線と、明るさ設定「中」の補正）
     'float curve(float l){ float f = clamp(l / 15.0, 0.0, 1.0); float b = f / (4.0 - 3.0 * f); float g = 1.0 - pow(1.0 - b, 4.0); return b + (g - b) * 0.5; }',
-    'varying float vBig;',
+    'uniform float uCloudSh; uniform float uCloudCovV; uniform float uCloudYV;',
+    'float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+    'float vn(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), u.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), u.x), u.y); }',
+    'float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }',
     'void main(){ vec3 p = aPos.xyz / 16.0 * uScale + uOrigin; vCol = aCol; vUV = aUV.xy / 16.0;',
     // 128 以上の上位バイトは 16×16 のアイコン（番号は小さくしてから渡す：mediump でも正確なように）
     '  vBig = step(127.5, aUV.w); vTile = aUV.z + (aUV.w - vBig * 128.0) * 256.0;',
-    // 空の光は時刻で弱まる（夜は最大 11 段暗い）。ブロックの光は少し暖かい色。光るブロックはいつも明るい。
-    '  float sky = max(aLt.x / 17.0 - uSkyDark, 0.0), blk = aLt.y / 17.0;',
-    '  vec3 L = max(vec3(curve(sky)) * uSkyTint, vec3(curve(blk)) * vec3(1.0, 0.9, 0.76));',
-    '  vL = mix(vec3(uAmb) + (1.0 - uAmb) * L, vec3(1.0), step(0.01, aCol.a));',
-    '  vDist = length(p - uEye); gl_Position = uVP * vec4(p, 1.0); }'
+    '  float code = aLt.z; vCode = code; float sw = aLt.w / 255.0;',
+    // 風：草花の上の端と葉が、場所ごとにずれた波で揺れる
+    '  if (sw > 0.0) { float ph = uTime * 1.7 + p.x * 0.63 + p.z * 0.41; p.x += (sin(ph) + 0.45 * sin(ph * 2.3 + p.y * 1.7)) * 0.055 * sw * uWind; p.z += (cos(ph * 0.83 + p.x * 0.27) + 0.35 * sin(ph * 1.9)) * 0.04 * sw * uWind; }',
+    // 水面：ゆるやかなうねり
+    '  if (code > 8.5) p.y += (sin(uTime * 1.35 + p.x * 0.9 + p.z * 0.31) + sin(uTime * 1.07 - p.z * 0.83 + p.x * 0.42)) * 0.02 - 0.045;',
+    '  vec3 N = vec3(0.0, 1.0, 0.0); float as = 1.0, bs = 1.0;',
+    '  if (code > 0.5 && code < 1.5) { N = vec3(1.0, 0.0, 0.0); as = 0.80; bs = 0.86; }',
+    '  else if (code < 2.5 && code > 1.5) { N = vec3(-1.0, 0.0, 0.0); as = 0.80; bs = 0.66; }',
+    '  else if (code < 3.5 && code > 2.5) { as = 1.0; bs = 1.0; }',
+    '  else if (code < 4.5 && code > 3.5) { N = vec3(0.0, -1.0, 0.0); as = 0.55; bs = 0.5; }',
+    '  else if (code < 5.5 && code > 4.5) { N = vec3(0.0, 0.0, 1.0); as = 0.88; bs = 0.74; }',
+    '  else if (code < 6.5 && code > 5.5) { N = vec3(0.0, 0.0, -1.0); as = 0.88; bs = 0.8; }',
+    '  else if (code < 7.5 && code > 6.5) { as = 0.9; bs = 1.0; }',
+    '  else if (code > 8.5) { as = 1.0; bs = 0.92; }',
+    '  float skyE = aLt.x / 17.0, amb = curve(max(skyE - uSkyDark, 0.0)), expo = curve(skyE); vSky = expo;',
+    '  if (code < 0.5) { vLs = vec3(amb) * uSkyTint; vLsun = vec3(0.0); }',
+    '  else { vLs = vec3(amb) * uSkyTint * uAmbK * as;',
+    '    float nd = code > 6.5 && code < 7.5 ? 0.3 + 0.55 * max(uSunDir.y, 0.0) : max(dot(N, uSunDir), 0.0);',
+    '    vLsun = uSunCol * expo * nd;',
+    '    if (uCloudSh > 0.5 && uSunDir.y > 0.05) { vec2 wp = p.xz + uSunDir.xz * ((uCloudYV - p.y) / uSunDir.y); float n = fbm(wp * 0.0052 + vec2(uTime * 0.0045, uTime * 0.0017));',
+    '      vLsun *= 1.0 - 0.6 * smoothstep(uCloudCovV, uCloudCovV + 0.2, n); } }',
+    '  float bl = curve(aLt.y / 17.0); vLb = vec3(bl) * mix(vec3(1.0, 0.72, 0.46), vec3(1.0, 0.9, 0.76), bl) * bs * 1.05;',
+    '  vEm = step(0.01, aCol.a);',
+    '  vSP = uLightVP * vec4(p + N * 0.07, 1.0);',
+    '  vRel = p - uEye; vWxz = mod(p.xz, 1024.0);',
+    '  gl_Position = uVP * vec4(p, 1.0); }'
   ].join('\n');
-  // 見た目は 8×8 の中だけを読む（隣の見た目がにじまないよう、端の画素の中心で止める）
-  var FS = [
-    'precision mediump float;',
-    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vDist; varying vec3 vL; varying float vBig;',
-    'uniform sampler2D uAtlas; uniform vec3 uFog; uniform vec2 uFogR; uniform float uAlpha;',
+  var PREC = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+  // 空の色（向き d）。地平線と天頂の色、太陽のまわりの輝きと夕焼けの帯
+  var GRADE_FN = [
+    'uniform float uSat; uniform float uExpo;',
+    'vec3 grade(vec3 c){ c *= uExpo; vec3 a = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);',
+    '  float l = dot(a, vec3(0.299, 0.587, 0.114)); return clamp(mix(vec3(l), a, uSat), 0.0, 1.0); }'
+  ].join('\n');
+  var SKY_FN = [
+    'uniform vec3 uZen; uniform vec3 uHor; uniform vec3 uGlow; uniform vec3 uSunDirF; uniform vec3 uSunDisc;',
+    'vec3 skyCol(vec3 d, float halo){',
+    '  float h = d.y;',
+    '  vec3 c = mix(uHor, uZen, pow(clamp(h, 0.0, 1.0), 0.5));',
+    '  c = mix(c, uHor * 0.78, smoothstep(0.0, -0.4, h));',
+    '  float sd = max(dot(d, uSunDirF), 0.0), band = 1.0 - smoothstep(0.0, 0.5, abs(h + 0.03));',
+    '  c += uGlow * (pow(sd, 6.0) * band * 1.15 + pow(sd, 1.6) * band * 0.28 + pow(sd, 3.0) * 0.12);',
+    '  c += (uSunDisc * pow(sd, 40.0) * 0.32 + uSunDisc * pow(sd, 400.0) * 0.6) * halo;',
+    '  return c; }'
+  ].join('\n');
+  var FS = PREC + [
+    'varying vec4 vCol; varying vec2 vUV; varying float vTile; varying float vBig;',
+    'varying vec3 vRel; varying vec2 vWxz; varying vec3 vLs; varying vec3 vLsun; varying vec3 vLb; varying float vEm; varying vec4 vSP; varying float vCode; varying float vSky;',
+    'uniform sampler2D uAtlas; uniform sampler2D uShadow; uniform float uShadowOn; uniform float uShadowTx; uniform float uSunShadeK;',
+    'uniform vec3 uFog; uniform vec2 uFogR; uniform float uFogSky; uniform float uHaze; uniform float uAlpha; uniform float uAmb; uniform float uTimeF; uniform float uWaterPass; uniform float uDebug;',
+    SKY_FN, GRADE_FN,
+    'float shadowAt(){',
+    '  vec3 s = vSP.xyz / vSP.w * 0.5 + 0.5;',
+    '  if (s.x <= 0.0 || s.x >= 1.0 || s.y <= 0.0 || s.y >= 1.0 || s.z >= 1.0) return 1.0;',
+    '  float sum = 0.0;',
+    '  for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { float dd = texture2D(uShadow, s.xy + vec2(float(i), float(j)) * uShadowTx).r; sum += s.z - 0.0006 > dd ? 0.0 : 1.0; }',
+    '  vec2 e = abs(s.xy - 0.5) * 2.0;',
+    '  return mix(sum / 9.0, 1.0, smoothstep(0.82, 0.98, max(e.x, e.y))); }',
     'void main(){',
     '  float t = floor(vTile + 0.5), sz = 16.0; vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 16.0;',
     '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(512.0, 1024.0);',
     '  vec4 tx = texture2D(uAtlas, uv); if (tx.a < 0.5) discard;',
-    '  vec3 c = tx.rgb * vCol.rgb * 2.0 * vL;',
-    '  float f = smoothstep(uFogR.x, uFogR.y, vDist) * (1.0 - 0.65 * vCol.a);',
-    '  gl_FragColor = vec4(mix(c, uFog, f), uAlpha); }'
+    '  float sh = 1.0; if (uShadowOn > 0.5) sh = shadowAt();',
+    '  vec3 Ls = vCode < 0.5 ? vLs * mix(1.0 - uSunShadeK, 1.0, sh) : vLs;',
+    '  vec3 L = max(Ls + vLsun * sh, vLb);',
+    '  L = mix(vec3(uAmb) + (1.0 - uAmb) * L, vec3(0.78), vEm);',
+    '  vec3 c = tx.rgb * vCol.rgb * 2.0 * L;',
+    '  float alpha = uAlpha, d = length(vRel); vec3 vd = vRel / max(d, 0.001);',
+    // 水面：さざ波で傾いた面に、空が映り込む（浅い角度ほど強く）。太陽のきらめき
+    '  if (uWaterPass > 0.5 && vCode > 8.5) {',
+    '    vec2 q = vWxz; float tt = uTimeF;',
+    '    vec2 g = vec2(cos(q.x * 1.31 + tt * 1.7) * 0.5 + cos((q.x + q.y) * 2.13 - tt * 2.3) * 0.3 + cos(q.x * 3.71 - q.y * 1.93 + tt * 3.1) * 0.16 + cos(q.x * 7.3 + q.y * 5.1 - tt * 4.3) * 0.07,',
+    '                  cos(q.y * 1.13 + tt * 1.3) * 0.5 + cos((q.y - q.x) * 1.91 + tt * 2.1) * 0.3 + cos(q.y * 3.37 + q.x * 2.29 - tt * 2.7) * 0.16 + cos(q.y * 6.9 - q.x * 4.7 + tt * 3.9) * 0.07);',
+    '    vec3 Nw = normalize(vec3(g.x * 0.07, 1.0, g.y * 0.07)); vec3 V = -vd;',
+    '    float fr = 0.025 + 0.975 * pow(1.0 - max(dot(Nw, V), 0.0), 5.0);',
+    '    vec3 R = reflect(vd, Nw); R.y = abs(R.y);',
+    '    vec3 rc = skyCol(R, 1.0) * mix(0.25, 1.0, vSky);',
+    '    float sp = pow(max(dot(R, uSunDirF), 0.0), 260.0) * sh * vSky;',
+    '    vec3 deep = c * vec3(0.55, 0.68, 0.85);',
+    '    c = mix(deep, rc, clamp(fr * 0.92 + 0.03, 0.0, 1.0)) + uSunDisc * sp * 2.6;',
+    '    alpha = mix(0.72, 0.97, clamp(fr * 1.4, 0.0, 1.0)); }',
+    '  vec3 fc = uFogSky > 0.5 ? skyCol(vd, 0.3) : uFog;',
+    '  float f = max(smoothstep(uFogR.x, uFogR.y, d), 1.0 - exp(-d * uHaze)) * (1.0 - 0.65 * vCol.a);',
+    '  gl_FragColor = vec4(grade(mix(c, fc, clamp(f, 0.0, 1.0))), alpha);',
+  '  if (uDebug > 0.5) gl_FragColor = vec4(vec3(sh), 1.0); }'
   ].join('\n');
-  var SKY_VS = 'attribute vec2 aP; varying float vY; void main(){ vY = aP.y * 0.5 + 0.5; gl_Position = vec4(aP, 0.999, 1.0); }';
-  var SKY_FS = [
-    'precision mediump float; varying float vY; uniform vec3 uTop; uniform vec3 uLow;',
-    'void main(){ float t = smoothstep(0.0, 1.0, vY); gl_FragColor = vec4(mix(uLow, uTop, t), 1.0); }'
+  // 空：画面いっぱいの三角形。向きは頂点で求めて補間する（遠近の向きは画面の位置に対して一次）
+  var SKY_VS = 'attribute vec2 aP; uniform vec3 uF; uniform vec3 uRt; uniform vec3 uUp; varying vec3 vDir; void main(){ vDir = uF + aP.x * uRt + aP.y * uUp; gl_Position = vec4(aP, 0.999, 1.0); }';
+  var SKY_FS = PREC + [
+    'varying vec3 vDir;',
+    SKY_FN, GRADE_FN,
+    'uniform vec3 uMoonDir; uniform float uMoonK; uniform float uStars; uniform vec2 uStarRot; uniform float uTimeF; uniform float uFlat; uniform vec3 uFlatCol;',
+    'uniform float uCloudOn; uniform float uCloudCov; uniform vec3 uCloudLit; uniform vec3 uCloudDark; uniform vec3 uEyeW; uniform float uCloudY;',
+    'float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+    'float h3(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }',
+    'float vn(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), u.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), u.x), u.y); }',
+    'float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }',
+    'void main(){',
+    '  if (uFlat > 0.5) { gl_FragColor = vec4(grade(uFlatCol), 1.0); return; }',
+    '  vec3 d = normalize(vDir); vec3 c = skyCol(d, 1.0);',
+    // 星：空といっしょに回る。ゆっくりまたたく
+    '  if (uStars > 0.01 && d.y > -0.05) {',
+    '    vec3 r = vec3(d.x * uStarRot.x + d.y * uStarRot.y, -d.x * uStarRot.y + d.y * uStarRot.x, d.z) * 170.0;',
+    '    vec3 cell = floor(r); float hs = h3(cell);',
+    '    if (hs > 0.9965) { vec3 f = fract(r) - 0.5; float st = 1.0 - smoothstep(0.0, 0.22 + (hs - 0.9965) * 60.0, length(f));',
+    '      c += vec3(0.92, 0.94, 1.0) * st * uStars * (0.65 + 0.35 * sin(uTimeF * 2.3 + hs * 900.0)) * smoothstep(-0.05, 0.15, d.y); } }',
+    // 太陽（丸い円盤）と月（少し欠けた模様）
+    '  float sdt = dot(d, uSunDirF);',
+    '  c += uSunDisc * smoothstep(0.99955, 0.99975, sdt) * 4.0;',
+    '  float md = dot(d, uMoonDir);',
+    '  if (md > 0.9993) { vec3 mu = normalize(cross(uMoonDir, vec3(0.0, 0.0, 1.0))); vec2 mp = vec2(dot(d, mu), dot(d, cross(uMoonDir, mu))) * 600.0;',
+    '    float crater = vn(mp * 0.9) * 0.5 + vn(mp * 2.1) * 0.25; c = mix(c, vec3(0.86, 0.88, 0.92) * (0.75 + 0.3 * crater), smoothstep(0.9993, 0.99945, md) * uMoonK); }',
+    '  c += vec3(0.55, 0.6, 0.75) * pow(max(md, 0.0), 120.0) * 0.18 * uMoonK;',
+    // 雲：高い所の平らな層に、ふわっとした雲を流す。太陽の側が明るく、遠いほど地平線の色に溶ける
+    '  if (uCloudOn > 0.5 && d.y > 0.0 && uEyeW.y < uCloudY) {',
+    '    float tc = (uCloudY - uEyeW.y) / d.y;',
+    '    vec2 wp = uEyeW.xz + d.xz * tc; vec2 q = wp * 0.0052 + vec2(uTimeF * 0.0045, uTimeF * 0.0017);',
+    '    float n = fbm(q), den = smoothstep(uCloudCov, uCloudCov + 0.2, n);',
+    '    if (den > 0.0) {',
+    '      float n2 = fbm(q + uSunDirF.xz * 0.09);',
+    '      float lit = clamp(0.62 + (n - n2) * 3.4, 0.0, 1.0);',
+    '      vec3 cc = mix(uCloudDark, uCloudLit, lit) + uGlow * 0.35 * pow(max(dot(d, uSunDirF), 0.0), 4.0);',
+    '      float fade = (1.0 - smoothstep(500.0, 2600.0, tc)) * smoothstep(0.0, 0.07, d.y);',
+    '      c = mix(c, cc, den * fade * 0.94); } }',
+    '  gl_FragColor = vec4(grade(c), 1.0); }'
   ].join('\n');
+  // 影の地図を作るときの形（太陽から見た奥行きだけ）。切り抜きの見た目は穴を空ける
+  var SH_VS = [
+    'attribute vec4 aPos; attribute vec4 aUV; attribute vec4 aLt;',
+    'uniform mat4 uLightVP; uniform vec3 uOrigin; uniform float uScale; uniform float uTime; uniform float uWind;',
+    'varying vec2 vUV; varying float vTile; varying float vBig;',
+    'void main(){ vec3 p = aPos.xyz / 16.0 * uScale + uOrigin; vUV = aUV.xy / 16.0;',
+    '  vBig = step(127.5, aUV.w); vTile = aUV.z + (aUV.w - vBig * 128.0) * 256.0;',
+    '  float sw = aLt.w / 255.0;',
+    '  if (sw > 0.0) { float ph = uTime * 1.7 + p.x * 0.63 + p.z * 0.41; p.x += (sin(ph) + 0.45 * sin(ph * 2.3 + p.y * 1.7)) * 0.055 * sw * uWind; p.z += (cos(ph * 0.83 + p.x * 0.27) + 0.35 * sin(ph * 1.9)) * 0.04 * sw * uWind; }',
+    '  gl_Position = uLightVP * vec4(p, 1.0); }'
+  ].join('\n');
+  var SH_FS = 'precision mediump float; varying vec2 vUV; varying float vTile; varying float vBig; uniform sampler2D uAtlas;\n' +
+    'void main(){ float t = floor(vTile + 0.5), sz = 16.0; vec2 org = vec2(mod(t, 32.0), floor(t / 32.0)) * 16.0;\n' +
+    '  vec2 uv = (org + clamp(vUV, 0.5 / sz, 1.0 - 0.5 / sz) * sz) / vec2(512.0, 1024.0); if (texture2D(uAtlas, uv).a < 0.5) discard; gl_FragColor = vec4(1.0); }';
 
   function compile(gl, vs, fs) {
     function sh(type, src) {
@@ -569,26 +733,47 @@
     this.skyBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    var self0 = this, cache = new Map();
+    // 変数の場所（なければ null。毎回探さないように覚えておく）
+    this.U = function (prog, name) { var k = (prog === self0.prog ? 'p' : prog === self0.sky ? 's' : 'h') + name; if (!cache.has(k)) cache.set(k, gl.getUniformLocation(prog, name)); return cache.get(k); };
     this.loc = {
-      aPos: gl.getAttribLocation(this.prog, 'aPos'), aCol: gl.getAttribLocation(this.prog, 'aCol'), aUV: gl.getAttribLocation(this.prog, 'aUV'),
-      aLt: gl.getAttribLocation(this.prog, 'aLt'), uSkyDark: gl.getUniformLocation(this.prog, 'uSkyDark'),
-      uAmb: gl.getUniformLocation(this.prog, 'uAmb'), uSkyTint: gl.getUniformLocation(this.prog, 'uSkyTint'),
-      uAtlas: gl.getUniformLocation(this.prog, 'uAtlas'),
-      uVP: gl.getUniformLocation(this.prog, 'uVP'), uOrigin: gl.getUniformLocation(this.prog, 'uOrigin'), uScale: gl.getUniformLocation(this.prog, 'uScale'),
-      uEye: gl.getUniformLocation(this.prog, 'uEye'), uFog: gl.getUniformLocation(this.prog, 'uFog'),
-      uFogR: gl.getUniformLocation(this.prog, 'uFogR'), uAlpha: gl.getUniformLocation(this.prog, 'uAlpha'),
-      aP: gl.getAttribLocation(this.sky, 'aP'), uTop: gl.getUniformLocation(this.sky, 'uTop'), uLow: gl.getUniformLocation(this.sky, 'uLow')
+      aPos: gl.getAttribLocation(this.prog, 'aPos'), aCol: gl.getAttribLocation(this.prog, 'aCol'), aUV: gl.getAttribLocation(this.prog, 'aUV'), aLt: gl.getAttribLocation(this.prog, 'aLt'),
+      uSkyDark: this.U(this.prog, 'uSkyDark'), uAmb: this.U(this.prog, 'uAmb'), uSkyTint: this.U(this.prog, 'uSkyTint'), uAtlas: this.U(this.prog, 'uAtlas'),
+      uVP: this.U(this.prog, 'uVP'), uOrigin: this.U(this.prog, 'uOrigin'), uScale: this.U(this.prog, 'uScale'), uEye: this.U(this.prog, 'uEye'), uFog: this.U(this.prog, 'uFog'),
+      uFogR: this.U(this.prog, 'uFogR'), uAlpha: this.U(this.prog, 'uAlpha'),
+      aP: gl.getAttribLocation(this.sky, 'aP')
     };
     // 見た目のアトラスを読み込む（ドット絵なので補間しない）
     atlas();
     this.atlasTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.atlasTex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ATLAS, ATLAS_H, 0, gl.RGBA, gl.UNSIGNED_BYTE, atlasPixels);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    // 遠くの見た目のちらつきを抑える、縮小した見た目（ミップマップ）。見た目は 16 画素ごとに並んでいるので、
+    // 1 画素になるまでは隣の見た目と混ざらない。切り抜きは「どれか 1 つでも不透明なら不透明」にして、遠くの葉や草が消えないようにする
+    var lv = 0, cw = ATLAS, ch = ATLAS_H, cur = atlasPixels;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, cw, ch, 0, gl.RGBA, gl.UNSIGNED_BYTE, cur);
+    while (cw > 1 || ch > 1) {
+      var nw = Math.max(1, cw >> 1), nh = Math.max(1, ch >> 1), nx = new Uint8Array(nw * nh * 4);
+      for (var my = 0; my < nh; my++) for (var mx = 0; mx < nw; mx++) {
+        var r = 0, g2 = 0, b2 = 0, wsum = 0, op2 = 0, rr = 0, gg = 0, bb = 0;
+        for (var q = 0; q < 4; q++) {
+          var sx = Math.min(cw - 1, mx * 2 + (q & 1)), sy = Math.min(ch - 1, my * 2 + (q >> 1)), so = (sy * cw + sx) * 4, a = cur[so + 3];
+          rr += cur[so]; gg += cur[so + 1]; bb += cur[so + 2];
+          if (a >= 128) { r += cur[so]; g2 += cur[so + 1]; b2 += cur[so + 2]; wsum++; op2++; }
+        }
+        var o2 = (my * nw + mx) * 4;
+        if (wsum) { nx[o2] = r / wsum; nx[o2 + 1] = g2 / wsum; nx[o2 + 2] = b2 / wsum; } else { nx[o2] = rr / 4; nx[o2 + 1] = gg / 4; nx[o2 + 2] = bb / 4; }
+        nx[o2 + 3] = op2 ? 255 : 0;
+      }
+      lv++; cw = nw; ch = nh; cur = nx;
+      gl.texImage2D(gl.TEXTURE_2D, lv, gl.RGBA, cw, ch, 0, gl.RGBA, gl.UNSIGNED_BYTE, cur);
+    }
+    if (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext) gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 4);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    this.initShadow();
     // 照準を合わせたブロックの枠（立方体の 12 辺）
     var E = [], c = [[0, 0, 0], [16, 0, 0], [16, 0, 16], [0, 0, 16], [0, 16, 0], [16, 16, 0], [16, 16, 16], [0, 16, 16]];
     [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]].forEach(function (e) {
@@ -678,46 +863,222 @@
     return { eye: eye, vp: mul(proj, lookAt(eye, t, [0, 1, 0])) };
   };
 
+  // ---- 画質の設定（js/graphics.js の横の欄で変える） ----
+  WG.GFX = WG.GFX || { shadows: true, clouds: true, shadowSize: 2048 };
+
+  // 影の地図（太陽から見た奥行き）。WebGL2 か、奥行きの見た目の拡張があるときだけ
+  View3D.prototype.initShadow = function () {
+    var gl = this.gl, gl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    this.shadow = null;
+    try {
+      if (!gl2 && !gl.getExtension('WEBGL_depth_texture')) return;
+      var size = WG.GFX.shadowSize || 2048, tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl2 ? gl.DEPTH_COMPONENT24 : gl.DEPTH_COMPONENT, size, size, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      var fb = gl.createFramebuffer(), rb = null;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, tex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        // 色の受け皿がないと完成しない環境のために、小さな色の受け皿を付ける
+        rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA4, size, size);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
+      }
+      var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (!ok) return;
+      this.shadow = { tex: tex, fb: fb, size: size, prog: compile(gl, SH_VS, SH_FS), vp: null };
+      var sp = this.shadow.prog;
+      this.shadow.loc = { aPos: gl.getAttribLocation(sp, 'aPos'), aUV: gl.getAttribLocation(sp, 'aUV'), aLt: gl.getAttribLocation(sp, 'aLt') };
+    } catch (e) { this.shadow = null; }
+  };
+
+  // 太陽（夜は月）から見た、目のまわりの四角い範囲。影がちらつかないよう、影の地図の 1 画素ごとにずらす
+  function lightMatrix(dir, center, R, size) {
+    var zx = dir[0], zy = dir[1], zz = dir[2], up = Math.abs(zy) > 0.96 ? [0, 0, 1] : [0, 1, 0];
+    var xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx, l = Math.hypot(xx, xy, xz);
+    xx /= l; xy /= l; xz /= l;
+    var yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    var tx = 2 * R / size, cx = Math.round((xx * center[0] + xy * center[1] + xz * center[2]) / tx) * tx, cy = Math.round((yx * center[0] + yy * center[1] + yz * center[2]) / tx) * tx;
+    var cz = zx * center[0] + zy * center[1] + zz * center[2] + 220;
+    var view = new Float32Array([xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, -cx, -cy, -cz, 1]);
+    var n = 1, f = 480, proj = new Float32Array([1 / R, 0, 0, 0, 0, 1 / R, 0, 0, 0, 0, -2 / (f - n), 0, 0, 0, -(f + n) / (f - n), 1]);
+    return mul(proj, view);
+  }
+
+  function mixv(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+  function smooth(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function norm(v) { var l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+
+  // 空と光の具合を決める（地上の歩く表示は時刻から。ほかは落ち着いた決まった光）
+  View3D.prototype.skyState = function () {
+    var fp = this.fp, pal = this.palette, top = pal.skyTop.map(function (v) { return v / 255; }), low = pal.skyLow.map(function (v) { return v / 255; });
+    var st = { zen: top, hor: low, glow: [0, 0, 0], sunDir: norm([0.45, 0.78, 0.35]), sunCol: [0.42, 0.4, 0.36], sunDisc: [0, 0, 0], moonDir: [0, -1, 0], moonK: 0, stars: 0, starRot: [1, 0],
+      ambK: 0.68, sat: 1.1, expo: 1.0, skyDark: 0, tint: [1, 1, 1], fogSky: 0, fog: low, flat: 0, clouds: 0, cov: 0.6, cloudLit: [1, 1, 1], cloudDark: [0.7, 0.72, 0.78], haze: 0, shadeK: 0, lightDir: null, wind: 1 };
+    if (!fp) return st;
+    st.skyDark = fp.skyDark || 0; st.tint = fp.skyTint || [1, 1, 1];
+    if (fp.skyTop) { st.zen = fp.skyTop; st.hor = fp.skyLow; }
+    var rain = fp.rain || 0;
+    st.wind = 1 + rain * 1.2;
+    if (fp.celestial) {
+      // 地上：太陽は東から西へ（少し南に傾けて、影が真横に伸びすぎないように）
+      var a = fp.celestial.angle, sun = norm([-Math.sin(a), Math.cos(a), 0.22]), moon = [-sun[0], -sun[1], -sun[2]];
+      var up = smooth(-0.04, 0.22, sun[1]), low2 = 1 - smooth(0.0, 0.42, Math.abs(sun[1] + 0.02)), clear = 1 - rain;
+      var warm = mixv([1.0, 0.56, 0.3], [1.0, 0.96, 0.86], smooth(0.05, 0.5, sun[1]));
+      var dayK = smooth(-0.12, 0.28, sun[1]), twi = low2 * smooth(-0.2, 0.05, sun[1]);
+      var zen = mixv([0.012, 0.018, 0.045], [0.22, 0.44, 0.84], dayK), hor = mixv([0.035, 0.05, 0.1], [0.66, 0.8, 0.94], dayK);
+      zen = mixv(zen, [0.2, 0.26, 0.52], twi * 0.55); hor = mixv(hor, [1.0, 0.58, 0.34], low2 * 0.62 * smooth(-0.25, 0.0, sun[1]));
+      var gray = function (c) { var g = c[0] * 0.3 + c[1] * 0.55 + c[2] * 0.15; return mixv(c, [g * 0.88, g * 0.92, g * 0.98], 0.85 * rain).map(function (v) { return v * (1 - 0.3 * rain); }); };
+      st.zen = gray(zen); st.hor = gray(hor);
+      // 日なたの空の光は少し青く、日の光は暖かい（陰と日なたの色の違い）
+      st.tint = mixv(st.tint, [0.88, 0.94, 1.06], dayK * (1 - rain * 0.7));
+      st.sunDir = sun; st.moonDir = moon;
+      st.sunCol = warm.map(function (v) { return v * 0.62 * up * (1 - 0.75 * rain); });
+      st.sunDisc = warm.map(function (v) { return v * smooth(-0.06, 0.04, sun[1]) * clear; });
+      st.glow = [1.0, 0.42, 0.18].map(function (v) { return v * low2 * 0.85 * clear; });
+      st.ambK = 1 - 0.5 * up * (1 - 0.6 * rain);
+      st.moonK = smooth(-0.05, 0.1, moon[1]) * clear;
+      st.stars = fp.celestial.stars || 0; st.starRot = [Math.cos(a), Math.sin(a)];
+      st.fogSky = 1; st.clouds = WG.GFX.clouds ? 1 : 0;
+      st.cov = 0.55 - 0.3 * rain;
+      var day = smooth(-0.15, 0.25, sun[1]);
+      st.cloudLit = mixv([0.13, 0.15, 0.22], mixv([0.97, 0.97, 0.98], [1.0, 0.78, 0.62], low2 * 0.7), day).map(function (v) { return v * (1 - 0.35 * rain); });
+      st.cloudDark = mixv(st.cloudLit.map(function (v) { return v * 0.66; }), st.hor, 0.25);
+      st.haze = 0.0012 + 0.009 * rain;
+      st.shadeK = 0.42 * up * (1 - rain);
+      // 影の光：昼は太陽、夜は月（弱く）
+      if (sun[1] > 0.05) st.lightDir = sun;
+      else if (moon[1] > 0.12) { st.lightDir = moon; st.sunCol = [0.1, 0.12, 0.18].map(function (v) { return v * smooth(0.12, 0.35, moon[1]) * clear; }); st.shadeK = 0.12; }
+      if (!st.lightDir) st.shadeK = 0;
+      if (!st.lightDir) st.sunCol = [0, 0, 0];
+    } else {
+      // ネザーとエンド：直接の光はなく、霞の色で包む（ネザーは濃い赤い霞で奥行きを、エンドは暗い紫の空に星）
+      st.sunCol = [0, 0, 0]; st.ambK = 1; st.fogSky = 1; st.fog = fp.skyFog || low;
+      if (fp.dim === 'nether') { st.sat = 0.88; st.expo = 0.92; st.haze = 0.012; st.zen = mixv(st.zen, [0.16, 0.05, 0.04], 0.4); st.hor = mixv(st.hor, [0.36, 0.11, 0.07], 0.4); }
+      if (fp.dim === 'end') { st.sat = 0.95; st.zen = [0.03, 0.02, 0.06]; st.hor = [0.13, 0.1, 0.18]; st.stars = 0.75; st.haze = 0.003; }
+    }
+    if (fp.fogColor) { st.flat = 1; st.fog = fp.fogColor; st.fogSky = 0; st.clouds = 0; }
+    return st;
+  };
+
   View3D.prototype.render = function () {
     var gl = this.gl;
     if (!gl) return;
     this.resize();
-    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    var pal = this.palette, top = pal.skyTop.map(function (v) { return v / 255; }), low = pal.skyLow.map(function (v) { return v / 255; });
-    if (this.fp && this.fp.skyTop) { top = this.fp.skyTop; low = this.fp.skyLow; }
-    if (this.fp && this.fp.fogColor) top = low = this.fp.fogColor;
+    var W = this.canvas.width, H = this.canvas.height;
+    var fp = this.fp, self = this, L = this.loc, U = this.U, P = this.prog, S = this.sky;
+    var now = (WG.now ? WG.now() : Date.now()) / 1000 % 3600;
+    var st = this.skyState();
+    var m = (this.vol || fp) ? this.matrices() : null;
+    if (m) { this.vp = m.vp; this.eye = m.eye; }
+    var parts = m ? (this.cull ? this.parts.filter(function (p) { return self.cull(p, m.eye); }) : this.parts) : [];
+    var useShadow = !!(fp && this.shadow && WG.GFX.shadows && st.lightDir);
+    // ---- 1) 影の地図 ----
+    var lightVP = null;
+    if (useShadow) {
+      var sh = this.shadow, R = 72, center = [m.eye[0] - Math.sin(fp.yaw) * 24, m.eye[1], m.eye[2] - Math.cos(fp.yaw) * 24];
+      lightVP = lightMatrix(st.lightDir, center, R, sh.size);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, sh.fb);
+      gl.viewport(0, 0, sh.size, sh.size);
+      gl.colorMask(false, false, false, false);
+      gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true);
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
+      gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1.6, 4.0);
+      gl.useProgram(sh.prog);
+      gl.uniformMatrix4fv(U(sh.prog, 'uLightVP'), false, lightVP);
+      gl.uniform1f(U(sh.prog, 'uTime'), now); gl.uniform1f(U(sh.prog, 'uWind'), st.wind); gl.uniform1f(U(sh.prog, 'uScale'), 1);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.atlasTex); gl.uniform1i(U(sh.prog, 'uAtlas'), 0);
+      var SL = sh.loc;
+      gl.enableVertexAttribArray(SL.aPos); gl.enableVertexAttribArray(SL.aUV); gl.enableVertexAttribArray(SL.aLt);
+      this.parts.forEach(function (p) {
+        if (!p.op || !p.origin) return;
+        var dx = p.origin[0] + 8 - center[0], dz = p.origin[2] + 8 - center[2];
+        if (Math.abs(dx) > R + 40 || Math.abs(dz) > R + 40) return;
+        gl.uniform3f(U(sh.prog, 'uOrigin'), p.origin[0], p.origin[1], p.origin[2]);
+        var o = p.op;
+        gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.vertexAttribPointer(SL.aPos, 4, gl.SHORT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, o.uv); gl.vertexAttribPointer(SL.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, o.lt); gl.vertexAttribPointer(SL.aLt, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.idx);
+        gl.drawElements(gl.TRIANGLES, o.n, gl.UNSIGNED_INT, 0);
+      });
+      // 生き物・落ちている物も影を落とす
+      if (this.dynamic) {
+        var db0 = this.dynBuf;
+        gl.uniform3f(U(sh.prog, 'uOrigin'), 0, 0, 0);
+        this.dynamic.forEach(function (d) {
+          if (!d.count || d.alpha < 0.99) return;
+          gl.bindBuffer(gl.ARRAY_BUFFER, db0.pos); gl.bufferData(gl.ARRAY_BUFFER, d.pos, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(SL.aPos, 4, gl.FLOAT, false, 0, 0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, db0.uv); gl.bufferData(gl.ARRAY_BUFFER, d.uv, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(SL.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, db0.lt); gl.bufferData(gl.ARRAY_BUFFER, d.lt, gl.DYNAMIC_DRAW); gl.vertexAttribPointer(SL.aLt, 4, gl.UNSIGNED_BYTE, false, 0, 0);
+          gl.drawArrays(gl.TRIANGLES, 0, d.count);
+        });
+      }
+      gl.disableVertexAttribArray(SL.aPos); gl.disableVertexAttribArray(SL.aUV); gl.disableVertexAttribArray(SL.aLt);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.colorMask(true, true, true, true);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+    gl.viewport(0, 0, W, H);
+    // ---- 2) 空 ----
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
-    gl.useProgram(this.sky);
-    gl.uniform3fv(this.loc.uTop, top); gl.uniform3fv(this.loc.uLow, low);
+    gl.useProgram(S);
+    var aspect = W / H, fov = fp ? fp.fov : 0.75, ty = Math.tan(fov / 2), tx = ty * aspect, F, Rt, Up;
+    if (m) {
+      var e = m.eye, tgt;
+      if (fp) { var c0 = Math.cos(fp.pitch); F = [-Math.sin(fp.yaw) * c0, Math.sin(fp.pitch), -Math.cos(fp.yaw) * c0]; }
+      else { tgt = this.target; F = norm([tgt[0] - e[0], tgt[1] - e[1], tgt[2] - e[2]]); }
+      Rt = norm([-F[2], 0, F[0]]);
+      Up = [Rt[1] * F[2] - Rt[2] * F[1], Rt[2] * F[0] - Rt[0] * F[2], Rt[0] * F[1] - Rt[1] * F[0]];
+    } else { F = [0, 0, -1]; Rt = [1, 0, 0]; Up = [0, 1, 0]; }
+    gl.uniform3fv(U(S, 'uF'), F); gl.uniform3fv(U(S, 'uRt'), Rt.map(function (v) { return v * tx; })); gl.uniform3fv(U(S, 'uUp'), Up.map(function (v) { return v * ty; }));
+    function skyUniforms(prog) {
+      gl.uniform3fv(U(prog, 'uZen'), st.zen); gl.uniform3fv(U(prog, 'uHor'), st.hor); gl.uniform3fv(U(prog, 'uGlow'), st.glow);
+      gl.uniform3fv(U(prog, 'uSunDirF'), st.sunDir); gl.uniform3fv(U(prog, 'uSunDisc'), st.sunDisc); gl.uniform1f(U(prog, 'uTimeF'), now);
+    }
+    skyUniforms(S); gl.uniform1f(U(S, 'uSat'), st.sat); gl.uniform1f(U(S, 'uExpo'), st.expo);
+    gl.uniform3fv(U(S, 'uMoonDir'), st.moonDir); gl.uniform1f(U(S, 'uMoonK'), st.moonK); gl.uniform1f(U(S, 'uStars'), st.stars); gl.uniform2fv(U(S, 'uStarRot'), st.starRot);
+    gl.uniform1f(U(S, 'uFlat'), st.flat); gl.uniform3fv(U(S, 'uFlatCol'), st.fog);
+    gl.uniform1f(U(S, 'uCloudOn'), st.clouds); gl.uniform1f(U(S, 'uCloudCov'), st.cov); gl.uniform3fv(U(S, 'uCloudLit'), st.cloudLit); gl.uniform3fv(U(S, 'uCloudDark'), st.cloudDark);
+    gl.uniform3fv(U(S, 'uEyeW'), m ? m.eye : [0, 0, 0]); gl.uniform1f(U(S, 'uCloudY'), 196);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuf);
-    gl.enableVertexAttribArray(this.loc.aP);
-    gl.vertexAttribPointer(this.loc.aP, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(L.aP);
+    gl.vertexAttribPointer(L.aP, 2, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.disableVertexAttribArray(this.loc.aP);
-    if (!this.vol && !this.fp) return;
+    gl.disableVertexAttribArray(L.aP);
+    if (!m) return;
 
-    var m = this.matrices(), L = this.loc, vol = this.vol, fp = this.fp, self = this;
-    this.vp = m.vp; this.eye = m.eye;
-    gl.useProgram(this.prog);
+    // ---- 3) 地形 ----
+    var vol = this.vol;
+    gl.useProgram(P);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.disable(gl.CULL_FACE);
     gl.uniformMatrix4fv(L.uVP, false, m.vp);
     gl.uniform3fv(L.uEye, m.eye);
-    gl.uniform3fv(L.uFog, fp && fp.skyFog && !fp.fogColor ? fp.skyFog : low);
+    skyUniforms(P); gl.uniform1f(U(P, 'uSat'), st.sat); gl.uniform1f(U(P, 'uExpo'), st.expo);
+    gl.uniform3fv(L.uFog, st.fog);
+    gl.uniform1f(U(P, 'uFogSky'), st.fogSky); gl.uniform1f(U(P, 'uHaze'), st.haze);
     if (fp) gl.uniform2f(L.uFogR, fp.fogNear, fp.fogFar);
     else gl.uniform2f(L.uFogR, this.dist * 0.95, this.dist * 2.6 + vol.size);
     gl.uniform1f(L.uScale, 1);
+    gl.uniform3fv(U(P, 'uSunDir'), st.lightDir || st.sunDir); gl.uniform3fv(U(P, 'uSunCol'), st.sunCol); gl.uniform1f(U(P, 'uAmbK'), st.ambK);
+    gl.uniform1f(U(P, 'uTime'), now); gl.uniform1f(U(P, 'uCloudSh'), st.clouds); gl.uniform1f(U(P, 'uCloudCovV'), st.cov); gl.uniform1f(U(P, 'uCloudYV'), 196); gl.uniform1f(U(P, 'uWind'), st.wind); gl.uniform1f(U(P, 'uSunShadeK'), useShadow ? st.shadeK : 0);
+    gl.uniform1f(U(P, 'uShadowOn'), useShadow ? 1 : 0);
+    gl.uniformMatrix4fv(U(P, 'uLightVP'), false, lightVP || new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, useShadow ? this.shadow.tex : this.atlasTex); gl.uniform1i(U(P, 'uShadow'), 1);
+    if (useShadow) gl.uniform1f(U(P, 'uShadowTx'), 1 / this.shadow.size);
+    gl.uniform1f(U(P, 'uWaterPass'), 0); gl.uniform1f(U(P, 'uDebug'), WG.GFX.debug ? 1 : 0);
     function origin(p) {
       if (p.origin) gl.uniform3f(L.uOrigin, p.origin[0], p.origin[1], p.origin[2]);
       else gl.uniform3f(L.uOrigin, vol.x0, vol.yMin, vol.z0);
     }
-    var parts = this.cull ? this.parts.filter(function (p) { return self.cull(p, m.eye); }) : this.parts;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.atlasTex); gl.uniform1i(L.uAtlas, 0);
     gl.enableVertexAttribArray(L.aPos); gl.enableVertexAttribArray(L.aCol); gl.enableVertexAttribArray(L.aUV); gl.enableVertexAttribArray(L.aLt);
-    gl.uniform1f(L.uSkyDark, fp && fp.skyDark || 0); gl.uniform1f(L.uAmb, fp ? this.ambient || 0 : 0);
-    gl.uniform3fv(L.uSkyTint, fp && fp.skyTint || [1, 1, 1]);
-    if (fp && fp.celestial) this.drawCelestial(fp, m.eye);
+    gl.uniform1f(L.uSkyDark, st.skyDark); gl.uniform1f(L.uAmb, fp ? this.ambient || 0 : 0);
+    gl.uniform3fv(L.uSkyTint, st.tint);
     function draw(o) {
       gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.vertexAttribPointer(L.aPos, 4, gl.SHORT, false, 0, 0);
       gl.bindBuffer(gl.ARRAY_BUFFER, o.col); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
@@ -756,62 +1117,13 @@
         gl.drawArrays(gl.TRIANGLES, 0, d.count);
       });
     }
+    // ---- 4) 水と色付きガラス（半透明） ----
     gl.depthMask(false);
-    gl.uniform1f(L.uAlpha, 0.8);
+    gl.uniform1f(L.uAlpha, 0.8); gl.uniform1f(U(P, 'uWaterPass'), 1);
     parts.forEach(function (p) { if (p.wa) { origin(p); draw(p.wa); } });
+    gl.uniform1f(U(P, 'uWaterPass'), 0);
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.disableVertexAttribArray(L.aPos); gl.disableVertexAttribArray(L.aCol); gl.disableVertexAttribArray(L.aUV); gl.disableVertexAttribArray(L.aLt);
-  };
-
-  // 太陽・月・星（空の遠くに、カメラを中心に描く。地形より先に、奥行きを使わずに描く）
-  var STARS = null;
-  View3D.prototype.drawCelestial = function (fp, eye) {
-    var gl = this.gl, L = this.loc, c = fp.celestial, D = fp.far * 0.7, db = this.dynBuf;
-    if (!STARS) {
-      STARS = [];
-      for (var i = 0; i < 500; i++) {
-        var u = WG.rnd(1, i, 0, 0, 501) * 2 - 1, t = WG.rnd(1, i, 0, 0, 502) * Math.PI * 2, r = Math.sqrt(1 - u * u);
-        STARS.push([r * Math.cos(t), u, r * Math.sin(t), 0.15 + WG.rnd(1, i, 0, 0, 503) * 0.35]);
-      }
-    }
-    var pos = [], col = [], uv = [], lt = [];
-    function quad(dir, size, rgb) {
-      // dir に垂直な 2 方向
-      var ax = Math.abs(dir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-      var ux = dir[1] * ax[2] - dir[2] * ax[1], uy = dir[2] * ax[0] - dir[0] * ax[2], uz = dir[0] * ax[1] - dir[1] * ax[0], ul = Math.hypot(ux, uy, uz);
-      ux /= ul; uy /= ul; uz /= ul;
-      var vx = dir[1] * uz - dir[2] * uy, vy = dir[2] * ux - dir[0] * uz, vz = dir[0] * uy - dir[1] * ux;
-      var cx = eye[0] + dir[0] * D, cy = eye[1] + dir[1] * D, cz = eye[2] + dir[2] * D;
-      [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]].forEach(function (q) {
-        pos.push((cx + (ux * q[0] + vx * q[1]) * size) * 16, (cy + (uy * q[0] + vy * q[1]) * size) * 16, (cz + (uz * q[0] + vz * q[1]) * size) * 16, 0);
-        col.push(rgb[0] >> 1, rgb[1] >> 1, rgb[2] >> 1, 255); uv.push(8, 8, 0, 0); lt.push(255, 0, 0, 0);
-      });
-    }
-    function rot(v, a) { var ca = Math.cos(a), sa = Math.sin(a); return [v[0] * ca - v[1] * sa, v[0] * sa + v[1] * ca, v[2]]; }
-    var batches = [];
-    if (c.stars > 0.01) {
-      STARS.forEach(function (st) { var d = rot(st, c.angle); if (d[1] > -0.1) quad(d, st[3] * D / 300, [230, 232, 240]); });
-      batches.push([pos, col, uv, lt, c.stars]);
-      pos = []; col = []; uv = []; lt = [];
-    }
-    var sun = rot([0, 1, 0], c.angle), moon = [-sun[0], -sun[1], -sun[2]];
-    quad(sun, D * 0.06, [250, 236, 186]);
-    quad(moon, D * 0.045, [214, 220, 228]);
-    batches.push([pos, col, uv, lt, 1]);
-    gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
-    gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);   // 画面の不透明さは変えない（下のページの色が透けないように）
-    gl.uniform2f(L.uFogR, 1e7, 2e7);
-    gl.uniform3f(L.uOrigin, 0, 0, 0); gl.uniform1f(L.uScale, 1);
-    batches.forEach(function (bt) {
-      gl.uniform1f(L.uAlpha, bt[4]);
-      gl.bindBuffer(gl.ARRAY_BUFFER, db.pos); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bt[0]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aPos, 4, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, db.col); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bt[1]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aCol, 4, gl.UNSIGNED_BYTE, true, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, db.uv); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bt[2]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aUV, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, db.lt); gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(bt[3]), gl.DYNAMIC_DRAW); gl.vertexAttribPointer(L.aLt, 4, gl.UNSIGNED_BYTE, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, bt[0].length / 4);
-    });
-    gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.DEPTH_TEST);
-    gl.uniform2f(L.uFogR, fp.fogNear, fp.fogFar);
   };
 
   // 画面上の点（CSS ピクセル）の先にあるブロックを探す

@@ -22,10 +22,16 @@
 
   // 近い順に並べた、読み込むチャンクの相対位置
   var OFFSETS = [];
-  for (var dz = -RADIUS; dz <= RADIUS; dz++) for (var dx = -RADIUS; dx <= RADIUS; dx++) {
-    if (dx * dx + dz * dz <= RADIUS * RADIUS + RADIUS) OFFSETS.push([dx, dz, dx * dx + dz * dz]);
+  function makeOffsets() {
+    OFFSETS = [];
+    for (var dz = -RADIUS; dz <= RADIUS; dz++) for (var dx = -RADIUS; dx <= RADIUS; dx++) {
+      if (dx * dx + dz * dz <= RADIUS * RADIUS + RADIUS) OFFSETS.push([dx, dz, dx * dx + dz * dz]);
+    }
+    OFFSETS.sort(function (a, b) { return a[2] - b[2]; });
   }
-  OFFSETS.sort(function (a, b) { return a[2] - b[2]; });
+  makeOffsets();
+  // 描画距離を変える（横の欄の「画質」から。js/graphics.js）
+  WG.setWalkRadius = function (r) { RADIUS = Math.max(4, Math.min(16, r | 0)); WG.WALK_RADIUS = RADIUS; makeOffsets(); };
 
   // チャンク 1 つ分の体積。周りの 1 列は隣のチャンクから写すので、境目の面と角の暗さが正しくなる。
   function chunkVolume(world, cx, cz) {
@@ -503,10 +509,10 @@
 
     // 目が液体の中にあるときは、色の付いた近い霞にする
     var eyeId = this.world.peekBlock(Math.floor(eye[0]), Math.floor(eye[1]), Math.floor(eye[2]));
-    var far = RADIUS * 16, fp = { eye: eye, yaw: this.yaw, pitch: this.pitch, fov: FOV * this.fovK, far: far + 32, fogNear: far * 0.55, fogFar: far - 4 };
+    var far = RADIUS * 16, fp = { dim: this.world.dimKey, eye: eye, yaw: this.yaw, pitch: this.pitch, fov: FOV * this.fovK, far: far + 32, fogNear: far * 0.62, fogFar: far - 6 };
     // 昼と夜（空の色、空の光の弱まり、太陽・月・星）
     var sky = this.hooks.sky ? this.hooks.sky(dt) : null;
-    if (sky) { fp.skyTop = sky.top; fp.skyLow = sky.low; fp.skyFog = sky.fog; fp.skyDark = sky.dark; fp.skyTint = sky.tint; fp.celestial = sky.celestial; if (sky.fogK) { fp.fogNear *= sky.fogK; fp.fogFar *= 0.55 + 0.45 * sky.fogK; } }
+    if (sky) { fp.skyTop = sky.top; fp.skyLow = sky.low; fp.skyFog = sky.fog; fp.skyDark = sky.dark; fp.skyTint = sky.tint; fp.celestial = sky.celestial; if (sky.fogK) { fp.rain = (1 - sky.fogK) / 0.55; fp.fogNear *= sky.fogK; fp.fogFar *= 0.55 + 0.45 * sky.fogK; } }
     this.view.ambient = this.nightVision ? 0.9 : WG.AMBIENT[this.world.dimKey] || 0;   // 暗視：暗い所もよく見える
     if (WG.isWater(eyeId)) { fp.fogColor = [0.12, 0.21, 0.42]; fp.fogNear = 0; fp.fogFar = 16; }
     else if (WG.isLava(eyeId)) { fp.fogColor = [0.62, 0.22, 0.05]; fp.fogNear = 0; fp.fogFar = 2.5; }
